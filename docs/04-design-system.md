@@ -25,7 +25,7 @@ Assets: локальный variable TTF [Google Fonts Inter](https://github.com/
 
 Visual min-height кнопок 44/36dp и углы 8dp сохранены внутри области касания ≥48dp. Высоты растут с текстом, длинные подписи переносятся. Поля с дополнительным action могут быть выше 44dp для доступного hit target. Avatar с инициалами также растёт при большом шрифте. Bottom icons сохраняют исходные bounds внутри 24dp слота. Скругления и disabled/status alpha централизованы; точная визуальная приёмка расширенных состояний — H1.
 
-Оболочка владеет IME padding один раз, top/bottom bars — своими system insets. NavDisplay потребляет переданный Scaffold padding. Сохранение entry owners скрытых стеков не менялось; добавлены только GalleryKey и вход/Back. Визуальные guest/auth примеры не реализуют вход.
+Оболочка применяет и потребляет горизонтальные `safeDrawing` insets вокруг всего Scaffold: верхняя/нижняя панели и содержимое защищены от боковой navigation bar и выреза при любом повороте. TopBar по умолчанию учитывает `safeDrawing` сверху и по горизонтали; внутри оболочки уже потреблённый горизонтальный отступ не повторяется. BottomBar применяет оставшиеся navigation insets. IME padding остаётся один раз у оболочки, NavDisplay потребляет переданный Scaffold padding. Это исправляет P2 из ревью `a263c21`; red/green и матрица поворотов — в [отчёте T03](17-t03-validation.md). Поведение потребления соответствует [Compose window insets](https://developer.android.com/develop/ui/compose/system/insets-ui#inset-consumption). Сохранение entry owners скрытых стеков не менялось; добавлены только GalleryKey и вход/Back. Визуальные guest/auth примеры не реализуют вход.
 
 ## Цвета
 

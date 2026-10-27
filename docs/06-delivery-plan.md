@@ -69,7 +69,7 @@ flowchart LR
 
 **Зависимости:** T01. **Владение:** `core/designsystem`, previews, навигационные визуальные компоненты без бизнес-логики.
 
-**Статус 27 октября: READY_FOR_HUMAN.** Токены/Inter, базовые компоненты/состояния, векторные glyph и общие панели реализованы; галерея из «Билеты → Открыть UI-кит», также поверх demo-счётчика. APK `0.3.0-t03-demo`, code 2. Итоговый assemble/lint (0 errors / 6 version notices), 25 unit, 5 device на API 36.1 и demo isolation прошли. Figma прочитана частично до нового Starter limit; точная визуальная H1/TalkBack/вся матрица размеров ещё ожидаются. Источники, команды, APK SHA-256 и checklist — [17-t03-validation.md](17-t03-validation.md). Версии стека и T02-контракты не менялись; следующий этап после H1 — T04 и соответствующая часть T02.
+**Статус 27 октября: READY_FOR_HUMAN.** Токены/Inter, базовые компоненты/состояния, векторные glyph и общие панели реализованы; галерея из «Билеты → Открыть UI-кит», также поверх demo-счётчика. Текущий APK `0.3.1-t03-demo`, code 3: исправлен P2 ревью `a263c21` — перекрытие профиля боковой системной панелью. Для исправления прошли assemble/lint (0 errors / 6 version notices), 6 app unit, demo isolation и все 6 device-тестов API 33 с тремя кнопками; регрессия поворотов отдельно прошла с жестами. Исходная T03 прошла 25 unit и 5 device на API 36.1. Figma прочитана частично до нового Starter limit; точная визуальная H1/TalkBack/вся матрица размеров ещё ожидаются. Источники, команды, APK SHA-256, red/green и checklist — [17-t03-validation.md](17-t03-validation.md). Версии стека и T02-контракты не менялись; следующий этап после H1 — T04 и соответствующая часть T02.
 
 **Вход:** `04-design-system.md`, блок 06 Figma. Восстановить визуальную проверку панелей при доступности Figma; при лимите дать человеку прямые ссылки.
 
@@ -206,7 +206,7 @@ Remaining defects and next task:
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
 | T02 | IN_PROGRESS; T02.1 завершена, 27 октября 2026 | Модели/access/validation + общий in-memory fake для event/guest submit/tickets, demo DI; 24 unit-теста и assemble/lint/isolation прошли. `16-t02-domain-fake.md`. Persistence/прочие команды по следующим фичам |
-| T03 | READY_FOR_HUMAN, 27 октября 2026 | UI-кит/Inter/галерея/общая оболочка, APK 0.3.0-t03-demo; 25 unit/5 device/lint/isolation, `17-t03-validation.md`; H1 ожидается |
+| T03 | READY_FOR_HUMAN, 27 октября 2026 | UI-кит/Inter/галерея/оболочка; P2 a263c21 исправлен, APK 0.3.1-t03-demo. Исправление: 6 app unit/6 device API 33 (три кнопки), повороты с жестами/lint/isolation. Исходная T03: 25 unit/5 device API 36.1; `17-t03-validation.md`; H1 ожидается |
 | T04–T09 | TODO; API не блокирует demo | Продуктовых экранов нет; следующая T04 после H1 |
 | H1–H4 | Не пройдены человеком | Для H1 подготовлены APK T03 и checklist; остальные гейты относятся к следующим этапам |
 | T10 | Будущий этап | API отсутствует по запросу пользователя |

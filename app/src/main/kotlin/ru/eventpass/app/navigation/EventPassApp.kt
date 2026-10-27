@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -74,7 +78,8 @@ fun EventPassApp(linkRequest: LinkRequest?, onLinkConsumed: () -> Unit) {
         navigation.back()
     }
     Scaffold(
-        modifier = Modifier.imePadding(),
+        // Protect every slot from side bars/cutouts; child bars consume only the remaining insets.
+        modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).imePadding(),
         contentWindowInsets = WindowInsets(0),
         topBar = {
             val nested = navigation.currentStack.size > 1

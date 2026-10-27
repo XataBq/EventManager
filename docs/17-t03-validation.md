@@ -2,12 +2,46 @@
 
 Дата: 27 октября 2026. Статус T03 — **READY_FOR_HUMAN**. Ручная приёмка **H1 ожидается**; агент не отмечает её пройденной. T01 также остаётся READY_FOR_HUMAN, T02 — IN_PROGRESS, продуктовые экраны T04/T05 не реализованы.
 
+## Исправление P2 после ревью a263c21
+
+Текущая сборка для повторной H1: **[app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk)**, `0.3.1-t03-demo`, versionCode `3`, 32170659 байт. SHA-256: `cb6d2bf9247e11c7a54c7a37eb08135fadd47bb995df79b67e47af9b06f0115b`. ApplicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37; aapt metadata и `apksigner verify` проверены. Библиотеки, toolchain и domain/fake не менялись.
+
+Подтверждённый дефект из пользовательского отчёта: в landscape с трёхкнопочной навигацией профиль оказывался под боковой системной панелью. Shell теперь применяет/потребляет горизонтальные `WindowInsets.safeDrawing` вокруг всех слотов Scaffold; TopBar по умолчанию использует safeDrawing сверху и по горизонтали. Дочерние панели получают только непотреблённую часть: нет второго горизонтального отступа, вертикальное владение и единственный IME padding сохранены. Использованы динамические insets без привязки к модели/ширине панели; основание — [официальная документация Compose о потреблении insets](https://developer.android.com/develop/ui/compose/system/insets-ui#inset-consumption).
+
+Добавлен `WindowInsetsRegressionTest`: portrait, landscape и reverse landscape, фактические bounds кнопки и содержимого внутри текущих systemBars/displayCutout, затем экранное нажатие через `UiAutomation.injectInputEvent` и ожидание открытия профиля. Нажатие проходит через систему и обнаруживает перехват системной панелью.
+
+| Проверка исправления | Фактический результат |
+|---|---|
+| Red на исходном APK a263c21 | Портретное нажатие прошло; landscape упал на правой границе: кнопка x=2232…2358 px, безопасный правый край 2274 px при right inset 126 px |
+| Assemble / lint / isolation | BUILD SUCCESSFUL, lint 0 ошибок / 6 прежних version notices, demo isolation прошла |
+| App unit | 6/6, без ошибок/пропусков: ViewModel 2, navigation state 4; domain/fake/platform повторно не запускались |
+| Все device-тесты, API 33 / три кнопки | 6/6, без ошибок/пропусков: DI/очистка entry/navigation/lifecycle/gallery и новая регрессия insets |
+| Новая регрессия, API 33 / жесты | 1/1, все три ориентации, реальные экранные нажатия; это тот же тест в другом режиме навигации |
+| Метаданные / подпись APK | versionCode 3, versionName 0.3.1-t03-demo, SDK 28/37; apksigner verify успешен |
+| Адресный runtime-снимок | Три кнопки, landscape: профиль вне боковой панели; обычный adb screen tap открыл профиль |
+| H1 / повторное независимое ревью | H1 ожидается; полное ревью повторно не запускалось, CODE_REVIEW.md сохранён |
+
+Среда проверки: отдельный служебный `EventPass_Insets_API33`, профиль Pixel 7, Android 13/API 33, Google APIs Play Store x86_64, 1080×2400/420dpi, естественный вырез экрана. AVD создан в `.gradle/t03-insets-avds`; пользовательский Pixel_7 и его настройки не менялись. Для исправленной landscape-кнопки x=2106…2232 px при безопасном диапазоне x=136…2274; reverse landscape x=2096…2222 при диапазоне x=126…2264. Bounds содержимого совпадают с этими горизонтальными безопасными границами, без повторного padding. С жестами вместо фиксированного бокового отступа учитывался реальный вырез слева/справа.
+
+Команды исправления, PowerShell из корня проекта, JBR из Quail 2026.1.2; полный device-прогон выполнен после включения трёхкнопочной навигации на этом служебном AVD, второй — после включения жестовой:
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
+$env:ANDROID_SERIAL = 'emulator-5554'
+.\gradlew.bat :app:assembleDemoDebug :app:lintDemoDebug :app:testDemoDebugUnitTest :app:verifyDemoIsolation :app:connectedDemoDebugAndroidTest --offline --console=plain --max-workers=2
+.\gradlew.bat :app:connectedDemoDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=ru.eventpass.app.WindowInsetsRegressionTest' --offline --console=plain --max-workers=2
+```
+
+Локальные доказательства (игнорируются Git): `.gradle/t03-insets-red-device.log`, `.gradle/t03-insets-threebutton.log`, `.gradle/t03-insets-gesture.log`; сохранённые XML/logcat обоих режимов — `.gradle/t03-insets-evidence/threebutton` и `gesture`. Стандартный connected report после последнего прогона содержит только отфильтрованный тест. Снимки: [исправленная оболочка](../.gradle/t03-insets-landscape-fixed.png), [профиль после экранного нажатия](../.gradle/t03-insets-profile-tap.png). Это адресная техническая проверка P2; вся визуальная матрица H1, клавиатура во всех ориентациях, TalkBack и физическое устройство остаются для человека.
+
+Ниже сохранены исходные результаты T03 до исправления P2. Текущие APK и результаты повторной проверки указаны выше.
+
 ## Что изменилось
 
 - `core:designsystem`: semantic colors, размеры/отступы, shapes, Inter 400/500/600/700, Material typography; тёмная тема без dynamic color.
 - Кнопки Primary/Secondary/Danger/Text с enabled/disabled/loading/compact; поля, пароль с видимостью, поиск, checkbox/switch, option card и tabs со счётчиками; статусы, result marks, avatar, key-value, metric/section; empty/error/inline error и обычный/destructive confirm dialog.
 - TopBar Guest/Authenticated/Nested и BottomBar с тремя установленными вкладками и настоящими векторными иконками. Области касания ≥48dp, визуальные min-height кнопок 44/36dp, текст может увеличивать высоту. Аватар растёт с крупными инициалами.
-- Общие панели встроены в существующую оболочку. Insets: Scaffold не добавляет вторые system insets, IME padding применён один раз, NavDisplay потребляет inner padding; собственные status/navigation insets у панелей. Светлые системные значки заданы для тёмного UI независимо от системной темы.
+- Общие панели встроены в существующую оболочку. Исходное распределение insets (status/navigation у панелей) оказалось недостаточным для landscape; исправление описано выше. IME padding применён один раз, NavDisplay потребляет inner padding. Светлые системные значки заданы для тёмного UI независимо от системной темы.
 - Галерея в `app/src/demo`: семь групп «Основа / Действия / Поля / Выбор / Данные / Состояния / Навигация». Ввод/поиск/видимость пароля, checked/selected/tab, счётчик нажатий и диалоги интерактивны; loading/disabled/error воспроизводимы. Примеры не вызывают продуктовые репозитории и не обещают бизнес-успех.
 - `GalleryKey` добавлен в прежнюю Navigation 3 схему. Вход поверх demo-счётчика сохраняет его entry/owner; Back возвращает туда. Повторный вход не создаёт дубликат, переключение табов не удаляет скрытых owners. Повтор demo link из галереи возвращает существующий demo-entry.
 - Добавлены previews кнопок/полей/выбора/статусов: 360/390dp, fontScale 1.3 и 2.0. Preview-функции компилируются; массовый screenshot regression не создавался.
@@ -26,9 +60,9 @@ Figma session `2b5e9949-8b3a-424a-9853-52e3741a9e01`, только чтение.
 
 Inter: [официальный Google Fonts источник](https://github.com/google/fonts/tree/main/ofl/inter), SIL OFL 1.1, локальный variable TTF 876576 байт. SHA-256 `29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031`. Проверены cmap кириллицы и fvar оси opsz 14–32 / wght 100–900. Font declarations используют wght 400/500/600/700; сетевой загрузки на запуске нет. Новые Material glyph — Apache 2.0, Figma glyph остаются предоставленным проектным источником. SVG/viewBox/paths сохранены локально; rect/circle переведены в эквивалентные VectorDrawable paths, stroke/alpha сохранены.
 
-## Сборка и команды
+## Исходная сборка T03 и команды
 
-Сборка: `0.3.0-t03-demo`, versionCode `2`, applicationId `ru.eventpass.android.demo`, namespace `ru.eventpass.app`, minSdk 28, compile/target 37. APK: [app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk). Demo-счётчик использует прежний `t01-v1`; product fake — `t02-v1`; галерея независима от seed/аккаунта.
+Исходная сборка `a263c21` до исправления P2: `0.3.0-t03-demo`, versionCode `2`, applicationId `ru.eventpass.android.demo`, namespace `ru.eventpass.app`, minSdk 28, compile/target 37. Сохранённый локальный APK для red-проверки: `.gradle/t03-insets-before/app.apk`; обычный output APK теперь содержит версию 0.3.1. Demo-счётчик использует прежний `t01-v1`; product fake — `t02-v1`; галерея независима от seed/аккаунта.
 
 APK 32658438 байт, SHA-256: `7912b8c741a3b9f8b88704604a5ded3e112acbf4c1b280a5fbb3864499172601`. aapt metadata и debug-подпись v2 проверены, apksigner verify успешен.
 
@@ -70,7 +104,7 @@ $env:ANDROID_SERIAL = 'emulator-5554'
 
 ## H1 — чек-лист для пользователя
 
-Каждая строка ниже: **не проверено человеком**. Записать устройство/Android, build `0.3.0-t03-demo`, SHA-256 APK, результат/дефект.
+Каждая строка ниже: **ожидается подтверждение человеком на новой сборке**. Записать устройство/Android, build `0.3.1-t03-demo`, SHA-256 APK, результат/дефект.
 
 | Проверка | Действия и ожидаемый результат |
 |---|---|
@@ -82,7 +116,7 @@ $env:ANDROID_SERIAL = 'emulator-5554'
 | Состояния | Empty, retry, inline error, обычный/destructive диалог. Отмена ничего не меняет, подтверждение влияет только на демонстрационный счётчик |
 | Оболочка | Сверить 35:480/35:437: реальные glyph, три таба, top variants, Back. Счётчик под галереей сохраняется после tab switch/recreation и возврата |
 | Размеры | 360, 390 и 412dp, fontScale 1.0/1.3; критические кнопки, поля, диалоги и bottom bar дополнительно 2.0. Нет обрезанных действий/текста и перекрывающихся touch targets |
-| Системные панели | Светлые значки на тёмной теме, корректные status/nav/gesture insets, клавиатура/Back на реальном устройстве |
+| Системные панели / повтор P2 | В портретной и обеих альбомных ориентациях, сначала с тремя системными кнопками, затем с жестами, нажать верхний профиль: открывается «Профиль». Top/bottom actions и содержимое не заходят под боковую панель/вырез, нет второго бокового отступа. Затем в «Поля» открыть клавиатуру, прокрутить к полям и закрытию, проверить Back и отсутствие двойного нижнего отступа; светлые системные значки читаются |
 | TalkBack | Порядок фокуса, подписи действий/пароля, checked/selected/disabled/error и loading; статусы читаются текстом. Проверить движение между группами и диалогом |
 
 ## Ограничения и дальнейшая работа
