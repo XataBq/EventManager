@@ -2,13 +2,58 @@
 
 Дата: 27 октября 2026. Статус T03 — **READY_FOR_HUMAN**. Ручная приёмка **H1 ожидается**; агент не отмечает её пройденной. T01 также остаётся READY_FOR_HUMAN, T02 — IN_PROGRESS, продуктовые экраны T04/T05 не реализованы.
 
+## Проверка системного ввода после ревью 4e3d0de
+
+Пользовательское ревью подтвердило исправление исходного P2 и выявило нестабильность gesture-теста на `UiAutomation.injectInputEvent`. Изменён только `WindowInsetsRegressionTest` и документация. Код приложения, библиотеки, версия и APK **0.3.1-t03-demo / code 3** сохранены; SHA-256 по-прежнему `cb6d2bf9247e11c7a54c7a37eb08135fadd47bb995df79b67e47af9b06f0115b`.
+
+Исходный тест воспроизвёл failure в этой сессии: геометрия прошла, последний ACTION_DOWN завершился timeout. Во время ожидания `dumpsys input` показывал **DispatchFrozen=true**, событие в InboundQueue и отвечающее окно приложения с пустыми OutboundQueue/WaitQueue. Следующий исходный прогон прошёл — исходная проверка была нестабильной. Конкретный внутренний источник заморозки WindowManager не установлен; это не новая находка дефекта приложения.
+
+Текущая проверка:
+
+- Поворачивает устройство через публичный `UiAutomation.setRotation` в 0°, 90°, 270°, включая прямой переход между альбомными ориентациями. В `finally` возвращает исходный поворот/режим автоповорота.
+- Ждёт ожидаемой конфигурации, display rotation, фокуса окна и Compose idle, затем ограниченного idle потока accessibility-событий. Дополнительно запрашивает кадр окна и ждёт его передачи в графическую очередь через `registerFrameCommitCallback` на API 29+; для API 28 есть ветка после draw. Эта ветка API 28 в runtime не проверялась. Предел каждого ожидания — 5 или 10 секунд.
+- Вызывает стандартный `input touchscreen -d <displayId> tap <x> <y>` через `UiAutomation.executeShellCommand`, читает завершение команды и закрывает descriptor. Координаты — центр фактической области кнопки, а не значения под конкретный телефон. **Одного завершения команды недостаточно:** тест обязан увидеть экран профиля и выбранную вкладку «Профиль».
+- Сохраняет все проверки safe bounds profile/content по реальным systemBars/displayCutout. Повторных попыток нажатия, перехвата timeout и объявления такого результата успешным нет; семантическое performClick используется только для возврата на «Билеты» между проверками.
+
+Основания: [UiAutomation: rotation / idle / shell command](https://developer.android.com/reference/android/app/UiAutomation), [кадр окна ViewTreeObserver](https://developer.android.com/reference/android/view/ViewTreeObserver#registerFrameCommitCallback(java.lang.Runnable)), [реализация Android 13 input tap через InputManager](https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/android13-release/services/core/java/com/android/server/input/InputShellCommand.java). Frame commit означает передачу кадра в очередь, а не гарантию его показа дисплеем; проверка фактического перехода остаётся обязательной.
+
+| Итоговая проверка текущего теста | Результат |
+|---|---|
+| Gesture, адресная проверка | 4 последовательных прогона по 1/1; в каждом все три ориентации и три открытия профиля |
+| Gesture, полный device-набор | 6/6, failures/errors/skipped = 0, BUILD SUCCESSFUL |
+| Три кнопки, полный device-набор | 6/6, failures/errors/skipped = 0, BUILD SUCCESSFUL |
+| Assemble / lint / isolation | BUILD SUCCESSFUL; lint 0 ошибок / 6 прежних version warnings, без новых исключений/baseline |
+| App unit | Повторно исполнены 6/6 через task option --rerun, failures/errors/skipped = 0; неизменённые domain/fake/platform не запускались |
+| APK | Хеш совпадает с APK 4e3d0de; изменён только test APK |
+| H1 | Ожидается; технические прогоны не заменяют ручную приёмку |
+
+Среда: тот же отдельный `EventPass_Insets_API33`, Pixel 7, API 33, 1080×2400/420dpi, порт `emulator-5582`; пользовательский Pixel_7 не запускался и не менялся. Системные анимации не отключались. На этой итерации нет runtime-проверки API 28/36/37, физического устройства, полной TalkBack/IME/визуальной матрицы H1. Успешные повторы ограничивают наблюдавшуюся нестабильность этой средой, а не доказывают все возможные сочетания платформ.
+
+PowerShell, рабочая папка `F:\ASProjects\MospolytechProject`; перед первым/вторым видом прогона на служебном AVD включалась нужная navigation overlay и ожидалось значение navigation_mode 2 (жесты) / 0 (три кнопки):
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
+$env:ANDROID_SERIAL = 'emulator-5582'
+# Жесты: полный набор; следующая адресная команда исполнена 4 раза на конечном тесте.
+.\gradlew.bat :app:connectedDemoDebugAndroidTest --offline --console=plain --max-workers=2
+.\gradlew.bat :app:connectedDemoDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=ru.eventpass.app.WindowInsetsRegressionTest' --offline --console=plain --max-workers=2
+# После переключения на три кнопки:
+.\gradlew.bat :app:assembleDemoDebug :app:lintDemoDebug :app:testDemoDebugUnitTest --rerun :app:verifyDemoIsolation :app:connectedDemoDebugAndroidTest --offline --console=plain --max-workers=2
+```
+
+Локальные доказательства: `.gradle/t03-input-baseline.log` (failure), `.gradle/t03-input-baseline-2.log` (разовый успех исходного теста), `.gradle/t03-input-dispatcher.txt` (замороженный input), `.gradle/t03-input-system.log`; окончательные адресные прогоны — `.gradle/t03-input-frame-1.log` … `frame-4.log`, полные наборы — `.gradle/t03-input-frame-gesture-suite.log`, `.gradle/t03-input-frame-threebutton-suite.log`. XML/logcat повторов и полных наборов сохранены в `.gradle/t03-input-evidence/frame-2` … `frame-4`, `final-gesture`, `final-threebutton`. Стандартный connected report после последней команды содержит полный набор с тремя кнопками.
+
+Промежуточные варианты с одним ожиданием idle, сменой способа поворота или одним shell tap устойчивости не дали: сохраняются `.gradle/t03-input-gesture-2.log`, `.gradle/t03-input-final-gesture-suite.log`, `.gradle/t03-input-shell-repeat-3.log`. Они не засчитываются как успешные проверки окончательного теста. CODE_REVIEW.md сохранён без изменений; новое полное ревью не запускалось.
+
+Ниже — история исправления P2 и первоначальной реализации T03; их отдельные успешные прогоны не отменяют последующий независимый failure, разобранный выше.
+
 ## Исправление P2 после ревью a263c21
 
 Текущая сборка для повторной H1: **[app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk)**, `0.3.1-t03-demo`, versionCode `3`, 32170659 байт. SHA-256: `cb6d2bf9247e11c7a54c7a37eb08135fadd47bb995df79b67e47af9b06f0115b`. ApplicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37; aapt metadata и `apksigner verify` проверены. Библиотеки, toolchain и domain/fake не менялись.
 
 Подтверждённый дефект из пользовательского отчёта: в landscape с трёхкнопочной навигацией профиль оказывался под боковой системной панелью. Shell теперь применяет/потребляет горизонтальные `WindowInsets.safeDrawing` вокруг всех слотов Scaffold; TopBar по умолчанию использует safeDrawing сверху и по горизонтали. Дочерние панели получают только непотреблённую часть: нет второго горизонтального отступа, вертикальное владение и единственный IME padding сохранены. Использованы динамические insets без привязки к модели/ширине панели; основание — [официальная документация Compose о потреблении insets](https://developer.android.com/develop/ui/compose/system/insets-ui#inset-consumption).
 
-Добавлен `WindowInsetsRegressionTest`: portrait, landscape и reverse landscape, фактические bounds кнопки и содержимого внутри текущих systemBars/displayCutout, затем экранное нажатие через `UiAutomation.injectInputEvent` и ожидание открытия профиля. Нажатие проходит через систему и обнаруживает перехват системной панелью.
+В `4e3d0de` добавлен `WindowInsetsRegressionTest`: portrait, landscape и reverse landscape, фактические bounds кнопки и содержимого внутри текущих systemBars/displayCutout, затем экранное нажатие через `UiAutomation.injectInputEvent` и ожидание открытия профиля. Текущий способ системного нажатия и синхронизации описан выше.
 
 | Проверка исправления | Фактический результат |
 |---|---|
