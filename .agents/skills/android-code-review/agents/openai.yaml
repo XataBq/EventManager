@@ -1,0 +1,6 @@
+interface:
+  display_name: "Android Code Review"
+  short_description: "Ревью Android-кода с отчётом в CODE_REVIEW.md"
+  default_prompt: "Используй $android-code-review для ревью текущих изменений и сохрани отчёт в CODE_REVIEW.md без исправления исходников."
+policy:
+  allow_implicit_invocation: false
