@@ -1,6 +1,8 @@
 # Android-стек и технические источники
 
-Проверено по первичным источникам 2026-10-21. Это **рекомендация для T01**, не уже собранная совместимая конфигурация. При следующем уточнении 2026-10-21 выполнено первичное обследование локальных SDK/JDK/Studio, см. [отчёт о готовности](11-start-without-api.md). Набор версий сборкой ещё не проверен, Android-проект не создан.
+Исходные рекомендации проверены по первичным источникам 2026-10-21. **T01, 27 октября:** создан Android-каркас; зафиксированные версии — в `gradle/libs.versions.toml`, фактическая среда и проверки — в [README](../README.md) и [отчёте T01](15-t01-validation.md). Таблицы кандидатов ниже сохраняют обоснование, но не заменяют каталог.
+
+Для T01 выбраны Quail 2026.1.2/JBR 21.0.10, Gradle 9.5.0/AGP 9.3.3, встроенный Kotlin 2.4.21 и такой же Compose compiler, KSP2 2.3.12, Hilt 2.60.1, BOM 2026.09.00, Navigation 3 1.2.0, Lifecycle 2.11.0, AndroidX Hilt 1.4.0, Activity 1.13.0, SDK 37/min 28. `kotlin-android` не применяется; чистые JVM-модули используют Kotlin JVM plugin. Espresso 3.7.0 указан явно только для androidTest: старая транзитивная 3.5.0 ломается на Android 16.
 
 ## Рекомендуемый набор
 
@@ -57,4 +59,4 @@ Navigation 2 не является ошибкой и не объявляется
 
 ## Что ещё не выбрано
 
-Точный Kotlin/KSP/AGP/BOM patch set; applicationId; production domain; auth/session storage; механизм realtime; формат transport API; конкретный QR encoder; библиотека image loading; формат и источник XLSX/PDF; Crash reporting/analytics. Последние два продукта наблюдаемости не подключать автоматически. Эти решения не мешают описать порты и UI, но не должны быть скрыты под заявлением «стек уже проверен сборкой».
+В T01 выбраны patch set и временные `applicationId=ru.eventpass.android.demo`, `namespace=ru.eventpass.app`. Ещё не выбраны production domain/package/signing; auth/session storage; механизм realtime; формат transport API; QR encoder; image loading; формат и источник XLSX/PDF; crash reporting/analytics. Сервисы наблюдаемости автоматически не подключать. Проверка каркаса не является проверкой будущего API/release.
