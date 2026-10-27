@@ -11,3 +11,6 @@
 *.sh text eol=lf
 gradlew text eol=lf
 *.bat text eol=crlf
+
+# Keep the upstream license text intact, including its original trailing space.
+core/designsystem/src/main/assets/sources/Inter-OFL.txt whitespace=-blank-at-eol

@@ -10,6 +10,11 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
@@ -64,6 +69,36 @@ class NavigationSmokeTest {
             // Restore it only for test teardown after exercising the real onNewIntent path.
             InstrumentationRegistry.getInstrumentation().runOnMainSync { activity.intent = launchIntent }
         }
+    }
+
+    @Test fun galleryBackAndTabSwitchKeepTheExistingDemoViewModel() {
+        compose.onNodeWithTag("open-demo").performClick()
+        compose.onNodeWithTag("increment").performClick()
+        compose.onNodeWithTag("open-gallery").performScrollTo().performClick()
+        compose.onNodeWithTag("component-gallery").assertIsDisplayed()
+        compose.onNodeWithTag("tab-Profile").performClick()
+        compose.onNodeWithTag("tab-Tickets").performClick()
+        compose.onNodeWithTag("component-gallery").assertIsDisplayed()
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("component-gallery").assertIsDisplayed()
+        pressSystemBack()
+        compose.onNodeWithTag("demo-count").assertTextEquals("Счётчик: 1")
+    }
+
+    @Test fun galleryControlsExposeCheckedSelectedAndEditableStates() {
+        compose.onNodeWithTag("open-gallery").performClick()
+        compose.onNodeWithText("Выбор").performScrollTo().performClick()
+        compose.onNodeWithTag("gallery-consent").performScrollTo().assertIsOff().performClick().assertIsOn()
+        compose.onNodeWithTag("gallery-switch").performScrollTo().assertIsOn().performClick().assertIsOff()
+        compose.onNodeWithTag("gallery-option-two").performScrollTo().performClick().assertIsSelected()
+        compose.onNodeWithText("Поля").performScrollTo().performClick()
+        compose.onNodeWithTag("gallery-name").performScrollTo().performTextInput("Мария")
+        compose.onNodeWithTag("gallery-name").assertTextEquals("Мария")
+        compose.onNodeWithContentDescription("Показать пароль").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Скрыть пароль").assertIsDisplayed()
+        // Finish with the keyboard closed; Back remains an app navigation action in the other smoke test.
+        compose.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
     }
 
     private fun sendLink(uri: String) {

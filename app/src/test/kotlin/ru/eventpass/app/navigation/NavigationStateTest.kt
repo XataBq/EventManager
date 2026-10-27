@@ -45,5 +45,22 @@ class NavigationStateTest {
         }
         val route = DemoDetails("demo")
         assertEquals(route, Json.decodeFromString<DemoDetails>(Json.encodeToString(route)))
+        assertEquals(GalleryKey, Json.decodeFromString<GalleryKey>(Json.encodeToString(GalleryKey)))
+    }
+
+    @Test fun galleryDoesNotDuplicateOrReplaceTheUnderlyingDemoEntry() {
+        val state = navigation()
+        state.openDemo("demo")
+        val entry = state.currentStack.last()
+        repeat(3) { state.openGallery() }
+        assertEquals(listOf(RootTab.Tickets, entry, GalleryKey), state.currentStack.toList())
+        state.select(RootTab.Profile)
+        state.select(RootTab.Tickets)
+        assertEquals(GalleryKey, state.currentStack.last())
+        state.back()
+        assertEquals(entry, state.currentStack.last())
+        state.openGallery()
+        state.openDemo("demo")
+        assertEquals(listOf(RootTab.Tickets, entry), state.currentStack.toList())
     }
 }

@@ -1,6 +1,31 @@
 # UI-кит и Android-адаптация
 
-Источник: [06 / UI-кит](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=35-486). В этой задаче извлечены реальные текстовые обозначения токенов, шрифты и размеры части элементов. Полный JSON — в `sources/figma-2026-10-21.json`. Нативные компоненты ещё не реализованы.
+Источник: [06 / UI-кит](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=35-486). Исходный JSON — `sources/figma-2026-10-21.json`. **T03, 27 октября:** реализованы нативные компоненты в `core:designsystem`, локальный Inter и demo-галерея. H1 ожидается; наличие компонентов не означает утверждённое визуальное соответствие. Отчёт — [17-t03-validation.md](17-t03-validation.md).
+
+## Фактический API T03
+
+Галерея открывается из «Билеты → Открыть UI-кит» либо поверх demo-счётчика. Это отдельная запись в существующем стеке, без четвёртой вкладки. Компоненты получают состояние и callbacks, не знают Hilt, репозитории, DTO, NavController и права на мероприятие.
+
+| Файл в core/designsystem | API и назначение |
+|---|---|
+| `EventPassTokens.kt`, `EventPassTheme.kt` | semantic colors, Inter 400/500/600/700, Typography, Shapes, размеры/отступы; только dark, без dynamic color |
+| `EventPassActions.kt` | EventPassButton: ActionStyle Primary/Secondary/Danger/Text, enabled/loading/compact/icon; TextAction |
+| `EventPassFields.kt` | FormField: label/value/placeholder/focus/error/help/enabled, KeyboardOptions/Actions, multiline; PasswordField с локальным переключением видимости; SearchField |
+| `EventPassSelection.kt` | ConsentCheckbox, SettingsSwitch, OptionCard (radio semantics), SegmentedTabs с необязательными счётчиками и горизонтальным скроллом |
+| `EventPassData.kt` | StatusBadge/StatusDot/ResultMark с StatusTone; AvatarInitials, KeyValueRow, MetricCard, EventPassSection |
+| `EventPassStates.kt` | EmptyState, ErrorState с retry callback, InlineError с live region, ConfirmDialog с обычным/destructive/loading состояниями |
+| `EventPassNavigation.kt` | TopBar Guest/Authenticated/Nested; BottomBar ровно Tickets/Events/Profile. System insets включены по умолчанию, в галерейных образцах явно отключены |
+| `EventPassIcons.kt`, `EventPassPreviews.kt` | Локальные VectorDrawable; previews кнопок/полей/выбора/статусов, 360/390dp и fontScale 1.3/2.0 |
+
+`ComponentGallery` находится в `app/src/demo`, содержит семь групп с локальным интерактивным состоянием. Текстовые поля и пароль — временные примеры, без дискового сохранения; переключатели и выбранная группа могут восстанавливаться через rememberSaveable. Примеры не вызывают product repositories и не генерируют QR.
+
+Чтение Figma 27 октября: получен полный high-fidelity context и общий screenshot `35:486`, отдельно контекст/screenshots кнопок `35:157`, форм `35:217`, mobile `35:480`. Повторный запрос статусов `35:285` ограничен Starter; детали сверены с полным контекстом и исходным снимком. Файл Figma не изменялся. Текущие технические детали/focus/disabled/loading/error — Android-адаптация; вручную сравнить их на H1.
+
+Assets: локальный variable TTF [Google Fonts Inter](https://github.com/google/fonts/tree/main/ofl/inter), SIL OFL 1.1; [Material Icons](https://github.com/google/material-design-icons) для дополнительных glyph, Apache 2.0. Tab/header/search/toggle/result/action SVG взяты из предоставленного EventPass Figma и переведены в VectorDrawable с сохранением viewBox, путей, stroke/alpha и естественных размеров. Оригиналы, источники и обе лицензии — [assets/sources](../core/designsystem/src/main/assets/sources/README.md). Font cmap проверен на кириллицу, диапазон wght 100–900; веса подключены как 400/500/600/700.
+
+Visual min-height кнопок 44/36dp и углы 8dp сохранены внутри области касания ≥48dp. Высоты растут с текстом, длинные подписи переносятся. Поля с дополнительным action могут быть выше 44dp для доступного hit target. Avatar с инициалами также растёт при большом шрифте. Bottom icons сохраняют исходные bounds внутри 24dp слота. Скругления и disabled/status alpha централизованы; точная визуальная приёмка расширенных состояний — H1.
+
+Оболочка владеет IME padding один раз, top/bottom bars — своими system insets. NavDisplay потребляет переданный Scaffold padding. Сохранение entry owners скрытых стеков не менялось; добавлены только GalleryKey и вход/Back. Визуальные guest/auth примеры не реализуют вход.
 
 ## Цвета
 

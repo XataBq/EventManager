@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ep_loading">Загрузка</string>
+    <string name="ep_show_password">Показать пароль</string>
+    <string name="ep_hide_password">Скрыть пароль</string>
+    <string name="ep_search">Поиск</string>
+    <string name="ep_back">Назад</string>
+    <string name="ep_profile">Профиль</string>
+    <string name="ep_sign_in">Войти</string>
+    <string name="ep_brand">EventPass</string>
+    <string name="ep_tickets">Билеты</string>
+    <string name="ep_events">Мероприятия</string>
+    <string name="ep_retry">Повторить</string>
+    <string name="ep_cancel">Отмена</string>
+    <string name="ep_preview_action">Длинное название действия для проверки переноса</string>
+    <string name="ep_preview_label">Подпись примера</string>
+    <string name="ep_preview_placeholder">Введите значение</string>
+    <string name="ep_preview_error">Проверьте введённое значение</string>
+    <string name="ep_preview_consent">Длинный текст согласия и описания для проверки увеличенного шрифта</string>
+</resources>

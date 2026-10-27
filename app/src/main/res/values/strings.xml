@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EventPass Demo</string>
-    <string name="demo_badge">EventPass · Демонстрация T01</string>
-    <string name="tickets">Билеты</string>
-    <string name="events">Мероприятия</string>
-    <string name="profile">Профиль</string>
+    <string name="demo_badge">Демонстрация · T03</string>
+    <string name="brand">EventPass</string>
+    <string name="open_gallery">Открыть UI-кит</string>
     <string name="tickets_title">Мои билеты</string>
     <string name="events_title">Мои мероприятия</string>
     <string name="profile_title">Профиль</string>
@@ -20,7 +19,6 @@
     <string name="close_demo">Закрыть экран</string>
     <string name="loading">Загрузка…</string>
     <string name="demo_not_found">Демонстрационные данные не найдены.</string>
-    <string name="back">Назад</string>
     <string name="invalid_link">Неподдерживаемая демонстрационная ссылка.</string>
     <string name="dismiss">Понятно</string>
 </resources>

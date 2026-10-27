@@ -6,35 +6,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.eventpass.app.R
+import ru.eventpass.core.designsystem.*
 
 @Composable
-fun DemoRoute(recordId: String, onClose: () -> Unit) {
+fun DemoRoute(recordId: String, onClose: () -> Unit, onOpenGallery: () -> Unit) {
     val viewModel = hiltViewModel<DemoViewModel, DemoViewModel.Factory>(
         creationCallback = { factory -> factory.create(recordId) },
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    DemoScreen(state, viewModel::increment, onClose)
+    DemoScreen(state, viewModel::increment, onClose, onOpenGallery)
 }
 
 @Composable
-fun DemoScreen(state: DemoUiState, onIncrement: () -> Unit, onClose: () -> Unit) {
+fun DemoScreen(state: DemoUiState, onIncrement: () -> Unit, onClose: () -> Unit, onOpenGallery: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EventPassDimens.page),
+        verticalArrangement = Arrangement.spacedBy(EventPassDimens.large),
     ) {
         Text(stringResource(R.string.demo_title), style = MaterialTheme.typography.headlineSmall)
         Text(stringResource(R.string.demo_description))
@@ -51,13 +49,10 @@ fun DemoScreen(state: DemoUiState, onIncrement: () -> Unit, onClose: () -> Unit)
                     modifier = Modifier.testTag("demo-count"),
                     style = MaterialTheme.typography.headlineMedium,
                 )
-                Button(onClick = onIncrement, modifier = Modifier.testTag("increment")) {
-                    Text(stringResource(R.string.increment))
-                }
+                EventPassButton(stringResource(R.string.increment), onIncrement, Modifier.testTag("increment"))
             }
         }
-        TextButton(onClick = onClose, modifier = Modifier.testTag("close-demo")) {
-            Text(stringResource(R.string.close_demo))
-        }
+        EventPassButton(stringResource(R.string.open_gallery), onOpenGallery, Modifier.testTag("open-gallery"), style = ActionStyle.Secondary)
+        TextAction(stringResource(R.string.close_demo), onClose, Modifier.testTag("close-demo"))
     }
 }

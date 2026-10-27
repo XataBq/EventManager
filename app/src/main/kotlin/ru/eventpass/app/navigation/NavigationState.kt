@@ -17,6 +17,9 @@ enum class RootTab : NavKey { Tickets, Events, Profile }
 @Serializable
 data class DemoDetails(val recordId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
 
+@Serializable
+data object GalleryKey : NavKey
+
 class NavigationState(
     private val selectedTab: MutableState<RootTab>,
     val stacks: Map<RootTab, NavBackStack<NavKey>>,
@@ -34,10 +37,18 @@ class NavigationState(
     fun openDemo(recordId: String) {
         selectedTab.value = RootTab.Tickets
         val stack = currentStack
+        if (stack.lastOrNull() == GalleryKey && (stack.getOrNull(stack.lastIndex - 1) as? DemoDetails)?.recordId == recordId) {
+            stack.removeLastOrNull()
+            return
+        }
         if ((stack.lastOrNull() as? DemoDetails)?.recordId == recordId) return
         while (stack.size > 1) stack.removeLastOrNull()
         // A new visit owns a new SavedStateHandle, including during a previous pop animation.
         stack.add(DemoDetails(recordId))
+    }
+
+    fun openGallery() {
+        if (currentStack.lastOrNull() != GalleryKey) currentStack.add(GalleryKey)
     }
 
     fun back() {

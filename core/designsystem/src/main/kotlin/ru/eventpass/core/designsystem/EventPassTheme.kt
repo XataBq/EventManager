@@ -1,25 +1,30 @@
 package ru.eventpass.core.designsystem
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 
-// Initial tokens from block 06; full components and Inter assets belong to T03.
 private val EventPassColorScheme = darkColorScheme(
-    primary = Color(0xFF8083FF),
-    onPrimary = Color(0xFF0D0096),
-    secondary = Color(0xFFC0C1FF),
-    background = Color(0xFF0F131C),
-    onBackground = Color(0xFFDFE2EF),
-    surface = Color(0xFF181B25),
-    onSurface = Color(0xFFDFE2EF),
-    surfaceVariant = Color(0xFF1C1F29),
-    onSurfaceVariant = Color(0xFFC7C4D7),
-    error = Color(0xFFF87171),
+    primary = EventPassColors.accent,
+    onPrimary = EventPassColors.onAccent,
+    secondary = EventPassColors.accentLight,
+    background = EventPassColors.background,
+    onBackground = EventPassColors.textPrimary,
+    surface = EventPassColors.card,
+    onSurface = EventPassColors.textPrimary,
+    surfaceVariant = EventPassColors.surface,
+    onSurfaceVariant = EventPassColors.textSecondary,
+    outline = EventPassColors.raised,
+    error = EventPassColors.danger,
 )
 
 @Composable
 fun EventPassTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = EventPassColorScheme, content = content)
+    MaterialTheme(
+        colorScheme = EventPassColorScheme,
+        typography = EventPassTypography.material,
+        shapes = Shapes(EventPassShapes.badge, EventPassShapes.control, EventPassShapes.section, EventPassShapes.large, EventPassShapes.large),
+        content = content,
+    )
 }
