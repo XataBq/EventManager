@@ -1,6 +1,6 @@
 # Модель прав и архитектура
 
-Статус: целевая архитектура. В T01 реализованы пять минимальных модулей и один demo-срез Route/Screen/ViewModel/repository/DI; предметные модели и сценарии ниже ещё не реализованы. Проверка каркаса — `15-t01-validation.md`.
+Статус: целевая архитектура. T01 — пять минимальных модулей и demo-срез Route/Screen/ViewModel/repository/DI. В T02.1 добавлены модели/access/validation и общий fake для event/guest submit/tickets по email. Остальные операции, persistence и продуктовые экраны ещё не реализованы. Отчёты: [T01](15-t01-validation.md), [T02.1](16-t02-domain-fake.md).
 
 ## Архитектурный стиль
 

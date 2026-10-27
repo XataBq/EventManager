@@ -10,4 +10,7 @@ kotlin {
     compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
 }
 
-dependencies { api(libs.coroutines.core) }
+dependencies {
+    api(libs.coroutines.core)
+    testImplementation(libs.junit)
+}

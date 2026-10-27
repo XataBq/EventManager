@@ -1,6 +1,6 @@
 # EventPass — Android
 
-Мобильный MVP по Figma. Состояние на **27 октября 2026**: реализован технический каркас T01; продуктовые сценарии T02–T10 ещё не реализованы. Ручная приёмка T01 ожидается.
+Мобильный MVP по Figma. Состояние на **27 октября 2026**: реализованы технический каркас T01 и первая часть T02 (domain/общий fake для мероприятия, гостевой заявки и билетов по email). Продуктовых экранов ещё нет; ручная приёмка T01 ожидается. Границы и проверки T02.1 — в [отчёте](docs/16-t02-domain-fake.md).
 
 Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
 
@@ -28,7 +28,7 @@ PowerShell из корня проекта; Android SDK указывается ч
 ```powershell
 $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
 .\gradlew.bat :app:assembleDemoDebug
-.\gradlew.bat :app:lintDemoDebug :app:testDemoDebugUnitTest :core:platform:testDebugUnitTest :data:fake:test :app:verifyDemoIsolation
+.\gradlew.bat :core:domain:test :data:fake:test :app:lintDemoDebug :app:testDemoDebugUnitTest :core:platform:testDebugUnitTest :app:verifyDemoIsolation
 ```
 
 При повторении наблюдавшегося TLS-сбоя Maven можно добавить `'-Dhttps.protocols=TLSv1.2'`; сертификаты по-прежнему проверяются. Для ограниченной по памяти среды использовался `--max-workers=2`. Wrapper содержит SHA-256 дистрибутива, его JAR также сверен с официальной контрольной суммой.
@@ -59,7 +59,7 @@ $adb = 'C:\Users\XataB\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 
 Разрешена только схема `eventpass-demo`, host `demo`, один ID без query/fragment. `eventpass-demo://demo/missing` показывает отсутствие данных. Production App Links не настраивались.
 
-**Проверено:** assemble, lint (0 ошибок / 6 уведомлений о новых версиях), 7 unit-тестов, 3 device-теста на API 36.1, DI/очистка ViewModel, demo isolation, cold/warm link, recreation и реальная смерть процесса с восстановлением стека/счётчика. Подпись APK и min/target SDK проверены отдельно. SHA-256 APK: `e62e947615e56292abafa1dfc2c1fe742727b8009bb025c7c7a108806497c6f0`.
+**T01:** assemble/lint, 7 unit и 3 device-теста API 36.1, DI/очистка ViewModel, demo isolation, cold/warm link, recreation/process death; подробности и исходный hash APK в отчёте T01. **После T02.1:** assemble/lint (0 ошибок / 6 предупреждений), 24 unit-теста и demo isolation прошли; device-прогоны не повторялись. Интерфейс и версия APK пока остаются оболочкой T01.
 
 Подробности, ограничения и пошаговая ручная проверка — в [отчёте T01](docs/15-t01-validation.md). Статус T01 — **READY_FOR_HUMAN**. Человек проверяет запуск, системный Back, вкладки, читаемость и системные отступы на своём устройстве. Физическое устройство, runtime API 28/37 и H1–H4 не проверены; полная визуальная система и Inter относятся к T03.
 
@@ -92,4 +92,4 @@ $adb = 'C:\Users\XataB\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 
 Документация в репозитории — рабочий источник контекста для будущих агентов. После реализации задачи обновлять её статус, реальные команды проверки и связанные решения. Не превращать предложение в «реализовано» до проверки кодом. Исходный снимок Figma хранится отдельно и не переписывается при изменении решений.
 
-Ответы пользователя 27 октября заменяют часть решений 21 октября. Гостю не создаём аккаунт, но сразу показываем QR и сохраняем данные билета в состоянии текущего экрана/flow для возврата на него. После закрытия flow доступны письмо или отдельная регистрация аккаунта и вход; кабинет показывает билеты на этот email. Ответы анкеты перед входом не сохраняем; телефон optional. Эти сценарии ещё не реализованы. Следующие задачи после технического каркаса — **T02** (первая часть domain/fake) и **T03** (UI-кит).
+Ответы пользователя 27 октября заменяют часть решений 21 октября. Требуемый сценарий: гостю QR сразу без автоаккаунта, saved state flow до закрытия, затем письмо/кабинет; без сохранения анкеты перед входом, телефон optional. Данные и первая часть операций уже реализованы в T02.1, показ QR и Android saved state ещё относятся к T05. Следующие задачи — **T03** (UI-кит), затем T04/T05 и дальнейшее расширение T02 по нужным фичам.
