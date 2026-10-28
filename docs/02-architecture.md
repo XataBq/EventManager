@@ -4,6 +4,8 @@
 
 ## Архитектурный стиль
 
+**T02.2, 28 октября:** перед H1 добавлены AuthRepository/результаты, auth-only snapshot того же общего fake и тестируемые SessionCoordinator/ReturnDestination/scope guards. Auth backend и event/ticket repositories используют общие accounts/session, без global role. Продуктовый UI/Activity wiring T04 ожидает H1; наличие модели не означает включённую защиту текущей технической T03-оболочки. Границы и проверки — [18-t04-validation.md](18-t04-validation.md).
+
 **MVVM:** Compose View → ViewModel с неизменяемым UiState/StateFlow → repository/use case → доменные данные. Обновлённый UiState возвращается в View. Практические соглашения по Route/Screen, событиям, ошибкам и coroutine lifecycle — в [правилах реализации](14-engineering-rules.md). Это один общий шаблон, без обязательного BaseViewModel и use case на каждый метод.
 
 ## Модель предметной области

@@ -55,6 +55,14 @@ class NavigationState(
         if (currentStack.size > 1) currentStack.removeLastOrNull()
         else selectedTab.value = RootTab.Tickets
     }
+
+    /** Host callback for the session coordinator; wired to the shell only after H1. */
+    fun clearPrivateState() {
+        for (tab in RootTab.entries) {
+            stacks.getValue(tab).apply { clear(); add(tab) }
+        }
+        selectedTab.value = RootTab.Tickets
+    }
 }
 
 @Composable

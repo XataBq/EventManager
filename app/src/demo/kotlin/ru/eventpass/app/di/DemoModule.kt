@@ -21,7 +21,11 @@ object DemoModule {
 
     @Provides
     @Singleton
-    fun provideProductEnvironment(): FakeEventPassEnvironment = FakeEventPassEnvironment()
+    fun provideProductEnvironment(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context): FakeEventPassEnvironment =
+        FakeEventPassEnvironment(authStorage = AndroidFakeAuthStorage(context.noBackupFilesDir), authClock = java.time.Clock.systemUTC())
+
+    @Provides
+    fun provideAuthRepository(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.auth.AuthRepository = environment.auth
 
     @Provides
     fun provideEventRepository(environment: FakeEventPassEnvironment): EventRepository = environment.events

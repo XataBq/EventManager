@@ -37,28 +37,22 @@ data class FakeTicketEmail(val email: String, val ticketId: TicketId)
 /** One in-memory demo backend. It never owns the Android guest screen's saved state. */
 class FakeEventPassEnvironment(
     private val clock: Clock = Clock.fixed(FakeFixtures.NOW, ZoneOffset.UTC),
+    authStorage: FakeAuthStorage = VolatileAuthStorage,
+    authPolicy: FakeAuthPolicy = FakeAuthPolicy(),
+    authSecrets: FakeAuthSecrets = RandomAuthSecrets(),
+    beforeAuthOperation: suspend (String) -> Unit = {},
+    private val authClock: Clock = clock,
 ) {
-    private data class State(
-        val accounts: Map<UserId, Account>,
-        val events: Map<EventId, Event>,
-        val registrations: List<Registration>,
-        val tickets: List<Ticket>,
-        val grants: List<ScanGrant>,
-        val sessionUserId: UserId? = null,
-        val outbox: List<FakeTicketEmail> = emptyList(),
-        val policy: RegistrationPolicy = RegistrationPolicy(),
-        val nextSubmissionError: RegistrationError? = null,
-        val nextId: Long = 1,
-        val revision: Long = 0,
-    )
 
     private val lock = Any()
     private val state = MutableStateFlow(seed())
+    private val authBackend = FakeAuthRepository(state, lock, authClock, authStorage, authPolicy, authSecrets, beforeAuthOperation)
+    val auth: ru.eventpass.core.domain.auth.AuthRepository = authBackend
 
     val events: EventRepository = object : EventRepository {
         override fun observePublicEvent(eventId: EventId): Flow<PublicEventResult> = state.map { current ->
             val event = current.events[eventId]
-            val account = current.sessionUserId?.let(current.accounts::get)
+            val account = current.activeAccount(authClock.instant())
             if (event == null ||
                 (event.lifecycle == EventLifecycle.DRAFT &&
                     !(account?.emailVerified == true && account.id == event.ownerId))
@@ -94,7 +88,7 @@ class FakeEventPassEnvironment(
 
     val tickets: TicketRepository = object : TicketRepository {
         override fun observeMyTickets(): Flow<MyTicketsResult> = state.map { current ->
-            val account = current.sessionUserId?.let(current.accounts::get)
+            val account = current.activeAccount(authClock.instant())
             when {
                 account == null -> MyTicketsResult.AuthenticationRequired
                 !account.emailVerified -> MyTicketsResult.EmailVerificationRequired
@@ -113,12 +107,14 @@ class FakeEventPassEnvironment(
 
     inner class ScenarioController internal constructor() {
         val seed: String get() = FakeFixtures.SEED
-        fun reset() = synchronized(lock) { state.value = seed() }
+        fun reset() = authBackend.reset(seed())
         fun signInAs(userId: UserId) = mutate {
             require(userId in it.accounts) { "Unknown demo account" }
-            it.copy(sessionUserId = userId)
+            it.copy(auth = it.auth.copy(session = ru.eventpass.core.domain.auth.Session(
+                java.util.UUID.randomUUID().toString(), it.accounts.getValue(userId), authClock.instant().plusSeconds(1800)),
+                generation = it.auth.generation + 1))
         }
-        fun signOut() = mutate { it.copy(sessionUserId = null) }
+        fun signOut() = mutate { it.copy(auth = it.auth.copy(session = null, generation = it.auth.generation + 1)) }
         fun putAccount(account: Account) = mutate {
             require(it.accounts.values.none { existing ->
                 existing.id != account.id && existing.email == account.email
@@ -134,6 +130,8 @@ class FakeEventPassEnvironment(
         fun setPolicy(policy: RegistrationPolicy) = mutate { it.copy(policy = policy) }
         fun failNextGuestSubmission(error: RegistrationError) = mutate { it.copy(nextSubmissionError = error) }
         fun outbox(): List<FakeTicketEmail> = state.value.outbox.toList()
+        fun authOutbox(): List<FakeAuthMail> = state.value.auth.mail.toList()
+        fun failNextAuth(error: ru.eventpass.core.domain.auth.AuthError) = mutate { it.copy(auth = it.auth.copy(nextError = error)) }
         fun accounts(): List<Account> = state.value.accounts.values.toList()
         fun registrationFor(ticketId: TicketId): Registration? {
             val current = state.value
@@ -190,17 +188,17 @@ class FakeEventPassEnvironment(
         return GuestRegistrationOutcome.Issued(snapshot, contact.email)
     }
 
-    private fun countTickets(current: State, eventId: EventId): Int = current.tickets.count {
+    private fun countTickets(current: FakeProductState, eventId: EventId): Int = current.tickets.count {
         it.snapshot.eventId == eventId && it.status != TicketStatus.CANCELLED
     }
 
-    private fun mutate(transform: (State) -> State) = synchronized(lock) {
+    private fun mutate(transform: (FakeProductState) -> FakeProductState) = synchronized(lock) {
         state.value = transform(state.value)
     }
 
-    private fun seed(): State {
+    private fun seed(): FakeProductState {
         val events = FakeFixtures.events()
-        return State(
+        return FakeProductState(
             accounts = FakeFixtures.accounts().associateBy { it.id },
             events = events.associateBy { it.id },
             registrations = FakeFixtures.registrations(),
@@ -209,3 +207,20 @@ class FakeEventPassEnvironment(
         )
     }
 }
+
+internal data class FakeProductState(
+    val accounts: Map<UserId, Account>,
+    val events: Map<EventId, Event>,
+    val registrations: List<Registration>,
+    val tickets: List<Ticket>,
+    val grants: List<ScanGrant>,
+    val auth: AuthData = AuthData(),
+    val outbox: List<FakeTicketEmail> = emptyList(),
+    val policy: RegistrationPolicy = RegistrationPolicy(),
+    val nextSubmissionError: RegistrationError? = null,
+    val nextId: Long = 1,
+    val revision: Long = 0,
+)
+
+internal fun FakeProductState.activeAccount(now: java.time.Instant): Account? = auth.session
+    ?.takeIf { auth.healthy && now < it.expiresAt }?.let { accounts[it.account.id] }
