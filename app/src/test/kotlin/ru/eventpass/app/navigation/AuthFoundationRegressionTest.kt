@@ -3,6 +3,9 @@ package ru.eventpass.app.navigation
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.Executors
+import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -17,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.TestScope
 import org.junit.Assert.*
 import org.junit.Test
 import ru.eventpass.app.navigation.auth.*
@@ -44,6 +48,9 @@ class AuthFoundationRegressionTest {
         private val tasks = LinkedBlockingQueue<Runnable>()
         override fun dispatch(context: CoroutineContext, block: Runnable) { tasks.put(block) }
         fun next(): Runnable = requireNotNull(tasks.poll(10, TimeUnit.SECONDS)) { "Expected a queued continuation" }
+        fun drainInto(executor: Executor) {
+            while (true) executor.execute(tasks.poll() ?: return)
+        }
     }
     private fun environment(storage: FakeAuthStorage = VolatileAuthStorage, hook: suspend (String) -> Unit = {}) =
         FakeEventPassEnvironment(authStorage = storage, authPolicy = FakeAuthPolicy(passwordIterations = 1_000), beforeAuthOperation = hook)
@@ -99,6 +106,68 @@ class AuthFoundationRegressionTest {
         assertEquals(1, e.scenarios.authOutbox().size)
         val cold = environment(disk)
         assertEquals(AuthResult.Failed(AuthError.EmailUnverified), cold.auth.signIn("cancelled@example.com", AuthSecret("NewDemoPass123!")))
+    }
+
+    @Test fun sessionAcceptanceDoesNotBlockCallerQueueBehindSnapshotWrite() = runTest {
+        acceptanceUnderContention(cancelLogin = false)
+    }
+
+    @Test fun cancellingAcceptanceWaitKeepsCallerQueueResponsiveAndSessionGuest() = runTest {
+        acceptanceUnderContention(cancelLogin = true)
+    }
+
+    private suspend fun TestScope.acceptanceUnderContention(cancelLogin: Boolean) {
+        val disk = BlockingStorage(); val e = environment(disk)
+        e.auth.observeSession().first()
+        val c = SessionCoordinator(e.auth, backgroundScope, {}); runCurrent()
+        val dispatcher = PausingDispatcher()
+        val caller = CoroutineScope(SupervisorJob() + dispatcher)
+        val uiThread = AtomicReference<Thread>()
+        val ui = Executors.newSingleThreadExecutor { task -> Thread(task, "auth-ui-contract").also(uiThread::set) }
+        val login = caller.async { e.auth.signIn("alex@example.com", AuthSecret("DemoPass123!")) }
+        var writer: kotlinx.coroutines.Deferred<AuthResult<EmailChallenge>>? = null
+        try {
+            dispatcher.next().run()
+            val resumeLogin = dispatcher.next() // Login IO is complete; acceptance has not run.
+            disk.blockNext = true
+            writer = async { e.auth.signUp("Other", "contender@example.com", AuthSecret("NewDemoPass123!")) }
+            disk.entered.await() // A different auth operation holds the shared lock in write.
+            val marker = CountDownLatch(1)
+            ui.execute(resumeLogin)
+            ui.execute { marker.countDown() }
+            val responsive = marker.await(2, TimeUnit.SECONDS)
+            assertTrue("Caller queue blocked behind disk IO; state=${uiThread.get().state}", responsive)
+            assertFalse("Acceptance must wait for the writer", login.isCompleted)
+            assertEquals(SessionState.Guest, e.auth.currentSession().state)
+            if (cancelLogin) {
+                login.cancel()
+                ui.execute(dispatcher.next())
+                login.join() // Cancellation completes while the writer is still held.
+                assertTrue(login.isCancelled)
+            }
+            disk.release.countDown()
+            assertTrue(writer.await() is AuthResult.Success)
+            if (!cancelLogin) {
+                ui.execute(dispatcher.next())
+                assertTrue(login.await() is AuthResult.Success)
+            }
+            runCurrent()
+            assertTrue(e.scenarios.accounts().any { it.email == "contender@example.com" })
+            if (cancelLogin) {
+                assertEquals(SessionState.Guest, e.auth.currentSession().state)
+                assertEquals(SessionGate.Login, c.gate.value)
+            } else {
+                assertTrue(e.auth.currentSession().state is SessionState.Authenticated)
+                assertTrue(c.gate.value is SessionGate.Shell)
+            }
+        } finally {
+            disk.release.countDown()
+            writer?.cancelAndJoin()
+            caller.cancel()
+            dispatcher.drainInto(ui)
+            ui.shutdown()
+            check(ui.awaitTermination(5, TimeUnit.SECONDS)) { "Test UI executor did not stop" }
+        }
     }
 
     @Test fun logoutBeforeCallerAcceptsPreparedLoginKeepsGuest() = runTest {

@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Статус: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1 завершена)**, **T03 — READY_FOR_HUMAN**, T04–T09 — **TODO**. Каркас, первая часть domain/fake и UI-кит/галерея собраны и проверены; ручные smoke T01 и H1 ожидаются. Продуктовых экранов ещё нет. Этот документ — план сессий, не команда запускать подагентов. Нумерация фиксирована для передачи контекста; оценки времени не выставлены.
+Статус: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1 и auth-итерация T02.2 завершены)**, **T03 — READY_FOR_HUMAN**, **T04 — IN_PROGRESS (UI ждёт H1)**, T05–T09 — **TODO**. Каркас, первая часть domain/fake, независимая auth-модель и UI-кит/галерея собраны и проверены; ручные smoke T01 и H1 ожидаются. Продуктовых экранов ещё нет. Этот документ — план сессий, не команда запускать подагентов. Нумерация фиксирована для передачи контекста; оценки времени не выставлены.
 
 ## Порядок
 
@@ -65,7 +65,7 @@ flowchart LR
 
 **Авто:** изоляция E-A/E-B/E-C/E-D, grant revoke независимо от ticket, обработка CapacityReached/Closed, повтор check-in, отмена, билеты по email после отдельного создания аккаунта, права и session isolation. **Человек:** отдельная проверка UI не нужна.
 
-**T02.2, 28 октября:** независимая auth-итерация для T04 подготовлена: AuthRepository/типизированные результаты, общий fake, auth snapshot и demo outbox API; session coordinator/модель guards и возврата. 52 unit и 7 device API 33, assemble/lint/isolation прошли. Весь T02 остаётся IN_PROGRESS: полная persistence guest registrations/tickets и остальные команды нужны к T05/H2. См. [18-t04-validation.md](18-t04-validation.md).
+**T02.2, 28 октября:** независимая auth-итерация для T04 подготовлена: AuthRepository/типизированные результаты, общий fake, auth snapshot и demo outbox API; session coordinator/модель guards и возврата. 54 unit и 7 device API 33, assemble/lint/isolation прошли. Весь T02 остаётся IN_PROGRESS: полная persistence guest registrations/tickets и остальные команды нужны к T05/H2. См. [18-t04-validation.md](18-t04-validation.md).
 
 ## T03 — UI-kit и общая оболочка
 
@@ -85,7 +85,7 @@ flowchart LR
 
 **Зависимости:** T02, T03, Q03. **Владение:** `feature/auth`, app navigation, session coordinator.
 
-**Статус 28 октября: IN_PROGRESS.** Исправлены P2 ревью cfc0624: поздняя отмена входа и retry подтверждения; добавлены 6 регрессий. По условию prompt выполнены независимая T02.2 и модель auth-навигации; H1 не подтверждена. APK `0.4.1-t04-foundation-demo`, code 5 сохраняет техническую T03-оболочку/галерею. 52 unit исполнены повторно, 7 device на Pixel 7/API 33 (три кнопки), Hilt/assemble/lint (0 errors / 4 version warnings)/isolation прошли. Остаток после H1: G03–G05/confirm/reset Route–ViewModel–Screen, demo outbox UI, Login startup и подключение session gate к текущим stacks/decorators, foreground/expiry refresh, новые Activity links и auth device smoke. Полной готовности T04 нет; [18-t04-validation.md](18-t04-validation.md).
+**Статус 28 октября: IN_PROGRESS.** Исправлены P2 ревью cfc0624: поздняя отмена входа и retry подтверждения. P2 ревью 055c14b также исправлен: единый coroutine Mutex приостанавливает ожидание общего fake-состояния без блокировки caller; всего 8 auth-регрессий. По условию prompt выполнены независимая T02.2 и модель auth-навигации; H1 не подтверждена. APK `0.4.2-t04-foundation-demo`, code 6 сохраняет техническую T03-оболочку/галерею. 54 unit исполнены повторно, 7 device на Pixel 7/API 33 (три кнопки), Hilt/assemble/lint (0 errors / 4 version warnings)/isolation прошли. Остаток после H1: G03–G05/confirm/reset Route–ViewModel–Screen, demo outbox UI, Login startup и подключение session gate к текущим stacks/decorators, foreground/expiry refresh, новые Activity links и auth device smoke. Полной готовности T04 нет; [18-t04-validation.md](18-t04-validation.md).
 
 **Сделать:** G03/G04/G05, VerifyEmail → ручной Login, ResetPassword email → код → новый пароль, общий shell и guards. Возврат на E хранит только маршрут, не ответы. Без PendingActionStore для анкеты и автозавершения регистрации. Удалять приватный стек после logout/expiry, закрыть кабинет до подтверждения аккаунта.
 

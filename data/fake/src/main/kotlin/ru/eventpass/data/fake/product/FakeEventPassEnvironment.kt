@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import ru.eventpass.core.domain.EventRepository
 import ru.eventpass.core.domain.RegistrationRepository
 import ru.eventpass.core.domain.TicketRepository
@@ -44,7 +46,7 @@ class FakeEventPassEnvironment(
     private val authClock: Clock = clock,
 ) {
 
-    private val lock = Any()
+    private val lock = Mutex()
     private val state = MutableStateFlow(seed())
     private val authBackend = FakeAuthRepository(state, lock, authClock, authStorage, authPolicy, authSecrets, beforeAuthOperation)
     val auth: ru.eventpass.core.domain.auth.AuthRepository = authBackend
@@ -83,7 +85,7 @@ class FakeEventPassEnvironment(
 
     val registrations: RegistrationRepository = object : RegistrationRepository {
         override suspend fun submitGuest(command: GuestRegistrationCommand): GuestRegistrationOutcome =
-            synchronized(lock) { issueGuestTicket(command) }
+            lock.withLock { issueGuestTicket(command) }
     }
 
     val tickets: TicketRepository = object : TicketRepository {
@@ -107,31 +109,31 @@ class FakeEventPassEnvironment(
 
     inner class ScenarioController internal constructor() {
         val seed: String get() = FakeFixtures.SEED
-        fun reset() = authBackend.reset(seed())
-        fun signInAs(userId: UserId) = mutate {
+        suspend fun reset() = authBackend.reset(seed())
+        suspend fun signInAs(userId: UserId) = mutate {
             require(userId in it.accounts) { "Unknown demo account" }
             it.copy(auth = it.auth.copy(session = ru.eventpass.core.domain.auth.Session(
                 java.util.UUID.randomUUID().toString(), it.accounts.getValue(userId), authClock.instant().plusSeconds(1800)),
                 generation = it.auth.generation + 1))
         }
-        fun signOut() = mutate { it.copy(auth = it.auth.copy(session = null, generation = it.auth.generation + 1)) }
-        fun putAccount(account: Account) = mutate {
+        suspend fun signOut() = mutate { it.copy(auth = it.auth.copy(session = null, generation = it.auth.generation + 1)) }
+        suspend fun putAccount(account: Account) = mutate {
             require(it.accounts.values.none { existing ->
                 existing.id != account.id && existing.email == account.email
             }) { "Duplicate demo email" }
             it.copy(accounts = it.accounts + (account.id to account))
         }
-        fun putEvent(event: Event) = mutate { it.copy(events = it.events + (event.id to event)) }
-        fun setGrant(grant: ScanGrant) = mutate {
+        suspend fun putEvent(event: Event) = mutate { it.copy(events = it.events + (event.id to event)) }
+        suspend fun setGrant(grant: ScanGrant) = mutate {
             it.copy(grants = it.grants.filterNot { old ->
                 old.eventId == grant.eventId && old.userId == grant.userId
             } + grant)
         }
-        fun setPolicy(policy: RegistrationPolicy) = mutate { it.copy(policy = policy) }
-        fun failNextGuestSubmission(error: RegistrationError) = mutate { it.copy(nextSubmissionError = error) }
+        suspend fun setPolicy(policy: RegistrationPolicy) = mutate { it.copy(policy = policy) }
+        suspend fun failNextGuestSubmission(error: RegistrationError) = mutate { it.copy(nextSubmissionError = error) }
         fun outbox(): List<FakeTicketEmail> = state.value.outbox.toList()
         fun authOutbox(): List<FakeAuthMail> = state.value.auth.mail.toList()
-        fun failNextAuth(error: ru.eventpass.core.domain.auth.AuthError) = mutate { it.copy(auth = it.auth.copy(nextError = error)) }
+        suspend fun failNextAuth(error: ru.eventpass.core.domain.auth.AuthError) = mutate { it.copy(auth = it.auth.copy(nextError = error)) }
         fun accounts(): List<Account> = state.value.accounts.values.toList()
         fun registrationFor(ticketId: TicketId): Registration? {
             val current = state.value
@@ -192,7 +194,7 @@ class FakeEventPassEnvironment(
         it.snapshot.eventId == eventId && it.status != TicketStatus.CANCELLED
     }
 
-    private fun mutate(transform: (FakeProductState) -> FakeProductState) = synchronized(lock) {
+    private suspend fun mutate(transform: (FakeProductState) -> FakeProductState) = lock.withLock {
         state.value = transform(state.value)
     }
 

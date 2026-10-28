@@ -6,11 +6,13 @@
 
 ## Сборка и запуск demo
 
-**Текущий APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.4.1-t04-foundation-demo**, code 5. SHA-256: `518e3c5b3fcd88bae3c339083e9858c1b802d5b0e38f847438fd504031257f46`. В приложении сохранена прежняя техническая оболочка: **Билеты → Открыть UI-кит**. AuthRepository и общий fake подготовлены, но SignUp/Login/outbox UI и новые auth-ссылки в Activity до H1 не подключены.
+**Текущий APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.4.2-t04-foundation-demo**, code 6. SHA-256: `54c078050e87905d2cea567196249bbf1fbc39c13ea62eb68d3fafe994e43ce0`. В приложении сохранена прежняя техническая оболочка: **Билеты → Открыть UI-кит**. AuthRepository и общий fake подготовлены, но SignUp/Login/outbox UI и новые auth-ссылки в Activity до H1 не подключены.
 
-T02.2: 52 unit-теста повторно исполнены, 7 device-тестов Pixel 7 AVD/API 33 (три кнопки), assemble/Hilt/lint/isolation прошли; lint 0 ошибок / 4 уведомления о версиях. Snapshot аккаунтов/challenges — `noBackupFilesDir/demo-auth-v1.bin`, без сессии и raw секретов; auth outbox пока только в памяти через demo entry point/scenarios. После нового процесса — ручной Login. [Контракты, demo-аккаунты, outbox, ограничения и остаток до H1](docs/18-t04-validation.md).
+T02.2: 54 unit-теста повторно исполнены, 7 device-тестов Pixel 7 AVD/API 33 (три кнопки), assemble/Hilt/lint/isolation прошли; lint 0 ошибок / 4 уведомления о версиях. Snapshot аккаунтов/challenges — `noBackupFilesDir/demo-auth-v1.bin`, без сессии и raw секретов; auth outbox пока только в памяти через demo entry point/scenarios. После нового процесса — ручной Login. [Контракты, demo-аккаунты, outbox, ограничения и остаток до H1](docs/18-t04-validation.md).
 
 После ревью `cfc0624` исправлены оба P2: отмена signIn до принятия сессии не открывает Shell; ошибку/отмену подтверждения можно явно повторить с тем же requestId, с сохранением защиты от параллельного и успешного дубля. Red/green и границы отмены — в отчёте T04.
+
+P2 из ревью `055c14b` также исправлен: все изменения общего fake-состояния защищены единым coroutine Mutex. Ожидание записи другой auth-операции при принятии сессии теперь приостанавливает корутину, освобождая поток вызова. Отмена до принятия по-прежнему оставляет Guest/Login; изменяющие debug/test-методы ScenarioController стали suspend. Две новые регрессии воспроизводят BLOCKED на прежнем коде и проходят после исправления. Настоящий Android ANR этой JVM-проверкой не моделируется.
 
 Ниже — история T03; её прежний hash не относится к текущему output APK.
 
@@ -47,7 +49,7 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
 
 При повторении наблюдавшегося TLS-сбоя Maven можно добавить `'-Dhttps.protocols=TLSv1.2'`; сертификаты по-прежнему проверяются. Для ограниченной по памяти среды использовался `--max-workers=2`. Wrapper содержит SHA-256 дистрибутива, его JAR также сверен с официальной контрольной суммой.
 
-APK: **[app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk)**. Текущая версия `0.4.1-t04-foundation-demo`, applicationId `ru.eventpass.android.demo`, namespace `ru.eventpass.app`, seed счётчика `t01-v1`. Оболочка без входа: **Билеты · Мероприятия · Профиль**, demo-счётчик и галерея. Названия продуктовых вкладок сохранены; продуктовые операции ещё не связаны с UI.
+APK: **[app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk)**. Текущая версия `0.4.2-t04-foundation-demo`, applicationId `ru.eventpass.android.demo`, namespace `ru.eventpass.app`, seed счётчика `t01-v1`. Оболочка без входа: **Билеты · Мероприятия · Профиль**, demo-счётчик и галерея. Названия продуктовых вкладок сохранены; продуктовые операции ещё не связаны с UI.
 
 Счётчик принадлежит Hilt ViewModel записи навигации и хранится в `SavedStateHandle`. Три стека и выбранная вкладка сохраняются отдельно; decorators продолжают владеть скрытыми записями. Back/закрытие удаляет demo-entry; повторное нажатие текущей вкладки возвращает к корню. Повтор одной ссылки не создаёт дубликат. Новый визит имеет отдельный ID записи, чтобы не наследовать состояние закрываемого экрана.
 

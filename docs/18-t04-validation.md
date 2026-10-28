@@ -2,9 +2,34 @@
 
 28 октября 2026. Основание: `docs/prompts/t04-auth-navigation.md`, HEAD до работы `2c035a8`, дополнение CODE_REVIEW.md от 28 октября. H1 в сообщениях и документации не подтверждена. Выполнена разрешённая независимая часть. **T04 — IN_PROGRESS; T03 — READY_FOR_HUMAN; H1/H2 не закрыты.**
 
-## Исправления P2 после ревью cfc0624
+## Исправление P2 после ревью 055c14b — текущая сборка
 
-Текущий [app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.4.1-t04-foundation-demo**, code **5**, 32318182 байта. SHA-256: `518e3c5b3fcd88bae3c339083e9858c1b802d5b0e38f847438fd504031257f46`. ApplicationId/SDK прежние, aapt metadata и debug-подпись v2 проверены. Версии библиотек и snapshot schema 1 не менялись. H1 не подтверждена, T04 остаётся IN_PROGRESS; нового auth UI/Activity wiring нет.
+Текущий [app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.4.2-t04-foundation-demo**, code **6**, **32334566 байт**. SHA-256: `54c078050e87905d2cea567196249bbf1fbc39c13ea62eb68d3fafe994e43ce0`. ApplicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37; aapt metadata и debug-подпись v2 проверены. Toolchain/библиотеки и auth snapshot schema 1 прежние. Seeds: product `t02-v1`, counter `t01-v1`.
+
+В `055c14b` принятие подготовленной сессии на caller захватывало Java-монитор, который другая auth-операция удерживала во время записи snapshot. Новый тест воспроизвёл блокировку потока вызова. Исправление:
+
+- Все мутации общего FakeEventPassEnvironment, включая auth, guest submit и ScenarioController, используют **один coroutine Mutex**. Нет разных механизмов блокировки одного state. Ожидание Mutex приостанавливает корутину и освобождает поток caller для следующей задачи; поведение suspend lock описано в [официальной документации Mutex.lock](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.sync/-mutex/lock.html). Реально проверена версия coroutines **1.10.2** из проекта, без обновления на версию online-документации.
+- Сессия по-прежнему принимается на caller после отменяемого возврата из IO. После получения Mutex повторно проверяются активность, generation, аккаунт и срок сессии; после публикации до возврата нет suspend/смены dispatcher. Отмена в очереди ожидания не публикует Authenticated, не открывает Shell. Уже выполненные другими операциями изменения state сохраняются.
+- Snapshot и PBKDF2 остаются в IO. Изменяющие debug/test-методы ScenarioController стали `suspend`; reset сам переключается в IO. Синхронные чтения accounts/outbox и domain-порты не изменились. Все существующие вызовы debug API компилируются в корутинах.
+
+Две новые проверки `AuthFoundationRegressionTest` готовят signIn до возврата на caller, затем удерживают запись **другого signUp**. Продолжение входа и следующая задача выполняются через реальный однопоточный executor, моделирующий UI. Следующая задача обязана исполниться **до освобождения записи**, а вход ещё остаётся незавершённым/Guest. В варианте отмены signIn завершается отменой также до освобождения writer и сохраняет Guest/Login. В обычном варианте после writer вход принимается и открывает Shell; новый аккаунт конкурирующей операции сохранён. Порядок задают latch/очередь dispatcher, без sleep; ожидания ограничены таймаутами.
+
+**До исправления:** обе новые проверки на production-коде `055c14b` завершились failure, диагностика в обоих случаях `state=BLOCKED`; 2 tests / 2 failures, `.gradle/t04-lock-red.log` и `t04-lock-red.xml`. **После исправления:** все 8 auth-регрессий (включая прежние отмену/retry/generation) и 25 fake-тестов прошли, `.gradle/t04-lock-green.log`. Затем выполнена итоговая проверка:
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
+.\gradlew.bat :core:domain:test --rerun :data:fake:test --rerun :app:testDemoDebugUnitTest --rerun :core:platform:testDebugUnitTest --rerun :app:assembleDemoDebug :app:assembleDemoDebugAndroidTest :app:lintDemoDebug :app:verifyDemoIsolation --offline --console=plain --max-workers=2
+$env:ANDROID_SERIAL = 'emulator-5584'
+.\gradlew.bat :app:connectedDemoDebugAndroidTest --offline --console=plain --max-workers=2
+```
+
+Оба вызова **BUILD SUCCESSFUL (32s / 47s)**. Все **54 JVM unit-теста** заново исполнены: domain 7, fake 25, app 20, platform 2; failures/errors/skipped = 0. Собраны app и test APK, Hilt/DI и demo isolation прошли. Lint **0 errors / 4 version warnings**, новых исключений/baseline нет. Все **7 device-тестов** прошли на изолированном EventPass_Insets_API33 / Pixel 7 / Android 13 / API 33 / три кнопки (navigation_mode=0): auth storage/DI contract и прежние nav/entry/gallery/insets проверки, включая нажатие профиля в трёх ориентациях. Пользовательский AVD не изменялся; тестовый эмулятор после проверки остановлен.
+
+Логи: `.gradle/t04-lock-build.log`, `.gradle/t04-lock-device.log`; копии результатов — `.gradle/t04-lock-evidence`. Настоящий Android ANR не воспроизводился и этой JVM-регрессией не доказан; новый device-прогон не является проверкой auth UI, жестов или process death. CODE_REVIEW.md и посторонние plan/prompts сохранены. **T04 остаётся IN_PROGRESS, H1/H2 ожидаются**: нового auth UI/Activity wiring нет, человек проверяет прежнюю галерею через **Билеты → Открыть UI-кит** по [чек-листу H1](17-t03-validation.md). Остаток и будущий auth smoke перечислены ниже. Исторические версии/hash в следующих разделах не относятся к текущему output APK.
+
+## Исправления P2 после ревью cfc0624 — история 055c14b
+
+APK этапа `055c14b`: **0.4.1-t04-foundation-demo**, code **5**, 32318182 байта. SHA-256: `518e3c5b3fcd88bae3c339083e9858c1b802d5b0e38f847438fd504031257f46`. ApplicationId/SDK прежние, aapt metadata и debug-подпись v2 проверены. Версии библиотек и snapshot schema 1 не менялись. H1 не подтверждена, T04 остаётся IN_PROGRESS; нового auth UI/Activity wiring нет.
 
 Исправлены две находки пользовательского ревью:
 
@@ -59,7 +84,7 @@ $env:ANDROID_SERIAL = 'emulator-5584'
 | Seed | Product `t02-v1`, counter `t01-v1`, auth snapshot schema `1` |
 | Время | Auth в Android demo — system UTC; время мероприятий сохраняет прежний fixed Clock фикстур; в тестах оба Clock инъектируются; refreshSession нужен на foreground/проверке expiry, фонового таймера нет |
 
-Android DI предоставляет `AndroidFakeAuthStorage` на AtomicFile, путь **context.noBackupFilesDir/demo-auth-v1.bin**, чтение/запись и проверка пароля выполняются в IO. JVM default — VolatileAuthStorage, тесты диска изолированы. Сохраняются accounts, имя, признак emailVerified, salted password proof, hashes challenges/grants, сроки и признаки потребления. До загрузки — Unknown, после нового процесса — Guest, требуется ручной вход. Неподдерживаемая/повреждённая схема блокирует auth через Unknown/StorageUnavailable до явного demo reset. `scenarios.reset()` синхронный debug/test reset; будущий debug UI должен вызывать его в IO.
+Android DI предоставляет `AndroidFakeAuthStorage` на AtomicFile, путь **context.noBackupFilesDir/demo-auth-v1.bin**, чтение/запись и проверка пароля выполняются в IO. JVM default — VolatileAuthStorage, тесты диска изолированы. Сохраняются accounts, имя, признак emailVerified, salted password proof, hashes challenges/grants, сроки и признаки потребления. До загрузки — Unknown, после нового процесса — Guest, требуется ручной вход. Неподдерживаемая/повреждённая схема блокирует auth через Unknown/StorageUnavailable до явного demo reset. После исправления P2 `055c14b` метод `scenarios.reset()` — suspend и сам переключается в IO; debug UI должен вызывать его из корутины.
 
 **Не сохраняются:** активная сессия, raw пароли/коды/tokens, auth outbox, созданные guest registrations/tickets, ответы анкеты или клиентский guest QR-cache. Старую ссылку подтверждения можно обработать после нового процесса, если её секрет был получен до перезапуска: hash challenge сохранён. Outbox после рестарта пуст; повторная отправка после cooldown выдаёт новое письмо. Сохранение остальных fake-server данных перед H2/T05 остаётся частью T02.
 

@@ -20,7 +20,7 @@ import ru.eventpass.core.domain.event.UserId
 
 internal class FakeAuthRepository(
     private val state: MutableStateFlow<FakeProductState>,
-    private val lock: Any,
+    private val lock: Mutex,
     private val clock: Clock,
     private val storage: FakeAuthStorage,
     private val policy: FakeAuthPolicy,
@@ -32,8 +32,8 @@ internal class FakeAuthRepository(
 
     private suspend fun initialize() = initialization.withLock {
         if (!initialized) withContext(Dispatchers.IO) {
-            synchronized(lock) {
-                if (initialized) return@synchronized
+            lock.withLock stateLock@ {
+                if (initialized) return@stateLock
                 try {
                     val bytes = storage.read()
                     val current = state.value
@@ -73,7 +73,7 @@ internal class FakeAuthRepository(
 
     override suspend fun refreshSession() {
         initialize()
-        withContext(Dispatchers.IO) { synchronized(lock) {
+        withContext(Dispatchers.IO) { lock.withLock {
             val s = state.value
             if (s.auth.session?.let { clock.instant() >= it.expiresAt } == true) {
                 state.value = s.copy(auth = s.auth.copy(session = null, generation = s.auth.generation + 1))
@@ -84,7 +84,7 @@ internal class FakeAuthRepository(
     override suspend fun signOut() {
         // Invalidate in-flight operations even if logout races initial snapshot restoration.
         initialize()
-        withContext(Dispatchers.IO) { synchronized(lock) {
+        withContext(Dispatchers.IO) { lock.withLock {
             val s = state.value
             state.value = s.copy(auth = s.auth.copy(session = null, generation = s.auth.generation + 1))
         } }
@@ -105,7 +105,7 @@ internal class FakeAuthRepository(
         currentCoroutineContext().ensureActive()
         val completed: CompletedCommand<T> = withContext(Dispatchers.IO) {
             val context = currentCoroutineContext()
-            synchronized(lock) {
+            lock.withLock {
                 context.ensureActive()
                 val s = state.value
                 when {
@@ -119,11 +119,11 @@ internal class FakeAuthRepository(
                         val (next, result) = action(s)
                         if (next != s) {
                             try { storage.write(AuthSnapshotCodec.encode(next.accounts, next.auth)) }
-                            catch (_: IOException) { return@synchronized CompletedCommand(AuthResult.Failed(AuthError.StorageUnavailable)) }
+                            catch (_: IOException) { return@withLock CompletedCommand(AuthResult.Failed(AuthError.StorageUnavailable)) }
                             if (acceptSessionOnCaller) {
                                 context.ensureActive()
                                 // A session is not durable. Do not publish it before the cancellable return hop.
-                                return@synchronized CompletedCommand(result, requireNotNull(next.auth.session), s.auth.generation)
+                                return@withLock CompletedCommand(result, requireNotNull(next.auth.session), s.auth.generation)
                             }
                             // Account/challenge changes have committed on disk, even if their caller cancelled.
                             state.value = next
@@ -136,7 +136,7 @@ internal class FakeAuthRepository(
         val context = currentCoroutineContext()
         context.ensureActive()
         val session = completed.sessionToAccept ?: return completed.result
-        return synchronized(lock) {
+        return lock.withLock {
             context.ensureActive()
             val current = state.value
             if (current.auth.generation != completed.generation || !current.auth.healthy ||
@@ -242,12 +242,14 @@ internal class FakeAuthRepository(
         }
     }
 
-    fun reset(seed: FakeProductState) = synchronized(lock) {
-        val data = seed.auth.copy(passwords = seed.accounts.mapValues {
-            passwordProof(AuthSecret("DemoPass123!"), policy.passwordIterations)
-        }, generation = state.value.auth.generation + 1)
-        storage.write(AuthSnapshotCodec.encode(seed.accounts, data))
-        state.value = seed.copy(auth = data)
-        initialized = true
+    suspend fun reset(seed: FakeProductState) = withContext(Dispatchers.IO) {
+        lock.withLock {
+            val data = seed.auth.copy(passwords = seed.accounts.mapValues {
+                passwordProof(AuthSecret("DemoPass123!"), policy.passwordIterations)
+            }, generation = state.value.auth.generation + 1)
+            storage.write(AuthSnapshotCodec.encode(seed.accounts, data))
+            state.value = seed.copy(auth = data)
+            initialized = true
+        }
     }
 }
