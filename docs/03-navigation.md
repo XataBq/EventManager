@@ -4,7 +4,7 @@
 
 **T04, 28 октября — IN_PROGRESS до H1.** Подготовлены SessionCoordinator, разрешённые ReturnDestination (Event с eventId / RootTab), scope guard восстановления и очистка всех стеков через NavigationState.clearPrivateState. Проверены Unknown/Guest, обычный login → Tickets, pending → E/MyEvents, logout/expiry/смена аккаунта и поздний ответ на уровне модели. Новая auth-модель **ещё не подключена** к EventPassApp/decorators: приложение сохраняет техническую T03-оболочку/галерею; визуальные G03–G05, Login startup и auth device smoke — после H1. Описанные ниже продуктовые переходы остаются целевыми, не готовым UI.
 
-Подготовленный parser/handler принимает `eventpass-demo://demo/e/<eventId>` и `eventpass-demo://demo/confirm/<challengeId>?token=<secret>`, строго проверяет scheme/host/path/query, подтверждает без автологина и не сериализует secret. Доставка этих путей в Activity/manifest отложена до H1; реальные cold/warm ссылки текущей Activity по-прежнему только для T01 demo-счётчика. Подробности — [18-t04-validation.md](18-t04-validation.md).
+Подготовленный parser/handler принимает `eventpass-demo://demo/e/<eventId>` и `eventpass-demo://demo/confirm/<challengeId>?token=<secret>`, строго проверяет scheme/host/path/query, подтверждает без автологина и не сериализует secret. После P2 ревью cfc0624 выполняющийся запрос и успешная обработка различаются: параллельный/успешный дубль отклоняется, ошибка репозитория или отмена допускают явный повтор того же requestId. Доставка этих путей в Activity/manifest отложена до H1; реальные cold/warm ссылки текущей Activity по-прежнему только для T01 demo-счётчика. Подробности — [18-t04-validation.md](18-t04-validation.md).
 
 ## Общая навигация
 

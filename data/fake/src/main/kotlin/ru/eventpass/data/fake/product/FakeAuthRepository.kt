@@ -90,33 +90,62 @@ internal class FakeAuthRepository(
         } }
     }
 
-    private suspend fun <T> command(name: String, action: (FakeProductState) -> Pair<FakeProductState, AuthResult<T>>): AuthResult<T> {
+    private data class CompletedCommand<out T>(
+        val result: AuthResult<T>, val sessionToAccept: Session? = null, val generation: Long = 0,
+    )
+
+    private suspend fun <T> command(
+        name: String,
+        acceptSessionOnCaller: Boolean = false,
+        action: (FakeProductState) -> Pair<FakeProductState, AuthResult<T>>,
+    ): AuthResult<T> {
         initialize()
         val generation = state.value.auth.generation
         beforeOperation(name)
         currentCoroutineContext().ensureActive()
-        return withContext(Dispatchers.IO) {
+        val completed: CompletedCommand<T> = withContext(Dispatchers.IO) {
             val context = currentCoroutineContext()
             synchronized(lock) {
                 context.ensureActive()
                 val s = state.value
                 when {
-                    !s.auth.healthy -> AuthResult.Failed(AuthError.StorageUnavailable)
-                    s.auth.generation != generation -> AuthResult.Failed(AuthError.SessionChanged)
+                    !s.auth.healthy -> CompletedCommand(AuthResult.Failed(AuthError.StorageUnavailable))
+                    s.auth.generation != generation -> CompletedCommand(AuthResult.Failed(AuthError.SessionChanged))
                     s.auth.nextError != null -> {
                         state.value = s.copy(auth = s.auth.copy(nextError = null))
-                        AuthResult.Failed(s.auth.nextError)
+                        CompletedCommand(AuthResult.Failed(s.auth.nextError))
                     }
                     else -> {
                         val (next, result) = action(s)
                         if (next != s) {
                             try { storage.write(AuthSnapshotCodec.encode(next.accounts, next.auth)) }
-                            catch (_: IOException) { return@synchronized AuthResult.Failed(AuthError.StorageUnavailable) }
+                            catch (_: IOException) { return@synchronized CompletedCommand(AuthResult.Failed(AuthError.StorageUnavailable)) }
+                            if (acceptSessionOnCaller) {
+                                context.ensureActive()
+                                // A session is not durable. Do not publish it before the cancellable return hop.
+                                return@synchronized CompletedCommand(result, requireNotNull(next.auth.session), s.auth.generation)
+                            }
+                            // Account/challenge changes have committed on disk, even if their caller cancelled.
                             state.value = next
                         }
-                        result
+                        CompletedCommand(result)
                     }
                 }
+            }
+        }
+        val context = currentCoroutineContext()
+        context.ensureActive()
+        val session = completed.sessionToAccept ?: return completed.result
+        return synchronized(lock) {
+            context.ensureActive()
+            val current = state.value
+            if (current.auth.generation != completed.generation || !current.auth.healthy ||
+                current.accounts[session.account.id] != session.account || clock.instant() >= session.expiresAt
+            ) AuthResult.Failed(AuthError.SessionChanged)
+            else {
+                // Acceptance point: active caller, no suspension/dispatcher hop after publication.
+                state.value = current.copy(auth = current.auth.copy(session = session, generation = current.auth.generation + 1))
+                completed.result
             }
         }
     }
@@ -138,7 +167,7 @@ internal class FakeAuthRepository(
         }
     }
 
-    override suspend fun signIn(email: String, password: AuthSecret): AuthResult<Session> = command("signIn") { s ->
+    override suspend fun signIn(email: String, password: AuthSecret): AuthResult<Session> = command("signIn", acceptSessionOnCaller = true) { s ->
         val account = s.accounts.values.singleOrNull { it.email == email.trim() }
         when {
             account == null || s.auth.passwords[account.id]?.matches(password) != true -> failed(s, AuthError.InvalidCredentials)

@@ -2,9 +2,35 @@
 
 28 октября 2026. Основание: `docs/prompts/t04-auth-navigation.md`, HEAD до работы `2c035a8`, дополнение CODE_REVIEW.md от 28 октября. H1 в сообщениях и документации не подтверждена. Выполнена разрешённая независимая часть. **T04 — IN_PROGRESS; T03 — READY_FOR_HUMAN; H1/H2 не закрыты.**
 
-## Сборка
+## Исправления P2 после ревью cfc0624
 
-APK: [app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.4.0-t04-foundation-demo**, versionCode **4**, applicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37. Размер 32483393 байта; SHA-256 `f65c299c266351317ce03ef39958dc373e27eca2c177048323f375d8440d9f95`. Метаданные aapt и debug-подпись v2 проверены, `apksigner verify` успешен. Toolchain/версии зависимостей не менялись, сборка offline на Quail 2026.1.2/JBR 21.0.10.
+Текущий [app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.4.1-t04-foundation-demo**, code **5**, 32318182 байта. SHA-256: `518e3c5b3fcd88bae3c339083e9858c1b802d5b0e38f847438fd504031257f46`. ApplicationId/SDK прежние, aapt metadata и debug-подпись v2 проверены. Версии библиотек и snapshot schema 1 не менялись. H1 не подтверждена, T04 остаётся IN_PROGRESS; нового auth UI/Activity wiring нет.
+
+Исправлены две находки пользовательского ревью:
+
+- **Отмена signIn:** IO вычисляет результат и записывает snapshot без публикации подготовленной сессии. Сессия принимается в контексте вызывающей корутины после отменяемого возврата из withContext; под общей блокировкой ещё раз проверяются активность, generation, аккаунт и срок сессии. Между публикацией и возвратом нет suspend/смены dispatcher. Это точка принятия: отмена до неё (во время write или пока продолжение caller стоит в очереди) не публикует Authenticated и не открывает Shell. Последующая отмена уже принятого входа сама по себе не означает logout.
+- **Retry ссылки:** handler разделяет `inFlight` и ограниченный набор `handled`. Параллельный дубль отклоняется без второго вызова репозитория. Успех/локальный Invalid помечаются обработанными; любой AuthLinkResult.Failed не фиксируется как обработанный. `finally` освобождает inFlight также при исключении/отмене, поэтому тот же requestId допускает явный повтор. Автоматического retry нет; после успеха сохраняется Duplicate, а одноразовость challenge контролирует backend.
+
+Отмена не преобразуется в Network. Уже записанные server-side изменения аккаунта/challenge продолжают публиковаться в общем fake, чтобы память и snapshot не расходились. Например, отменённый во время записи signUp может уже создать неподтверждённый аккаунт, но не сессию; холодный backend видит то же состояние. SignIn не сохраняет сессию на диск, поэтому её принятие отложено отдельно. Семантика отменяемого возврата соответствует [withContext](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/with-context.html); регрессии реально исполнены на зафиксированной в проекте coroutines 1.10.2, без обновления на версию текущей online-документации.
+
+`AuthFoundationRegressionTest` добавляет 6 наблюдаемых проверок: отмена во время блокирующей записи с живым collector координатора (в том числе отсутствие промежуточного Authenticated); отмена после IO до возобновления caller; logout в этой же паузе; согласованность долговечной регистрации при отмене; Network/Timeout/StorageUnavailable → явный retry того же delivery → success → Duplicate без повторной мутации; параллельный дубль и retry после cancellation. Latch и управляемая очередь dispatcher задают момент отмены без sleep/ожидания реальных минут.
+
+До исправления первые 5 проверок дали **4 failures / 1 success** на коде cfc0624: два поздних входа и два заблокированных retry; тест долговечной записи уже проходил. Red: `.gradle/t04-p2-red.log` и `.gradle/t04-p2-red.xml`. После исправления эти 5 прошли (`t04-p2-green.log`), затем добавлена шестая проверка generation в точке принятия и выполнен полный прогон:
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
+.\gradlew.bat :core:domain:test --rerun :data:fake:test --rerun :app:testDemoDebugUnitTest --rerun :core:platform:testDebugUnitTest --rerun :app:assembleDemoDebug :app:assembleDemoDebugAndroidTest :app:lintDemoDebug :app:verifyDemoIsolation --offline --console=plain --max-workers=2
+$env:ANDROID_SERIAL = 'emulator-5584'
+.\gradlew.bat :app:connectedDemoDebugAndroidTest --offline --console=plain --max-workers=2
+```
+
+Оба вызова **BUILD SUCCESSFUL (34s / 46s)**. Все **52 unit-теста** заново исполнены: domain 7, fake 25, app 18, platform 2; failures/errors/skipped = 0. Lint **0 errors / 4 version warnings**, demo isolation прошла. Все **7 device-тестов** прошли на отдельном EventPass_Insets_API33 / Pixel 7 / API 33 / три кнопки: Android auth storage/DI contract и прежние nav/entry/gallery/insets проверки. Это не auth UI smoke, не новый gesture/process-death прогон и не H1/H2.
+
+Итоговые логи: `.gradle/t04-p2-build.log`, `.gradle/t04-p2-device.log`; отдельная копия XML/logcat — `.gradle/t04-p2-evidence`. CODE_REVIEW.md не изменён; новое полное ревью не запускалось. Созданные гостевые tickets по-прежнему не persist, outbox UI и оставшийся auth UI/guards/Activity integration ждут H1. Ниже сохранена история foundation cfc0624; её версия/hash/результаты не являются текущим output APK.
+
+## Сборка cfc0624 — история
+
+Исходный APK cfc0624: **0.4.0-t04-foundation-demo**, versionCode **4**, applicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37. Размер 32483393 байта; SHA-256 `f65c299c266351317ce03ef39958dc373e27eca2c177048323f375d8440d9f95`. Метаданные aapt и debug-подпись v2 проверены, `apksigner verify` успешен. Toolchain/версии зависимостей не менялись, сборка offline на Quail 2026.1.2/JBR 21.0.10.
 
 В APK остаётся прежняя техническая оболочка и галерея: **Билеты → Открыть UI-кит**. Это не авторизованный продуктовый кабинет. Новый guest startup/Login, auth UI и подключение coordinator к оболочке не включены до H1. По этой сборке нельзя заявлять выполненный пользовательский auth smoke.
 

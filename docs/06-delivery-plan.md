@@ -65,7 +65,7 @@ flowchart LR
 
 **Авто:** изоляция E-A/E-B/E-C/E-D, grant revoke независимо от ticket, обработка CapacityReached/Closed, повтор check-in, отмена, билеты по email после отдельного создания аккаунта, права и session isolation. **Человек:** отдельная проверка UI не нужна.
 
-**T02.2, 28 октября:** независимая auth-итерация для T04 подготовлена: AuthRepository/типизированные результаты, общий fake, auth snapshot и demo outbox API; session coordinator/модель guards и возврата. 46 unit и 7 device API 33, assemble/lint/isolation прошли. Весь T02 остаётся IN_PROGRESS: полная persistence guest registrations/tickets и остальные команды нужны к T05/H2. См. [18-t04-validation.md](18-t04-validation.md).
+**T02.2, 28 октября:** независимая auth-итерация для T04 подготовлена: AuthRepository/типизированные результаты, общий fake, auth snapshot и demo outbox API; session coordinator/модель guards и возврата. 52 unit и 7 device API 33, assemble/lint/isolation прошли. Весь T02 остаётся IN_PROGRESS: полная persistence guest registrations/tickets и остальные команды нужны к T05/H2. См. [18-t04-validation.md](18-t04-validation.md).
 
 ## T03 — UI-kit и общая оболочка
 
@@ -85,7 +85,7 @@ flowchart LR
 
 **Зависимости:** T02, T03, Q03. **Владение:** `feature/auth`, app navigation, session coordinator.
 
-**Статус 28 октября: IN_PROGRESS.** По условию prompt выполнены независимая T02.2 и модель auth-навигации; H1 не подтверждена. APK `0.4.0-t04-foundation-demo`, code 4 сохраняет техническую T03-оболочку/галерею. 46 unit исполнены повторно, 7 device на Pixel 7/API 33 (три кнопки), Hilt/assemble/lint (0 errors / 4 version warnings)/isolation прошли. Остаток после H1: G03–G05/confirm/reset Route–ViewModel–Screen, demo outbox UI, Login startup и подключение session gate к текущим stacks/decorators, foreground/expiry refresh, новые Activity links и auth device smoke. Полной готовности T04 нет; [18-t04-validation.md](18-t04-validation.md).
+**Статус 28 октября: IN_PROGRESS.** Исправлены P2 ревью cfc0624: поздняя отмена входа и retry подтверждения; добавлены 6 регрессий. По условию prompt выполнены независимая T02.2 и модель auth-навигации; H1 не подтверждена. APK `0.4.1-t04-foundation-demo`, code 5 сохраняет техническую T03-оболочку/галерею. 52 unit исполнены повторно, 7 device на Pixel 7/API 33 (три кнопки), Hilt/assemble/lint (0 errors / 4 version warnings)/isolation прошли. Остаток после H1: G03–G05/confirm/reset Route–ViewModel–Screen, demo outbox UI, Login startup и подключение session gate к текущим stacks/decorators, foreground/expiry refresh, новые Activity links и auth device smoke. Полной готовности T04 нет; [18-t04-validation.md](18-t04-validation.md).
 
 **Сделать:** G03/G04/G05, VerifyEmail → ручной Login, ResetPassword email → код → новый пароль, общий shell и guards. Возврат на E хранит только маршрут, не ответы. Без PendingActionStore для анкеты и автозавершения регистрации. Удалять приватный стек после logout/expiry, закрыть кабинет до подтверждения аккаунта.
 
@@ -211,9 +211,9 @@ Remaining defects and next task:
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
-| T02 | IN_PROGRESS; T02.1 и независимая T02.2 подготовлены, 28 октября 2026 | Модели/access/validation + общий in-memory fake для event/guest submit/tickets, demo DI; 24 unit-теста и assemble/lint/isolation прошли. `16-t02-domain-fake.md`; auth-only snapshot/порты и 46 unit/7 device — `18-t04-validation.md`. Полная persistence/прочие команды по следующим фичам |
+| T02 | IN_PROGRESS; T02.1 и независимая T02.2 подготовлены, 28 октября 2026 | Модели/access/validation + общий in-memory fake для event/guest submit/tickets, demo DI; 24 unit-теста и assemble/lint/isolation прошли. `16-t02-domain-fake.md`; auth-only snapshot/порты и 52 unit/7 device — `18-t04-validation.md`. Полная persistence/прочие команды по следующим фичам |
 | T03 | READY_FOR_HUMAN, 27 октября 2026 | UI-кит/Inter/галерея/оболочка; P2 a263c21 исправлен, APK 0.3.1-t03-demo. После ревью 4e3d0de: 6 app unit/по 6 device API 33 с жестами и тремя кнопками, 4 повтора gesture regression/lint/isolation. Исходная T03: 25 unit/5 device API 36.1; `17-t03-validation.md`; H1 ожидается |
-| T04 | IN_PROGRESS, 28 октября 2026 | Независимая T02.2/auth/session/navigation модель подготовлена, APK 0.4.0-t04-foundation-demo; 46 unit / 7 device API 33 / lint / isolation. UI и Activity wiring после H1; `18-t04-validation.md` |
+| T04 | IN_PROGRESS, 28 октября 2026 | Независимая T02.2/auth/session/navigation модель подготовлена, APK 0.4.1-t04-foundation-demo; 52 unit / 7 device API 33 / lint / isolation. UI и Activity wiring после H1; `18-t04-validation.md` |
 | T05–T09 | TODO; API не блокирует demo | Продуктовых экранов нет; после полной T04 — T05/H2 |
 | H1–H4 | Не пройдены человеком | Для H1 подготовлены APK T03 и checklist; остальные гейты относятся к следующим этапам |
 | T10 | Будущий этап | API отсутствует по запросу пользователя |
