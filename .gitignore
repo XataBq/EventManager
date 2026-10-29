@@ -2,6 +2,8 @@
 .gradle/
 .kotlin/
 **/build/
+# Locally retained APKs for manual acceptance on a specific build
+/artifacts/apk/
 .cxx/
 .externalNativeBuild/
 

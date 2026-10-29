@@ -12,7 +12,7 @@ import ru.eventpass.core.domain.registration.*
 internal object ProductSnapshotCodec {
     fun encode(state: FakeProductState): ByteArray = ByteArrayOutputStream().also { bytes ->
         DataOutputStream(bytes).use { out ->
-            out.writeInt(2)
+            out.writeInt(3)
             val auth = AuthSnapshotCodec.encode(state.accounts, state.auth)
             out.writeInt(auth.size); out.write(auth)
             out.writeLong(state.nextId); out.writeUTF(state.policy.phone.name)
@@ -62,6 +62,14 @@ internal object ProductSnapshotCodec {
             }
             out.writeInt(state.grants.size)
             state.grants.forEach { out.writeUTF(it.eventId.value); out.writeUTF(it.userId.value); out.writeBoolean(it.active) }
+            // V3 appends editor metadata to the unchanged v2 product payload.
+            out.writeInt(state.events.size)
+            state.events.values.forEach { out.writeUTF(it.id.value); out.writeLong(it.revision); out.cover(it.cover) }
+            out.writeInt(state.drafts.size)
+            state.drafts.values.forEach { d ->
+                out.writeUTF(d.id.value); out.writeUTF(d.ownerId.value); out.writeLong(d.revision)
+                out.writeUTF(d.publishedEventId?.value.orEmpty()); out.fields(d.fields)
+            }
         }
     }.toByteArray().also { require(it.size <= 8_388_608) }
 
@@ -73,14 +81,14 @@ internal object ProductSnapshotCodec {
                 val (accounts, auth) = AuthSnapshotCodec.decode(bytes)
                 return seed.copy(accounts = accounts, auth = auth)
             }
-            require(version == 2) { "Unsupported product snapshot" }
+            require(version == 2 || version == 3) { "Unsupported product snapshot" }
             val authLength = input.readInt().also { require(it in 1..1_048_576 && it <= input.available()) }
             val authBytes = ByteArray(authLength).also(input::readFully)
             val (accounts, auth) = AuthSnapshotCodec.decode(authBytes)
             val nextId = input.readLong().also { require(it > 0) }
             val policy = RegistrationPolicy(FieldRequirement.valueOf(input.readUTF()))
             fun count() = input.readInt().also { require(it in 0..10_000) }
-            val events = List(count()) {
+            var events = List(count()) {
                 val id = EventId(input.readUTF()); val owner = UserId(input.readUTF()); val title = input.readUTF()
                 val starts = Instant.parse(input.readUTF()); val ends = input.readUTF().takeIf(String::isNotEmpty)?.let(Instant::parse)
                 val zone = input.readUTF().also(java.time.ZoneId::of); val venue = input.readUTF()
@@ -123,6 +131,21 @@ internal object ProductSnapshotCodec {
                 Ticket(snapshot, registration, status)
             }
             val grants = List(count()) { ScanGrant(EventId(input.readUTF()), UserId(input.readUTF()), input.readBoolean()) }
+            val drafts = if (version == 3) {
+                val metadata = List(count()) {
+                    Triple(EventId(input.readUTF()), input.readLong().also { require(it > 0) }, input.cover())
+                }
+                require(metadata.map { it.first }.toSet() == events.map { it.id }.toSet() && metadata.size == events.size)
+                events = events.map { e -> metadata.single { it.first == e.id }.let { e.copy(revision = it.second, cover = it.third) } }
+                List(count()) {
+                    val id = DraftId(input.readUTF().also { require(EventEditingPolicy.validId(it)) })
+                    val owner = UserId(input.readUTF()).also { require(it in accounts) }
+                    val revision = input.readLong().also { require(it > 0) }
+                    val published = input.readUTF().takeIf(String::isNotEmpty)?.let(::EventId)
+                    require(published == null || events.any { it.id == published && it.ownerId == owner })
+                    EventDraft(id, owner, revision, input.fields(), published)
+                }.also { require(it.map { d -> d.id }.distinct().size == it.size) }
+            } else emptyList()
             require(input.available() == 0)
             require(events.map { it.id }.distinct().size == events.size)
             require(registrations.map { it.id }.distinct().size == registrations.size)
@@ -130,7 +153,38 @@ internal object ProductSnapshotCodec {
             require(registrations.all { r -> events.any { it.id == r.eventId } })
             require(tickets.all { t -> registrations.any { it.id == t.registrationId && it.eventId == t.snapshot.eventId } })
             return seed.copy(accounts = accounts, auth = auth, events = events.associateBy { it.id },
-                registrations = registrations, tickets = tickets, grants = grants, policy = policy, nextId = nextId)
+                registrations = registrations, tickets = tickets, grants = grants, policy = policy, nextId = nextId,
+                drafts = drafts.associateBy { it.id })
         }
+    }
+
+    private fun DataOutputStream.cover(value: EventCover?) {
+        writeBoolean(value != null)
+        value?.let { writeUTF(it.assetId); writeUTF(it.mimeType); writeLong(it.byteCount) }
+    }
+    private fun DataInputStream.cover(): EventCover? = if (readBoolean()) EventCover(readUTF(), readUTF(), readLong()) else null
+    private fun DataOutputStream.fields(f: EventFields) {
+        writeUTF(f.title); writeUTF(f.startsAt?.toString().orEmpty()); writeUTF(f.endsAt?.toString().orEmpty())
+        writeUTF(f.zoneId); writeUTF(f.venue); writeBoolean(f.capacity != null); f.capacity?.let(::writeInt)
+        writeUTF(f.description); writeInt(f.sections.size); f.sections.forEach { writeUTF(it.title); writeUTF(it.time) }
+        cover(f.cover); writeInt(f.questions.size)
+        f.questions.forEach { q ->
+            writeUTF(q.id); writeUTF(q.title); writeBoolean(q.required); writeUTF(q.kind.name); writeInt(q.options.size)
+            q.options.forEach { writeUTF(it.id); writeUTF(it.title) }
+        }
+    }
+    private fun DataInputStream.fields(): EventFields {
+        fun count(max: Int) = readInt().also { require(it in 0..max) }
+        val title = readUTF(); val start = readUTF().takeIf(String::isNotEmpty)?.let(Instant::parse)
+        val end = readUTF().takeIf(String::isNotEmpty)?.let(Instant::parse); val zone = readUTF(); val venue = readUTF()
+        val capacity = if (readBoolean()) readInt() else null
+        val description = readUTF(); val sections = List(count(50)) { EventSection(readUTF(), readUTF()) }
+        val cover = cover()
+        val questions = List(count(100)) {
+            val id = readUTF(); val text = readUTF(); val required = readBoolean(); val kind = QuestionKind.valueOf(readUTF())
+            DraftQuestion(id, text, required, kind, List(count(100)) { RegistrationQuestion.Option(readUTF(), readUTF()) })
+        }
+        return EventFields(title, start, end, zone, venue, capacity, questions, description, sections, cover)
+            .also { require(EventEditingPolicy.storageErrors(it).isEmpty()) }
     }
 }

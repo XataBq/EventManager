@@ -27,11 +27,14 @@ data class Event(
     val questions: List<RegistrationQuestion>,
     val description: String = "",
     val sections: List<EventSection> = emptyList(),
+    val revision: Long = 1,
+    val cover: EventCover? = null,
 ) {
     init {
         require(capacity == null || capacity >= 0)
         require(endsAt == null || endsAt > startsAt)
         require(formVersion > 0)
+        require(revision > 0)
         require(questions.map { it.id }.distinct().size == questions.size)
     }
 }

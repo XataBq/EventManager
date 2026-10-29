@@ -1,8 +1,10 @@
 # T05 — мероприятие, регистрация и билеты
 
+**Сохранённая сборка для H2:** после начала независимой T06 APK code 9 сохранён отдельно в `artifacts/apk/eventpass-0.5.1-t05-demo-code9.apk`, с прежним SHA-256 ниже. Основной output теперь code 10 foundation; H2 пользователь ещё не проверял. Этот отчёт относится к T05/code 9, не к новой T06. Schema 3 новой сборки не предназначена для чтения старым APK; H2 code 9 проверяется до установки foundation. [T06 и остаток](20-t06-validation.md).
+
 ## Исправление P2 ревью 1e54b80 — 29 октября 2026
 
-**T05 — READY_FOR_HUMAN; H2 ожидается на исправленной сборке.** Текущий [app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.5.1-t05-demo**, versionCode **9**, **33593307 байт**. SHA-256: `7012bf6f5733c9e5e0f0ad48d34bc3244618454e281c19839d577c5153dc51d7`. ApplicationId/minSdk/target/toolchain, зависимости, seeds `t02-v1`/`t01-v1` и server snapshot schema 2 прежние. Метаданные APK и debug-подпись v2 проверены. T03/T04 остаются DONE по прежним подтверждениям пользователя.
+**T05 — READY_FOR_HUMAN; H2 ожидается на исправленной сборке.** Текущий [app-demo-debug.apk](../artifacts/apk/eventpass-0.5.1-t05-demo-code9.apk): **0.5.1-t05-demo**, versionCode **9**, **33593307 байт**. SHA-256: `7012bf6f5733c9e5e0f0ad48d34bc3244618454e281c19839d577c5153dc51d7`. ApplicationId/minSdk/target/toolchain, зависимости, seeds `t02-v1`/`t01-v1` и server snapshot schema 2 прежние. Метаданные APK и debug-подпись v2 проверены. T03/T04 остаются DONE по прежним подтверждениям пользователя.
 
 В EventViewModel завершение отменённой заявки A безусловно снимало submitting. После leaveForm и новой отправки B поздний finally A разблокировал поля/кнопку и позволял третий параллельный вызов C. Теперь finally изменяет submitting только при совпадении захваченного поколения формы с текущим — как и проверка результата. leaveForm сначала увеличивает поколение и отменяет предыдущую работу, поэтому её позднее завершение не трогает B. Ожидание завершения отменённого IO, блокировки main и автоматический retry не добавлены; актуальная B по-прежнему снимает busy после собственного завершения.
 
@@ -32,7 +34,7 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
 
 ## Сборка для H2
 
-[app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.5.0-t05-demo**, versionCode **8**, **34121262 байт**, applicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37. SHA-256: `d631ac0839624986f103e99cdfa2f6c1031e1d2a0f5f1ee9f665800d37662337`. Debug-подпись v2 и aapt metadata проверены. Базовый seed `t02-v1`, технический счётчик `t01-v1`; фикстуры T05 дополнены описанием/программой и названиями событий. Seed-аккаунты `alex@example.com`, `host@example.com`, пароль **DemoPass123!**; новые аккаунты создаются отдельно, без автоматического входа.
+[app-demo-debug.apk](../artifacts/apk/eventpass-0.5.1-t05-demo-code9.apk): **0.5.0-t05-demo**, versionCode **8**, **34121262 байт**, applicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37. SHA-256: `d631ac0839624986f103e99cdfa2f6c1031e1d2a0f5f1ee9f665800d37662337`. Debug-подпись v2 и aapt metadata проверены. Базовый seed `t02-v1`, технический счётчик `t01-v1`; фикстуры T05 дополнены описанием/программой и названиями событий. Seed-аккаунты `alex@example.com`, `host@example.com`, пароль **DemoPass123!**; новые аккаунты создаются отдельно, без автоматического входа.
 
 Стек T04 сохранён, добавлена только `com.google.zxing:core:3.5.4` в core:platform. Сначала offline подтвердил отсутствие jar, затем штатная загрузка Gradle с TLS/certificate verification и успешный offline build. [POM](https://github.com/zxing/zxing/blob/zxing-3.5.4/core/pom.xml), [QRCodeWriter](https://github.com/zxing/zxing/blob/zxing-3.5.4/core/src/main/java/com/google/zxing/qrcode/QRCodeWriter.java), [лицензия Apache 2.0](https://github.com/zxing/zxing/blob/zxing-3.5.4/LICENSE). Лицензия и происхождение находятся в `core/platform/src/main/assets/licenses` и включены в APK. Камера/check-in не добавлены. Реально проверен текущий demoDebug/API 33, а не произвольные платформы или будущий production API.
 

@@ -83,6 +83,7 @@ class FakeEventPassEnvironment(
         }
         suspend fun setPolicy(policy: RegistrationPolicy) = mutate(true) { it.copy(policy = policy) }
         suspend fun failNextGuestSubmission(error: RegistrationError) = mutate { it.copy(nextSubmissionError = error) }
+        suspend fun failNextEventEdit(error: ru.eventpass.core.domain.event.EventEditError) = mutate { it.copy(nextEventEditError = error) }
         suspend fun failNextRead(error: ru.eventpass.core.domain.event.ProductReadError) = mutate { it.copy(nextReadError = error) }
         suspend fun failNextCancellation(error: ru.eventpass.core.domain.registration.TicketError) = mutate { it.copy(nextTicketError = error) }
         suspend fun setTicketStatus(id: TicketId, status: TicketStatus) = mutate(true) {
@@ -136,6 +137,9 @@ internal data class FakeProductState(
     val eventErrors: Map<EventId, ru.eventpass.core.domain.event.ProductReadError> = emptyMap(),
     val ticketReadError: ru.eventpass.core.domain.event.ProductReadError? = null,
     val nextTicketError: ru.eventpass.core.domain.registration.TicketError? = null,
+    val drafts: Map<ru.eventpass.core.domain.event.DraftId, ru.eventpass.core.domain.event.EventDraft> = emptyMap(),
+    val managementReadError: ru.eventpass.core.domain.event.ProductReadError? = null,
+    val nextEventEditError: ru.eventpass.core.domain.event.EventEditError? = null,
 )
 
 internal fun FakeProductState.activeAccount(now: java.time.Instant): Account? = auth.session

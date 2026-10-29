@@ -21,7 +21,16 @@ internal class FakeTicketOperations(
     private val storage: FakeAuthStorage, private val auth: FakeAuthRepository,
 ) {
     private fun initialized(): Flow<FakeProductState> = flow { auth.initialize(); emitAll(state) }
+    private val editing = FakeEventEditingOperations(state, lock, clock, authClock, storage, auth)
     val events = object : EventRepository {
+        override fun observeMyEvents() = editing.observeMyEvents()
+        override fun observeEditor(target: EventEditorTarget) = editing.observeEditor(target)
+        override suspend fun refreshMyEvents() = editing.refreshMyEvents()
+        override suspend fun saveDraft(id: DraftId, expectedRevision: Long?, fields: EventFields) = editing.saveDraft(id, expectedRevision, fields)
+        override suspend fun publishDraft(id: DraftId, expectedRevision: Long) = editing.publishDraft(id, expectedRevision)
+        override suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedFormVersion: Int, fields: EventFields) = editing.updateEvent(id, expectedRevision, expectedFormVersion, fields)
+        override suspend fun closeRegistration(id: EventId, expectedRevision: Long) = editing.closeRegistration(id, expectedRevision)
+        override suspend fun finishEvent(id: EventId, expectedRevision: Long) = editing.finishEvent(id, expectedRevision)
         override fun observePublicEvent(eventId: EventId): Flow<PublicEventResult> = initialized().map { s ->
             val event = s.events[eventId]; val account = s.activeAccount(authClock.instant())
             when {

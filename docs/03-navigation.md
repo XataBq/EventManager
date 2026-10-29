@@ -1,5 +1,7 @@
 # Экраны, переходы и связи
 
+**T06 foundation, 29 октября:** маршруты приложения не изменены. Корневые «Мероприятия» пока временные; MyEvents/Editor/Published и их route guards не подключены до H2, которую пользователь ещё не проверил. Добавлены только repository-контракты и проверки доступа к данным. Draft/event передаются будущему маршруту по ID; full draft/cover bytes туда не попадут. [Реализованный объём](20-t06-validation.md).
+
 **T05, 29 октября — READY_FOR_HUMAN.** Общий EventRoute/EventScreen для public/private E заменяет EventReceiver. EventKey(eventId, flowId) владеет EventViewModel/GuestReceiptState; fullscreen — состояние того же owner, без payload в route. EventAuthKey хранит только flowId/screen/entryId и оставляет receipt под auth для Back. Повтор E-ссылки возвращает к существующему flow. Tickets root показывает свои билеты/выбор/историю/отмену и fullscreen без табов. Unknown → Guest сохраняет публичный registry, private stacks остаются под session gate. T04 auth smoke принят человеком, H2 ожидается. [Сборка и H2](19-t05-validation.md).
 
 Актуализировано по [ответам от 27 октября](12-backend-answers-2026-10-27.md). Исходные frame ID сохраняют трассировку к Figma, но гостевой сценарий изменён пользователем.
