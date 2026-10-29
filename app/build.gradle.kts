@@ -13,8 +13,8 @@ android {
         applicationId = "ru.eventpass.android"
         minSdk = 28
         targetSdk = 37
-        versionCode = 8
-        versionName = "0.5.0-t05"
+        versionCode = 9
+        versionName = "0.5.1-t05"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     flavorDimensions += "backend"

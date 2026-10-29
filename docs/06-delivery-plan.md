@@ -97,7 +97,7 @@ flowchart LR
 
 ## T05 — первый сквозной сценарий: мероприятие → регистрация → билет
 
-**Статус 29 октября: READY_FOR_HUMAN.** После принятого auth smoke T04 реализованы общий E/форма, guest receipt + QR/saved-state/fullscreen, Tickets/история/отмена и T02.3 server persistence v2 с миграцией auth v1. APK 0.5.0-t05-demo, code 8; 71 JVM/18 device API 33, QR decoder, реальная смерть процесса/та же task/новая task, assemble/lint/isolation прошли. H2 ожидается; следующая задача — T06. [19-t05-validation.md](19-t05-validation.md). Ниже сохранена исходная постановка, включая статусы до выполнения.
+**Статус 29 октября: READY_FOR_HUMAN.** P2 ревью `1e54b80` исправлен: finally отменённой заявки не снимает busy новой; RED/GREEN для guest/authenticated. Текущий APK `0.5.1-t05-demo`, code 9; 73 JVM, assemble app/test APK, lint/isolation успешны. Ранее пройденные 18 device + 6 повторов/real process proof относятся к code 8, новых runtime-прогонов нет. Общий E/форма, guest QR/saved state, Tickets/cancel и server snapshot v2 реализованы; H2 ожидается, после неё — T06. [19-t05-validation.md](19-t05-validation.md). Ниже — исходная постановка, включая статусы до выполнения.
 
 **Зависимости:** T04. **Владение:** `feature/event`, `feature/tickets`.
 
@@ -220,7 +220,7 @@ Remaining defects and next task:
 | T02 | IN_PROGRESS; T02.1–T02.3 подготовлены | Общий fake/server snapshot v2, auth migration, guest/auth submit и свой cancel; 71 JVM/18 device/OS restore. Editor/check-in и другие команды ещё впереди; `19-t05-validation.md` |
 | T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
 | T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
-| T05 | READY_FOR_HUMAN | APK 0.5.0-t05-demo/code 8, guest QR/registration/Tickets/cancel/server persistence; H2 ожидается; `19-t05-validation.md` |
+| T05 | READY_FOR_HUMAN | APK 0.5.1-t05-demo/code 9, P2 busy race исправлен, 73 JVM/assemble/lint/isolation; H2 ожидается. Старые runtime proof code 8 — `19-t05-validation.md` |
 | T06–T09 | TODO | Следующий этап после H2 — T06 |
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
 | H2–H4 | Ожидаются | Ручной auth smoke T04 не закрывает H2, следующая задача — T05 |

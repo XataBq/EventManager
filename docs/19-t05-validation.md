@@ -1,5 +1,33 @@
 # T05 — мероприятие, регистрация и билеты
 
+## Исправление P2 ревью 1e54b80 — 29 октября 2026
+
+**T05 — READY_FOR_HUMAN; H2 ожидается на исправленной сборке.** Текущий [app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.5.1-t05-demo**, versionCode **9**, **33593307 байт**. SHA-256: `7012bf6f5733c9e5e0f0ad48d34bc3244618454e281c19839d577c5153dc51d7`. ApplicationId/minSdk/target/toolchain, зависимости, seeds `t02-v1`/`t01-v1` и server snapshot schema 2 прежние. Метаданные APK и debug-подпись v2 проверены. T03/T04 остаются DONE по прежним подтверждениям пользователя.
+
+В EventViewModel завершение отменённой заявки A безусловно снимало submitting. После leaveForm и новой отправки B поздний finally A разблокировал поля/кнопку и позволял третий параллельный вызов C. Теперь finally изменяет submitting только при совпадении захваченного поколения формы с текущим — как и проверка результата. leaveForm сначала увеличивает поколение и отменяет предыдущую работу, поэтому её позднее завершение не трогает B. Ожидание завершения отменённого IO, блокировки main и автоматический retry не добавлены; актуальная B по-прежнему снимает busy после собственного завершения.
+
+Добавлены две регрессии EventViewModelTest: для guest и authenticated submit. Реальные EventRepository/validation и тестовый RegistrationRepository с управляемыми continuations воспроизводят отложенное окончание отменённого вызова. Без sleep: A → leaveForm → B → завершить A → попытаться изменить поле/отправить ещё раз. Требуется, чтобы B оставалась busy, форма не менялась, вызовов было два и старый результат не публиковал ошибку/receipt/action. Затем завершается B: busy снимается, её Network отображается, новый явный retry разрешён. Проверяется UI-блокировка и число repository-вызовов; двойная выдача серверного билета этим не заявляется.
+
+**RED:** на исходном EventViewModel оба новых теста упали: `expected:<2> but was:<3>`, 2 tests / 2 failures. XML сохранён до исправления. **GREEN:** все 7 EventViewModel-тестов проходят, затем повторно исполнены **73 JVM-теста**: domain 7 / fake 34 / app 29 / platform 3, failures/errors/skipped = 0. В app сохранены все восемь auth-регрессий. Собраны app/test APK, Hilt/DI, demo isolation и lint: **0 ошибок / 4 прежних предупреждения о версиях**, без baseline/исключений.
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
+.\gradlew.bat :app:testDemoDebugUnitTest --tests 'ru.eventpass.app.feature.event.EventViewModelTest.cancelled*FinallyCannotUnlockAnotherSubmission' --offline --console=plain --max-workers=2
+# Выше — ожидаемый RED до исправления. После него:
+.\gradlew.bat :app:testDemoDebugUnitTest --tests 'ru.eventpass.app.feature.event.EventViewModelTest' --offline --console=plain --max-workers=2
+.\gradlew.bat :core:domain:test --rerun :data:fake:test --rerun :app:testDemoDebugUnitTest --rerun :core:platform:testDebugUnitTest --rerun :app:assembleDemoDebug :app:assembleDemoDebugAndroidTest :app:lintDemoDebug :app:verifyDemoIsolation --offline --console=plain --max-workers=2
+```
+
+Доказательства: `.gradle/t05-submit-race-red.log`, `t05-submit-race-green.log`, `t05-submit-race-check.log`; XML/lint/metadata/signature/hash — `.gradle/t05-submit-fix-evidence`. CODE_REVIEW.md и диагностические программы ревью не менялись; полное ревью и подагенты не запускались.
+
+**Границы:** нового device/process-death/визуального прогона для code 9 нет. Прежние 18 device + 6 повторов и process/QR proof ниже относятся к code 8 и сохранены как история. Изменены управление busy и версия; UI-геометрия, repositories, persistence, DI/навигация/сохранение QR не менялись. Точный порядок поздних завершений доказан JVM-регрессиями, частота гонки на физическом устройстве не измерялась.
+
+Для ручного H2 использовать **code 9 / hash выше**, demo-аккаунты и сценарии из исторического чек-листа ниже. Дополнительно: отправка → уход/возврат → новая отправка; пока актуальный запрос ожидает ответ, поля и повторная отправка остаются заблокированными. Точную задержку старой операции задаёт автоматический тест, обычный demo-запрос может завершиться слишком быстро для ручного наблюдения. H2 агентом не отмечена пройденной; после неё — T06.
+
+## История T05 — 0.5.0-t05-demo / code 8, до исправления P2
+
+Ниже сохранены прежние build/hash/команды/результаты. Их device/process доказательства не относятся к новому code 9.
+
 29 октября 2026. Исходный HEAD `646a1e2`, задание `prompts/t05-registration-tickets.md`. **T05 — READY_FOR_HUMAN; H2 ожидается.** Во время работы пользователь ответил на вопрос по auth smoke APK `0.4.3-t04-demo` / code 7: **«Проверил, замечаний нет»**. T04 — DONE по этому подтверждению; устройство/Android не сообщены. H1 не переоткрывалась. Следующий этап после H2 — T06.
 
 ## Сборка для H2

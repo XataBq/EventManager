@@ -11,6 +11,9 @@ import ru.eventpass.core.domain.RegistrationRepository
 import ru.eventpass.core.domain.auth.*
 import ru.eventpass.core.domain.registration.*
 import ru.eventpass.data.fake.product.*
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EventViewModelTest {
@@ -96,5 +99,67 @@ class EventViewModelTest {
             assertEquals(RegistrationError.Network, vm.state.value.error)
             assertNull(vm.state.value.action)
         } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
+
+    @Test fun cancelledGuestFinallyCannotUnlockAnotherSubmission() = cancelledFinallyCannotUnlockAnotherSubmission(false)
+    @Test fun cancelledAuthenticatedFinallyCannotUnlockAnotherSubmission() = cancelledFinallyCannotUnlockAnotherSubmission(true)
+
+    private fun cancelledFinallyCannotUnlockAnotherSubmission(authenticated: Boolean) = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val e = environment()
+        val pending = mutableListOf<Continuation<Unit>>()
+        val completed = mutableSetOf<Int>()
+        suspend fun awaitResponse() = suspendCoroutine<Unit> { pending += it }
+        fun complete(index: Int) {
+            check(completed.add(index))
+            pending[index].resume(Unit)
+        }
+        // Model a repository whose cancelled call returns only after its underlying work ends.
+        val repository = object : RegistrationRepository {
+            override suspend fun submitGuest(command: GuestRegistrationCommand): GuestRegistrationOutcome {
+                awaitResponse(); return GuestRegistrationOutcome.Failed(RegistrationError.Network)
+            }
+            override suspend fun submitAuthenticated(command: AuthenticatedRegistrationCommand): AuthenticatedRegistrationOutcome {
+                awaitResponse(); return AuthenticatedRegistrationOutcome.Failed(RegistrationError.Network)
+            }
+        }
+        val vm = EventViewModel(e.events, repository, e.tickets, SavedStateHandle())
+        try {
+            if (authenticated) assertTrue(e.auth.signIn("alex@example.com", AuthSecret("DemoPass123!")) is AuthResult.Success)
+            vm.bind("open-registration"); vm.state.first { it.data != null }
+            assertEquals(authenticated, vm.state.value.data!!.contact != null)
+            vm.edit(form()); vm.submit(); runCurrent()
+            assertEquals(1, pending.size)
+
+            vm.leaveForm(); runCurrent()
+            vm.edit(form()); vm.submit(); runCurrent()
+            assertEquals(2, pending.size)
+            assertTrue(vm.state.value.submitting)
+
+            complete(0); runCurrent() // A finishes, while B is still waiting for its response.
+            val blockedAfterOldFinally = vm.state.value.submitting
+            val submittedForm = vm.state.value.form
+            vm.edit(form("must-not-replace@example.com"))
+            vm.submit(); runCurrent()
+            assertEquals("A late cancelled completion must not allow request C", 2, pending.size)
+            assertTrue("B must stay busy until B completes", blockedAfterOldFinally)
+            assertEquals(submittedForm, vm.state.value.form)
+            assertNull(vm.state.value.error)
+            assertNull(vm.state.value.receipt)
+            assertNull(vm.state.value.action)
+
+            complete(1); runCurrent()
+            assertFalse(vm.state.value.submitting)
+            assertEquals(RegistrationError.Network, vm.state.value.error)
+            vm.submit(); runCurrent() // Explicit retry after B completed is allowed.
+            assertEquals(3, pending.size)
+            complete(2); runCurrent()
+            assertFalse(vm.state.value.submitting)
+        } finally {
+            vm.viewModelScope.cancel()
+            pending.indices.filterNot { it in completed }.forEach(::complete)
+            runCurrent()
+            Dispatchers.resetMain()
+        }
     }
 }

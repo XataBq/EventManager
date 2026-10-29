@@ -6,9 +6,9 @@
 
 ## Сборка и запуск demo
 
-**Текущий APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.5.0-t05-demo**, code 8, 34121262 байт. SHA-256: `d631ac0839624986f103e99cdfa2f6c1031e1d2a0f5f1ee9f665800d37662337`. Ссылка E: `eventpass-demo://demo/e/open-registration`; также Login → Демо-инструменты → Открыть demo-мероприятие. Имитация почты, UI-кит, reset/сценарии доступны из demo tools. Регистрация аккаунта/confirm/reset не логинят.
+**Текущий APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.5.1-t05-demo**, code 9, 33593307 байт. SHA-256: `7012bf6f5733c9e5e0f0ad48d34bc3244618454e281c19839d577c5153dc51d7`. Исправлен P2 ревью `1e54b80`: поздний finally отменённой заявки не снимает блокировку новой отправки. Ссылка E: `eventpass-demo://demo/e/open-registration`; demo tools/outbox/seed прежние.
 
-T05: 71 JVM и 18 device-тестов API 33 (три кнопки), затем 6 адресных повторов после уточнения геометрии G01, assemble/Hilt/lint/isolation прошли. Lint 0 ошибок / 4 version notices. Реальная смерть фонового процесса и та же task восстанавливают тот же QR (screenshot decoder); новая task — без guest receipt, server data остаются. [Команды, red/green и границы](docs/19-t05-validation.md).
+T05 после P2: 73 JVM-теста (включая две новые гонки и 8 auth-регрессий), assemble app/test APK, Hilt/DI, lint (0 ошибок / 4 version notices) и isolation прошли. Нового device/process прогона для code 9 нет; прежние 18 device + 6 повторов/QR/process proof относятся к code 8. [RED/GREEN, текущая сборка и H2](docs/19-t05-validation.md).
 
 После ревью `cfc0624` исправлены оба P2: отмена signIn до принятия сессии не открывает Shell; ошибку/отмену подтверждения можно явно повторить с тем же requestId, с сохранением защиты от параллельного и успешного дубля. Red/green и границы отмены — в отчёте T04.
 
@@ -49,7 +49,7 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
 
 При повторении наблюдавшегося TLS-сбоя Maven можно добавить `'-Dhttps.protocols=TLSv1.2'`; сертификаты по-прежнему проверяются. Для ограниченной по памяти среды использовался `--max-workers=2`. Wrapper содержит SHA-256 дистрибутива, его JAR также сверен с официальной контрольной суммой.
 
-APK: **[app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk)**. Версия `0.5.0-t05-demo`, applicationId `ru.eventpass.android.demo`, seeds `t02-v1`/`t01-v1`. Аккаунты: `alex@example.com`, `host@example.com`, пароль **DemoPass123!**. Event Clock фиксирован 27 октября, auth Clock — UTC. Данные сервера schema 2 в прежнем `noBackupFilesDir/demo-auth-v1.bin`, сессия/outbox/guest UI не persist.
+APK: **[app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk)**. Версия `0.5.1-t05-demo`, applicationId `ru.eventpass.android.demo`, seeds `t02-v1`/`t01-v1`. Аккаунты: `alex@example.com`, `host@example.com`, пароль **DemoPass123!**. Event Clock фиксирован 27 октября, auth Clock — UTC. Данные сервера schema 2 в прежнем `noBackupFilesDir/demo-auth-v1.bin`, сессия/outbox/guest UI не persist.
 
 Счётчик принадлежит Hilt ViewModel записи навигации и хранится в `SavedStateHandle`. Три стека и выбранная вкладка сохраняются отдельно; decorators продолжают владеть скрытыми записями. Back/закрытие удаляет demo-entry; повторное нажатие текущей вкладки возвращает к корню. Повтор одной ссылки не создаёт дубликат. Новый визит имеет отдельный ID записи, чтобы не наследовать состояние закрываемого экрана.
 

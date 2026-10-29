@@ -107,7 +107,10 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
                         is AuthenticatedRegistrationOutcome.Failed -> fail(result.error)
                     }
                 }
-            } finally { mutable.value = mutable.value.copy(submitting = false) }
+            } finally {
+                // A cancelled call may finish after leaveForm and a newer submission.
+                if (version == formVersion) mutable.value = mutable.value.copy(submitting = false)
+            }
         }
     }
     private fun fail(error: RegistrationError) {
