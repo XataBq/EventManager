@@ -25,6 +25,8 @@ import org.junit.runner.RunWith
 class NavigationSmokeTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
+    @org.junit.Before fun signIn() { compose.login() }
+
     @Test fun hiltEntrySurvivesTabsAndRecreationButNotPop() {
         compose.onNodeWithTag("open-demo").performClick()
         compose.onNodeWithTag("increment").performClick()

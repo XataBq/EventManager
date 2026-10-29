@@ -15,14 +15,16 @@ import ru.eventpass.data.fake.product.FakeEventPassEnvironment
 @Module
 @InstallIn(SingletonComponent::class)
 object DemoModule {
+    @Provides @Singleton fun provideDemoClock(): DemoClock = DemoClock()
+    @Provides fun provideAuthClock(clock: DemoClock): java.time.Clock = clock
     @Provides
     @Singleton
     fun provideDemoRepository(): DemoRepository = InMemoryDemoRepository()
 
     @Provides
     @Singleton
-    fun provideProductEnvironment(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context): FakeEventPassEnvironment =
-        FakeEventPassEnvironment(authStorage = AndroidFakeAuthStorage(context.noBackupFilesDir), authClock = java.time.Clock.systemUTC())
+    fun provideProductEnvironment(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context, clock: DemoClock): FakeEventPassEnvironment =
+        FakeEventPassEnvironment(authStorage = AndroidFakeAuthStorage(context.noBackupFilesDir), authClock = clock)
 
     @Provides
     fun provideAuthRepository(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.auth.AuthRepository = environment.auth

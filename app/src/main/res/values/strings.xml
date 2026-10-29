@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EventPass Demo</string>
-    <string name="demo_badge">Демонстрация · T03</string>
+    <string name="demo_badge">Демонстрация · T04</string>
     <string name="brand">EventPass</string>
     <string name="open_gallery">Открыть UI-кит</string>
     <string name="tickets_title">Мои билеты</string>
@@ -9,7 +9,7 @@
     <string name="profile_title">Профиль</string>
     <string name="tickets_hint">Билеты появятся в следующих задачах. Сейчас доступна проверка каркаса приложения.</string>
     <string name="events_hint">Создание мероприятий, права и сканер будут добавлены позднее.</string>
-    <string name="profile_hint">Это демонстрационная оболочка без входа и аккаунта.</string>
+    <string name="profile_hint">Данные текущего аккаунта.</string>
     <string name="open_demo">Открыть демо-экран</string>
     <string name="demo_title">Проверка состояния</string>
     <string name="demo_description">Счётчик сохраняется в текущем экране при переключении вкладок и восстановлении задачи. После закрытия экрана начинается заново.</string>

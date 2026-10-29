@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Статус: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1 и auth-итерация T02.2 завершены)**, **T03 — READY_FOR_HUMAN**, **T04 — IN_PROGRESS (UI ждёт H1)**, T05–T09 — **TODO**. Каркас, первая часть domain/fake, независимая auth-модель и UI-кит/галерея собраны и проверены; ручные smoke T01 и H1 ожидаются. Продуктовых экранов ещё нет. Этот документ — план сессий, не команда запускать подагентов. Нумерация фиксирована для передачи контекста; оценки времени не выставлены.
+Статус на 29 октября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1/T02.2 подготовлены)**, **T03 — DONE (H1 подтверждена человеком)**, **T04 — READY_FOR_HUMAN**, T05–T09 — TODO. Ожидается ручной auth smoke; H2 относится к T05. Исторические статусы ниже сохраняют даты. Этот документ не разрешает запуск подагентов.
 
 ## Порядок
 
@@ -82,6 +82,8 @@ flowchart LR
 **Авто:** сборка/lint; не писать тест на каждое значение цвета. **Человек H1:** галерея, 360–412dp, keyboard/insets, font scaling и эталон Figma. Результат: один согласованный набор компонентов перед построением всех экранов.
 
 ## T04 — auth, app shell и pending navigation
+
+**Статус 29 октября: READY_FOR_HUMAN.** После подтверждённой H1 реализованы auth Route/ViewModel/Screen, outbox UI, Login startup, Activity links и session gate с очисткой root/hidden owners, foreground/expiry и guards. APK `0.4.3-t04-demo`, code 7; 56 JVM и 13 device API 33, assemble/Hilt/lint (0 errors / 4 warnings)/isolation прошли. Ручной auth smoke ожидается, H2 не закрыта. Следующая задача — T05. [18-t04-validation.md](18-t04-validation.md). Ниже сохранён foundation-этап 28 октября.
 
 **Зависимости:** T02, T03, Q03. **Владение:** `feature/auth`, app navigation, session coordinator.
 
@@ -211,9 +213,10 @@ Remaining defects and next task:
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
-| T02 | IN_PROGRESS; T02.1 и независимая T02.2 подготовлены, 28 октября 2026 | Модели/access/validation + общий in-memory fake для event/guest submit/tickets, demo DI; 24 unit-теста и assemble/lint/isolation прошли. `16-t02-domain-fake.md`; auth-only snapshot/порты и 52 unit/7 device — `18-t04-validation.md`. Полная persistence/прочие команды по следующим фичам |
-| T03 | READY_FOR_HUMAN, 27 октября 2026 | UI-кит/Inter/галерея/оболочка; P2 a263c21 исправлен, APK 0.3.1-t03-demo. После ревью 4e3d0de: 6 app unit/по 6 device API 33 с жестами и тремя кнопками, 4 повтора gesture regression/lint/isolation. Исходная T03: 25 unit/5 device API 36.1; `17-t03-validation.md`; H1 ожидается |
-| T04 | IN_PROGRESS, 28 октября 2026 | Независимая T02.2/auth/session/navigation модель подготовлена, APK 0.4.1-t04-foundation-demo; 52 unit / 7 device API 33 / lint / isolation. UI и Activity wiring после H1; `18-t04-validation.md` |
+| T02 | IN_PROGRESS; T02.1 и T02.2 подготовлены | Общий fake и auth-only snapshot; интеграция T04: 56 JVM / 13 device. Полная persistence guest tickets и остальные команды — с T05/H2; `16-t02-domain-fake.md`, `18-t04-validation.md` |
+| T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
+| T04 | READY_FOR_HUMAN, 29 октября 2026 | Auth UI/session/Activity links/outbox/guards; APK 0.4.3-t04-demo, code 7; 56 JVM / 13 device API 33 / lint / isolation. Ручной auth smoke ожидается; `18-t04-validation.md` |
 | T05–T09 | TODO; API не блокирует demo | Продуктовых экранов нет; после полной T04 — T05/H2 |
-| H1–H4 | Не пройдены человеком | Для H1 подготовлены APK T03 и checklist; остальные гейты относятся к следующим этапам |
+| H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
+| H2–H4 | Ожидаются | Ручной auth smoke T04 не закрывает H2, следующая задача — T05 |
 | T10 | Будущий этап | API отсутствует по запросу пользователя |

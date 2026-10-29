@@ -20,6 +20,14 @@ data class DemoDetails(val recordId: String, val entryId: String = UUID.randomUU
 @Serializable
 data object GalleryKey : NavKey
 
+@Serializable data object LoginKey : NavKey
+@Serializable data object SignUpKey : NavKey
+@Serializable data object ResetKey : NavKey
+@Serializable data object VerificationKey : NavKey
+@Serializable data object DemoToolsKey : NavKey
+@Serializable data object OutboxKey : NavKey
+@Serializable data class EventKey(val eventId: String) : NavKey
+
 class NavigationState(
     private val selectedTab: MutableState<RootTab>,
     val stacks: Map<RootTab, NavBackStack<NavKey>>,
@@ -51,12 +59,19 @@ class NavigationState(
         if (currentStack.lastOrNull() != GalleryKey) currentStack.add(GalleryKey)
     }
 
+    fun openEvent(eventId: String) {
+        selectedTab.value = RootTab.Tickets
+        if (currentStack.lastOrNull() == EventKey(eventId)) return
+        while (currentStack.size > 1) currentStack.removeLastOrNull()
+        currentStack.add(EventKey(eventId))
+    }
+
     fun back() {
         if (currentStack.size > 1) currentStack.removeLastOrNull()
         else selectedTab.value = RootTab.Tickets
     }
 
-    /** Host callback for the session coordinator; wired to the shell only after H1. */
+    /** Model-level reset. Live session cleanup also destroys scope-owned ViewModel stores. */
     fun clearPrivateState() {
         for (tab in RootTab.entries) {
             stacks.getValue(tab).apply { clear(); add(tab) }

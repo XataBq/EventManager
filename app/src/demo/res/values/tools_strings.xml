@@ -1,0 +1,12 @@
+<resources>
+    <string name="tools_disclaimer">Демо-данные · t02-v1. Имитация писем, реальной отправки нет. После перезапуска почта пуста.</string>
+    <string name="tools_empty">Писем нет. Запросите подтверждение или код сброса.</string>
+    <string name="tools_code">Код сброса: %1$s</string>
+    <string name="tools_confirm">Открыть подтверждение</string>
+    <string name="tools_refresh">Обновить письма</string>
+    <string name="tools_guard">Проверить доступ к сканированию E «alex-owned»</string>
+    <string name="tools_network">Следующий auth-запрос: ошибка связи</string>
+    <string name="tools_timeout">Следующий auth-запрос: timeout</string>
+    <string name="tools_advance">Время auth +31 минута (истечение сессии)</string>
+    <string name="tools_reset">Сбросить демо-данные</string>
+</resources>

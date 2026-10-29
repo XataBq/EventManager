@@ -6,18 +6,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import dagger.hilt.android.AndroidEntryPoint
-import java.util.UUID
 import ru.eventpass.app.navigation.EventPassApp
-import ru.eventpass.app.navigation.LinkRequest
+import androidx.activity.viewModels
+import ru.eventpass.app.navigation.auth.AppSessionViewModel
 import ru.eventpass.core.designsystem.EventPassTheme
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private var linkRequest by mutableStateOf<LinkRequest?>(null)
+    private val session: AppSessionViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,18 +26,20 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null && intent.action == Intent.ACTION_VIEW) receiveLink(intent)
         setContent {
             EventPassTheme {
-                EventPassApp(linkRequest, onLinkConsumed = { linkRequest = null })
+                EventPassApp(session)
             }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent)
         if (intent.action == Intent.ACTION_VIEW) receiveLink(intent)
     }
 
     private fun receiveLink(intent: Intent) {
-        linkRequest = LinkRequest(intent.dataString, UUID.randomUUID().toString())
+        session.receiveLink(intent.dataString)
+        // Delivery now belongs to the retained ViewModel. Never let Activity save a secret URI.
+        intent.data = null
+        intent.action = Intent.ACTION_MAIN
     }
 }

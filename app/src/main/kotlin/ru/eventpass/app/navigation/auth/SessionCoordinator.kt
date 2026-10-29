@@ -39,7 +39,7 @@ object AuthNavigationPolicy {
         } == true
 }
 
-/** UI-dispatcher confined. Host binds clearPrivateState and observes gate after H1. */
+/** UI-dispatcher confined. The Activity ViewModel binds owner cleanup and observes this gate. */
 class SessionCoordinator(
     private val auth: AuthRepository,
     scope: CoroutineScope,

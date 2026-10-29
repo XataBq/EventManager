@@ -6,7 +6,7 @@ import ru.eventpass.core.platform.AuthDemoLinkParser
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-/** Activity delivery is deferred until H1; this boundary never persists the URI/token. */
+/** Activity delivery boundary: never persists the URI/token. */
 class AuthLinkHandler(private val auth: AuthRepository) {
     private val handled = LinkedHashSet<String>()
     private val inFlight = mutableSetOf<String>()

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -22,9 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -35,23 +31,36 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.demo.DemoRoute
-import ru.eventpass.core.platform.DemoLinkParser
 import ru.eventpass.app.feature.gallery.ComponentGallery
 import ru.eventpass.core.designsystem.*
 
-data class LinkRequest(val uri: String?, val requestId: String)
-
 @Composable
-fun EventPassApp(linkRequest: LinkRequest?, onLinkConsumed: () -> Unit) {
+fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
+    shell: ru.eventpass.app.navigation.auth.SessionGate.Shell,
+    entryProbe: @Composable (RootTab) -> Unit = {}) {
     val navigation = rememberNavigationState()
-    var invalidLink by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(linkRequest) {
-        linkRequest?.let { request ->
-            val id = DemoLinkParser.parse(request.uri)
-            if (id == null) invalidLink = true else navigation.openDemo(id)
-            onLinkConsumed()
+    val open by session.open.collectAsStateWithLifecycle()
+    val forbidden by session.forbidden.collectAsStateWithLifecycle()
+    LaunchedEffect(forbidden) {
+        val event = forbidden as? ru.eventpass.app.navigation.auth.ReturnDestination.Event
+        if (event != null && navigation.currentStack.lastOrNull() == EventKey(event.eventId)) navigation.back()
+    }
+    LaunchedEffect(shell.scope) {
+        when (val destination = session.takeDestination(shell)) {
+            is ru.eventpass.app.navigation.auth.ReturnDestination.Event -> navigation.openEvent(destination.eventId)
+            is ru.eventpass.app.navigation.auth.ReturnDestination.Root -> navigation.select(destination.tab)
+            null -> Unit
+        }
+    }
+    LaunchedEffect(open) {
+        open?.let { request ->
+            request.demoId?.let(navigation::openDemo)
+            (request.destination as? ru.eventpass.app.navigation.auth.ReturnDestination.Event)?.let { navigation.openEvent(it.eventId) }
+            (request.destination as? ru.eventpass.app.navigation.auth.ReturnDestination.Root)?.let { navigation.select(it.tab) }
+            session.consumeOpen(request.id)
         }
     }
 
@@ -63,10 +72,19 @@ fun EventPassApp(linkRequest: LinkRequest?, onLinkConsumed: () -> Unit) {
                 backStack = navigation.stacks.getValue(tab),
                 entryDecorators = listOf(
                     rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(viewModelStoreOwner = session.owner(tab)),
                 ),
                 entryProvider = entryProvider {
-                    entry<RootTab> { root -> RootScreen(root, { navigation.openDemo("demo") }, navigation::openGallery) }
+                    entry<RootTab> { root ->
+                        entryProbe(root)
+                        RootScreen(root, { navigation.openDemo("demo") }, navigation::openGallery,
+                            session.account?.email.orEmpty(),
+                            { session.signOut() }, { navigation.currentStack.add(DemoToolsKey) })
+                    }
+                    entry<EventKey> { EventReceiver(it.eventId, true) }
+                    entry<DemoToolsKey> { ru.eventpass.app.feature.tools.DemoTools(false, navigation::openGallery,
+                        { navigation.openDemo("demo") }, { navigation.currentStack.add(OutboxKey) }, { session.receiveLink(it) }, session::guard) }
+                    entry<OutboxKey> { ru.eventpass.app.feature.tools.DemoTools(true, {}, {}, {}, { session.receiveLink(it) }, session::guard) }
                     entry<DemoDetails> { route -> DemoRoute(route.recordId, navigation::back, navigation::openGallery) }
                     entry<GalleryKey> { ComponentGallery(navigation::back) }
                 },
@@ -106,19 +124,10 @@ fun EventPassApp(linkRequest: LinkRequest?, onLinkConsumed: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
         )
     }
-    if (invalidLink) {
-        AlertDialog(
-            onDismissRequest = { invalidLink = false },
-            text = { Text(stringResource(R.string.invalid_link)) },
-            confirmButton = {
-                TextAction(stringResource(R.string.dismiss), onClick = { invalidLink = false })
-            },
-        )
-    }
 }
 
 @Composable
-private fun RootScreen(tab: RootTab, onOpenDemo: () -> Unit, onOpenGallery: () -> Unit) {
+private fun RootScreen(tab: RootTab, onOpenDemo: () -> Unit, onOpenGallery: () -> Unit, email: String, onSignOut: () -> Unit, onTools: () -> Unit) {
     val (title, hint) = when (tab) {
         RootTab.Tickets -> R.string.tickets_title to R.string.tickets_hint
         RootTab.Events -> R.string.events_title to R.string.events_hint
@@ -131,6 +140,11 @@ private fun RootScreen(tab: RootTab, onOpenDemo: () -> Unit, onOpenGallery: () -
     ) {
         Text(stringResource(title), style = MaterialTheme.typography.headlineMedium)
         Text(stringResource(hint))
+        if (tab == RootTab.Profile) {
+            Text(email, modifier = Modifier.testTag("profile-email"))
+            EventPassButton(stringResource(R.string.auth_logout), onSignOut, Modifier.testTag("sign-out"))
+        }
+        TextAction(stringResource(R.string.auth_demo_tools), onTools)
         if (tab == RootTab.Tickets) {
             EventPassButton(stringResource(R.string.open_demo), onOpenDemo, Modifier.testTag("open-demo"))
             EventPassButton(stringResource(R.string.open_gallery), onOpenGallery, Modifier.testTag("open-gallery"), style = ActionStyle.Secondary)

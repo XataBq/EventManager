@@ -12,4 +12,5 @@ import ru.eventpass.data.fake.product.FakeEventPassEnvironment
 interface DemoBackendEntryPoint {
     fun auth(): AuthRepository
     fun environment(): FakeEventPassEnvironment
+    fun clock(): DemoClock
 }

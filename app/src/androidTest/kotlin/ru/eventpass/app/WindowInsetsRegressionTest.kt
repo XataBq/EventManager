@@ -33,6 +33,7 @@ class WindowInsetsRegressionTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
     @Test fun profileActionAndContentRemainOutsideSystemAreasAfterRotation() {
+        compose.login()
         val orientations = listOf(
             Configuration.ORIENTATION_PORTRAIT to Surface.ROTATION_0,
             Configuration.ORIENTATION_LANDSCAPE to Surface.ROTATION_90,

@@ -1,4 +1,53 @@
-# T04 до H1 — независимая T02.2 и модель auth-навигации
+# T04 — auth UI, session gate и навигация
+
+## UI-интеграция T04 — 29 октября 2026, READY_FOR_HUMAN
+
+H1 подтверждена пользователем 29 октября; T03 — DONE. Оставшаяся T04 реализована после этого подтверждения. **T04 — READY_FOR_HUMAN; auth smoke и H2 не отмечены пройденными.** Следующая задача после приёмки auth — T05/H2.
+
+Текущий [app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.4.3-t04-demo**, code **7**, **33155884 байт**, applicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37. SHA-256: `aed6b318515dc0ffb7ee438aa2bdc4d83ede65a46db74d14cc5667d135f5eeac`. Debug-подпись v2 и метаданные APK проверены. Seeds `t02-v1` / `t01-v1`, snapshot schema 1; зависимости и toolchain не обновлялись. Пользовательский `gradle-daemon-jvm.properties` сохранён вне коммита, его критерий — JDK 21.
+
+### Что доступно в UI
+
+- Гостевой старт — Login без нижних табов, SignUp, подсказка о ссылке организатора. Имя любой письменности, email, пароль и согласие; дополнительных обязательных полей нет. Typed errors выбирают русские string resources. SignUp и подтверждение email не открывают сессию; после подтверждения показан Login с email и сообщением о ручном входе.
+- Восстановление: email → код → новый пароль → ручной Login. Пароли, код и grant остаются в памяти ViewModel текущей entry; на диск, в route и SavedStateHandle не попадают. При восстановлении нового процесса секреты потеряны, reset начинается с email. После изменения пароля старый не подходит. Повтор отправки имеет cooldown, его UI-таймер и таймер сессии работают только при STARTED.
+- После Login — Билеты/Мероприятия/Профиль; Profile показывает email и SignOut. Tickets/MyEvents честно остаются незавершёнными поверхностями T05+. Ссылка `eventpass-demo://demo/e/open-registration` открывает минимальный приёмник eventId. Вход с него возвращает к E без анкеты и автоматического submit; назначение потребляется один раз, поворот его не дублирует.
+- SessionCoordinator принадлежит Activity ViewModel. Каждый PrivateScope и каждый таб получают отдельный parent ViewModelStore; все стеки декорируются и в скрытых табах. При logout/expiry/смене личности stores очищаются сразу, композиция/saveable state отделены ключом сессии. Root и hidden owners проверены на устройстве: viewModelScope отменены, новый аккаунт получает новые экземпляры; переключение табов/поворот действующей сессии сохраняют состояние.
+- Проверка сессии на foreground и один таймер до expiresAt; без polling и сервиса. Demo Clock двигает только auth-время. Общая AuthNavigationPolicy подключена: Unauthenticated → Login с назначением, Forbidden → сообщение/удаление недоступного маршрута без повторного Login. Demo-проверка canScan для `alex-owned` использует access из того же EventRepository, что и fake; scanner/dashboard не реализованы.
+- Cold `onCreate(ACTION_VIEW)` и warm `onNewIntent` передают доставку AuthLinkHandler через Activity ViewModel. URI очищается из Intent, transient delivery/retry не сериализуется; поворот не отменяет обработку. Ошибка оставляет явный retry с прежним requestId; успех очищает секрет. Разделение inFlight/handled и все восемь прежних auth-регрессий сохранены. Legacy `eventpass-demo://demo/demo` открывает только технический счётчик, без обхода auth shell.
+
+**Демо-инструменты** доступны из Login и корневых экранов: UI-кит, счётчик, имитация почты, следующий Network/Timeout, auth-время +31 минута и reset. Всё concrete fake/debug UI — только src/demo. **Имитация почты** показывает email, кнопку подтверждения или reset-код; это память процесса, реальной отправки нет. После рестарта outbox пуст; accounts/proofs/challenge hashes сохранены в `noBackupFilesDir/demo-auth-v1.bin`, сессия — Guest. Повтор после cooldown создаёт новое письмо. Искусственные seed-аккаунты: `alex@example.com`, `host@example.com`, пароль **DemoPass123!**.
+
+Поддерживаются строгие пути `/e/<eventId>` и `/confirm/<challengeId>?token=<secret>` на `eventpass-demo://demo`; reset остаётся по коду. В manifest уже был фильтр этого scheme/host, расширять его не понадобилось. Проверка путей/query выполняется существующим parser, реального домена/assetlinks нет.
+
+### Проверки и границы доказательства
+
+В этой итерации фактически исполнены **56 JVM-тестов**: domain 7, fake 25, app 22, platform 2; failures/errors/skipped = 0. После последних изменений app-тесты повторены. Две новые проверки ViewModel покрывают busy/retry, signup/reset через общий backend, ручной вход и отсутствие секретов в SavedStateHandle. Собраны app/test APK, Hilt/DI, demo isolation и lint: **0 ошибок / 4 прежних уведомления о версиях**, baseline/исключений нет.
+
+Все **13 device-тестов** прошли на изолированном Pixel 7 AVD / Android 13 / API 33 / три системные кнопки. Семь прежних проверок сохранены, их setup теперь выполняет явный вход. Шесть новых проверяют root/hidden owner cleanup и смену аккаунта; warm confirmation + Network/retry/rotation; cold Activity confirmation; возврат к E/rotation/foreground expiry; полный UI signup/outbox/confirm/manual Login/reset; Forbidden и Unauthenticated по event-scoped access. Нет нового прогона с жестами, OS process-death auth, API 28/37 или физического устройства. Cold Activity и восстановление backend из AtomicFile — разные проверки, они не объявляются смертью процесса.
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
+$env:ANDROID_SERIAL = 'emulator-5584'
+.\gradlew.bat :core:domain:test --rerun :data:fake:test --rerun :app:testDemoDebugUnitTest --rerun :core:platform:testDebugUnitTest --rerun :app:assembleDemoDebug :app:assembleDemoDebugAndroidTest :app:lintDemoDebug :app:verifyDemoIsolation --offline --console=plain --max-workers=2
+.\gradlew.bat :app:testDemoDebugUnitTest :app:assembleDemoDebug :app:lintDemoDebug :app:verifyDemoIsolation :app:connectedDemoDebugAndroidTest --offline --console=plain --max-workers=2
+```
+
+Логи: `.gradle/t04-ui-full-build.log`, `t04-ui-final.log`, `t04-ui-release-check.log`; итоговые XML/lint/metadata — `.gradle/t04-ui-evidence`. После установки итогового APK выполнен cold MAIN-запуск и осмотрен Login без нижних табов; снимок — `.gradle/t04-ui-evidence/t04-ui-login.png`. Это ограниченная проверка стартового экрана, не ручная приёмка всех новых поверхностей. Начальные `t04-ui-slice-device.log`, `slice2.log`, `slice3.log`, `full-device.log` содержат неуспешные прогоны: ActivityScenario терял изменённый launch Intent, probe после recreate требовал повторного подключения, две проверки не ждали IO/выбирали несколько писем. Найдена и исправлена ошибка UI: email после confirmation не обновлялся в уже существующем Login; теперь он StateFlow, device-тест требует предзаполнение. Эти промежуточные результаты не подменены успехом.
+
+Свежие чтения Figma `create_session` и `get_design_context` завершились ошибкой соединения MCP. G03 `51:284`, G04 `28:50`, G05 `28:93` не сверены с живыми макетами/скриншотами. Использованы локальный `sources/figma-2026-10-21.json`, docs/04 и готовый core:designsystem/Inter; устаревшее обещание сохранения анкеты из G03 исключено по B04. Новых bitmap assets нет. Проверка новых экранов человеком, TalkBack, IME/ширины/font scale остаётся auth smoke; H1 не переоткрывается. Основания lifecycle/ownership: [Navigation 3 state](https://developer.android.com/guide/navigation/navigation-3/save-state), [repeatOnLifecycle](https://developer.android.com/topic/libraries/architecture/coroutines); реальная совместимость проверена на установленном стеке.
+
+### Короткий ручной auth smoke на code 7
+
+1. На новом запуске проверить Login без табов. Ввести новую почту/имя/пароль, отметить согласие, создать аккаунт. Открыть «Имитация почты», нажать подтверждение: Login с email/сообщением, пароль вводится вручную. Проверить неверный пароль и неподтверждённую почту.
+2. Войти; открыть «Профиль», сверить email. Через «Демо-инструменты» включить Network/Timeout для следующего auth-запроса и проверить ошибку/ручной повтор. Для confirmation отказ включать перед открытием письма; повтор доступен в диалоге.
+3. Выйти → «Забыли пароль?» → email → код из demo outbox (через Back вернуться к коду) → новый пароль → ручной Login. Старый пароль не подходит, reset не логинит и не подтверждает email сам.
+4. Открыть `eventpass-demo://demo/e/open-registration`, нажать «Войти»; после Login вернуться только к E, без формы/submit. Повернуть до и после входа. Из «Демо-инструменты» проверить доступ `alex-owned` под alex и host: права различаются по E, Forbidden не вызывает Login.
+5. Открыть счётчик, изменить его, переключить табы и пересоздать Activity: значение сохраняется. После logout/Back/recreation, входа другим аккаунтом и auth-времени +31 минута прежние приватные данные не возвращаются. При новом процессе сессии и outbox нет.
+6. Проверить поля/ошибки/клавиатуру, прокрутку, обе альбомные ориентации, системные панели и крупный текст. Галерея: «Демо-инструменты → Открыть UI-кит», доступна также гостю. Проверить TalkBack. Записать сборку, устройство/Android и замечания.
+
+T05, анкета/QR, tickets persistence, камера, профиль CRUD, production API/почта/signing/App Links не входят в этот срез. CODE_REVIEW.md и посторонние изменения сохранены; подагенты и полное ревью не запускались. Ниже — история foundation и её прежние APK/результаты, не описание текущего UI.
+
+## История foundation
 
 28 октября 2026. Основание: `docs/prompts/t04-auth-navigation.md`, HEAD до работы `2c035a8`, дополнение CODE_REVIEW.md от 28 октября. H1 в сообщениях и документации не подтверждена. Выполнена разрешённая независимая часть. **T04 — IN_PROGRESS; T03 — READY_FOR_HUMAN; H1/H2 не закрыты.**
 
