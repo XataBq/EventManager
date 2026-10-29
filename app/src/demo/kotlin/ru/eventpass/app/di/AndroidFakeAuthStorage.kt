@@ -5,7 +5,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import ru.eventpass.data.fake.product.FakeAuthStorage
 
-/** Fake-server adapter only. Auth repository runs reads/writes on IO; excluded from backups. */
+/** Shared fake-server adapter; backend performs IO off main. Keeps the T04 file path for migration. */
 class AndroidFakeAuthStorage(directory: File) : FakeAuthStorage {
     private val file = AtomicFile(File(directory, "demo-auth-v1.bin"))
     override fun read(): ByteArray? = try { file.openRead().use { it.readBytes() } }

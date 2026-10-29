@@ -107,20 +107,20 @@ class AuthUiIntegrationTest {
     @Test fun eventReturnSurvivesRecreationAndExpiryRemovesPrivateShell() {
         runBlocking { compose.backend().auth().signOut() }
         compose.activityRule.scenario.onActivity { activity ->
-            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("eventpass-demo://demo/e/event-a"), activity, MainActivity::class.java)
+            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("eventpass-demo://demo/e/open-registration"), activity, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
         }
-        compose.onNodeWithText("Мероприятие: event-a").assertIsDisplayed()
-        compose.onNodeWithText("Войти").performClick()
+        compose.onNodeWithTag("event-open-registration").assertIsDisplayed()
+        compose.onNodeWithTag("event-login").performScrollTo().performClick()
         compose.activityRule.scenario.recreate()
         // This login intentionally expects E instead of the Tickets root.
         compose.onNodeWithTag("auth-email").performTextReplacement("alex@example.com")
         compose.onNodeWithTag("auth-password").performTextReplacement("DemoPass123!")
         compose.onNodeWithTag("auth-submit").performScrollTo().performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Мероприятие: event-a").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Мероприятие: event-a").assertIsDisplayed()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("event-open-registration").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("event-open-registration").assertIsDisplayed()
         compose.activityRule.scenario.recreate()
-        compose.onNodeWithText("Мероприятие: event-a").assertIsDisplayed()
+        compose.onNodeWithTag("event-open-registration").assertIsDisplayed()
         compose.backend().clock().advance(java.time.Duration.ofMinutes(31))
         // Foreground refresh must detect expiry even when its previous timer was suspended.
         compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
@@ -128,7 +128,7 @@ class AuthUiIntegrationTest {
         compose.onNodeWithTag("login-screen").assertIsDisplayed()
         compose.onNodeWithTag("tab-Tickets").assertDoesNotExist()
         compose.activityRule.scenario.recreate()
-        compose.onNodeWithText("Мероприятие: event-a").assertDoesNotExist()
+        compose.onNodeWithTag("event-open-registration").assertDoesNotExist()
     }
 
     @Test fun signupOutboxConfirmationManualLoginAndPasswordResetAreReachable() {

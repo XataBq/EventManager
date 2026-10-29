@@ -30,19 +30,19 @@ internal class FakeAuthRepository(
     private val initialization = Mutex()
     @Volatile private var initialized = false
 
-    private suspend fun initialize() = initialization.withLock {
+    internal suspend fun initialize() = initialization.withLock {
         if (!initialized) withContext(Dispatchers.IO) {
             lock.withLock stateLock@ {
                 if (initialized) return@stateLock
                 try {
                     val bytes = storage.read()
                     val current = state.value
-                    val restored = bytes?.let(AuthSnapshotCodec::decode)
-                    val accounts = restored?.first ?: current.accounts
-                    val data = restored?.second?.copy(generation = current.auth.generation, nextError = current.auth.nextError) ?: current.auth.copy(passwords = current.accounts.mapValues {
+                    val restored = bytes?.let { ProductSnapshotCodec.restore(it, current) }
+                    val accounts = restored?.accounts ?: current.accounts
+                    val data = restored?.auth?.copy(generation = current.auth.generation, nextError = current.auth.nextError) ?: current.auth.copy(passwords = current.accounts.mapValues {
                         passwordProof(AuthSecret("DemoPass123!"), policy.passwordIterations)
                     })
-                    state.value = current.copy(accounts = accounts, auth = data.copy(session = null))
+                    state.value = (restored ?: current).copy(accounts = accounts, auth = data.copy(session = null))
                 } catch (_: IOException) {
                     state.value = state.value.copy(auth = AuthData(healthy = false))
                 } catch (_: IllegalArgumentException) {
@@ -118,7 +118,7 @@ internal class FakeAuthRepository(
                     else -> {
                         val (next, result) = action(s)
                         if (next != s) {
-                            try { storage.write(AuthSnapshotCodec.encode(next.accounts, next.auth)) }
+                            try { storage.write(ProductSnapshotCodec.encode(next)) }
                             catch (_: IOException) { return@withLock CompletedCommand(AuthResult.Failed(AuthError.StorageUnavailable)) }
                             if (acceptSessionOnCaller) {
                                 context.ensureActive()
@@ -247,7 +247,7 @@ internal class FakeAuthRepository(
             val data = seed.auth.copy(passwords = seed.accounts.mapValues {
                 passwordProof(AuthSecret("DemoPass123!"), policy.passwordIterations)
             }, generation = state.value.auth.generation + 1)
-            storage.write(AuthSnapshotCodec.encode(seed.accounts, data))
+            storage.write(ProductSnapshotCodec.encode(seed.copy(auth = data)))
             state.value = seed.copy(auth = data)
             initialized = true
         }

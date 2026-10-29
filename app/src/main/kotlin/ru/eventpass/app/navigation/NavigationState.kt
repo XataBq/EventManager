@@ -26,7 +26,9 @@ data object GalleryKey : NavKey
 @Serializable data object VerificationKey : NavKey
 @Serializable data object DemoToolsKey : NavKey
 @Serializable data object OutboxKey : NavKey
-@Serializable data class EventKey(val eventId: String) : NavKey
+@Serializable data class EventKey(val eventId: String, val flowId: String = UUID.randomUUID().toString()) : NavKey
+@Serializable enum class EventAuthScreen { Login, SignUp, Reset, Verification }
+@Serializable data class EventAuthKey(val flowId: String, val screen: EventAuthScreen, val entryId: String = UUID.randomUUID().toString()) : NavKey
 
 class NavigationState(
     private val selectedTab: MutableState<RootTab>,
@@ -61,7 +63,7 @@ class NavigationState(
 
     fun openEvent(eventId: String) {
         selectedTab.value = RootTab.Tickets
-        if (currentStack.lastOrNull() == EventKey(eventId)) return
+        if ((currentStack.lastOrNull() as? EventKey)?.eventId == eventId) return
         while (currentStack.size > 1) currentStack.removeLastOrNull()
         currentStack.add(EventKey(eventId))
     }

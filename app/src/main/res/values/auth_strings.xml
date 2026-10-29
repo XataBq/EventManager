@@ -29,8 +29,6 @@
     <string name="auth_logout">Выйти</string>
     <string name="auth_confirmed">Email подтверждён. Войдите вручную.</string>
     <string name="auth_retry_link">Повторить подтверждение</string>
-    <string name="auth_event_receiver">Мероприятие: %1$s</string>
-    <string name="auth_event_unfinished">Экран мероприятия и анкета появятся в T05.</string>
     <string name="auth_forbidden">Нет доступа к этому действию мероприятия.</string>
     <string name="auth_invalid_input">Проверьте email, имя, пароль и согласие. Код должен содержать 6 цифр.</string>
     <string name="auth_invalid_credentials">Неверный пароль или email.</string>

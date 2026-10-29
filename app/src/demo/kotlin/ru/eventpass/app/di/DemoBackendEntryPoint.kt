@@ -13,4 +13,5 @@ interface DemoBackendEntryPoint {
     fun auth(): AuthRepository
     fun environment(): FakeEventPassEnvironment
     fun clock(): DemoClock
+    fun eventClock(): DemoEventClock
 }

@@ -75,6 +75,7 @@ class SessionCoordinator(
     }
 
     fun requireLogin(destination: ReturnDestination) { pendingDestination = destination }
+    fun clearDestination() { pendingDestination = null }
     fun pendingForSavedState(): ReturnDestination? = pendingDestination
 
     suspend fun signIn(email: String, password: AuthSecret): AuthResult<Unit> {

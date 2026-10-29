@@ -35,7 +35,13 @@ object FakeFixtures {
         Event(
             id = id,
             ownerId = if (id == OWNED) ALEX else HOST,
-            title = "Демо-мероприятие ${id.value}",
+            title = when (id) {
+                OPEN -> "IT & Data Science 2026"
+                OWNED -> "Проектная конференция"
+                VOLUNTEER -> "День открытых дверей"
+                ATTENDING -> "Мастер-класс Kotlin"
+                else -> "Командный хакатон"
+            },
             startsAt = NOW.plusSeconds(86_400),
             endsAt = NOW.plusSeconds(100_800),
             zoneId = "Europe/Moscow",
@@ -52,6 +58,9 @@ object FakeFixtures {
                     options = listOf(RegistrationQuestion.Option("listener", "Слушатель")),
                 ),
             ),
+            description = "Студенческая научно-практическая конференция: исследования, прикладные модели и мастер-классы.",
+            sections = listOf(ru.eventpass.core.domain.event.EventSection("LLM & Generative AI", "10:30 — 13:00"),
+                ru.eventpass.core.domain.event.EventSection("Data Engineering & ML Ops", "14:00 — 17:30")),
         )
     }
 

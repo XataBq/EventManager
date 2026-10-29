@@ -45,8 +45,8 @@ fun AuthErrorText(error: AuthError?) {
 }
 
 @Composable
-fun AuthColumn(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EventPassDimens.page),
+fun AuthColumn(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EventPassDimens.page),
         verticalArrangement = Arrangement.spacedBy(EventPassDimens.large), content = content)
 }
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EventPass Demo</string>
-    <string name="demo_badge">Демонстрация · T04</string>
+    <string name="demo_badge">Демонстрация · T05</string>
     <string name="brand">EventPass</string>
     <string name="open_gallery">Открыть UI-кит</string>
     <string name="tickets_title">Мои билеты</string>

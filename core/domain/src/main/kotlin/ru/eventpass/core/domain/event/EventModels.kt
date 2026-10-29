@@ -2,6 +2,7 @@ package ru.eventpass.core.domain.event
 
 import java.time.Instant
 import ru.eventpass.core.domain.registration.RegistrationQuestion
+import ru.eventpass.core.domain.registration.RegistrationPolicy
 
 @JvmInline value class EventId(val value: String)
 @JvmInline value class UserId(val value: String)
@@ -24,6 +25,8 @@ data class Event(
     val registrationOpen: Boolean,
     val formVersion: Int,
     val questions: List<RegistrationQuestion>,
+    val description: String = "",
+    val sections: List<EventSection> = emptyList(),
 ) {
     init {
         require(capacity == null || capacity >= 0)
@@ -32,6 +35,8 @@ data class Event(
         require(questions.map { it.id }.distinct().size == questions.size)
     }
 }
+
+data class EventSection(val title: String, val time: String)
 
 sealed interface AvailablePlaces {
     data object Unlimited : AvailablePlaces
@@ -108,6 +113,12 @@ sealed interface PublicEventResult {
         val event: Event,
         val availability: RegistrationAvailability,
         val access: EventAccess,
+        val policy: RegistrationPolicy = RegistrationPolicy(),
+        val contact: RegistrationContact? = null,
     ) : PublicEventResult
     data object NotFound : PublicEventResult
+    data class Failed(val error: ProductReadError) : PublicEventResult
 }
+
+data class RegistrationContact(val email: String, val name: String)
+enum class ProductReadError { NETWORK, TIMEOUT, STORAGE_UNAVAILABLE }

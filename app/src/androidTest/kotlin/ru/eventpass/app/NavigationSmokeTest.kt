@@ -28,7 +28,7 @@ class NavigationSmokeTest {
     @org.junit.Before fun signIn() { compose.login() }
 
     @Test fun hiltEntrySurvivesTabsAndRecreationButNotPop() {
-        compose.onNodeWithTag("open-demo").performClick()
+        compose.onNodeWithTag("open-demo").performScrollTo().performClick()
         compose.onNodeWithTag("increment").performClick()
         compose.onNodeWithTag("demo-count").assertTextEquals("Счётчик: 1")
         compose.onNodeWithTag("tab-Events").performClick()
@@ -41,7 +41,7 @@ class NavigationSmokeTest {
         compose.activityRule.scenario.recreate()
         compose.onNodeWithTag("demo-count").assertTextEquals("Счётчик: 1")
         compose.onNodeWithTag("close-demo").performClick()
-        compose.onNodeWithTag("open-demo").performClick()
+        compose.onNodeWithTag("open-demo").performScrollTo().performClick()
         compose.onNodeWithTag("demo-count").assertTextEquals("Счётчик: 0")
         compose.onNodeWithTag("tab-Tickets").performClick()
         compose.onNodeWithTag("root-Tickets").assertIsDisplayed()
@@ -74,7 +74,7 @@ class NavigationSmokeTest {
     }
 
     @Test fun galleryBackAndTabSwitchKeepTheExistingDemoViewModel() {
-        compose.onNodeWithTag("open-demo").performClick()
+        compose.onNodeWithTag("open-demo").performScrollTo().performClick()
         compose.onNodeWithTag("increment").performClick()
         compose.onNodeWithTag("open-gallery").performScrollTo().performClick()
         compose.onNodeWithTag("component-gallery").assertIsDisplayed()
@@ -88,7 +88,7 @@ class NavigationSmokeTest {
     }
 
     @Test fun galleryControlsExposeCheckedSelectedAndEditableStates() {
-        compose.onNodeWithTag("open-gallery").performClick()
+        compose.onNodeWithTag("open-gallery").performScrollTo().performClick()
         compose.onNodeWithText("Выбор").performScrollTo().performClick()
         compose.onNodeWithTag("gallery-consent").performScrollTo().assertIsOff().performClick().assertIsOn()
         compose.onNodeWithTag("gallery-switch").performScrollTo().assertIsOn().performClick().assertIsOff()

@@ -56,8 +56,10 @@ class AppSessionViewModel @Inject constructor(
         }
     }
     private fun clearOwners() {
+        // Public saved state belongs to its own flow. Unknown -> Guest in a new process
+        // must not erase a system-restored receipt. Entering/leaving a private scope does.
+        if (stores.isNotEmpty() || auth.currentSession().state is SessionState.Authenticated) publicOwner.viewModelStore.clear()
         stores.values.forEach { it.viewModelStore.clear() }; stores.clear()
-        publicOwner.viewModelStore.clear()
     }
     val coordinator = SessionCoordinator(auth, viewModelScope, ::clearOwners,
         saved.get<String>("pending")?.let { Json.decodeFromString<ReturnDestination>(it) })
@@ -79,6 +81,7 @@ class AppSessionViewModel @Inject constructor(
         coordinator.requireLogin(destination)
         saved["pending"] = Json.encodeToString(destination)
     }
+    fun clearDestination() { coordinator.clearDestination(); saved.remove<String>("pending") }
     suspend fun signIn(email: String, password: AuthSecret): AuthResult<Unit> {
         val result = coordinator.signIn(email, password)
         if (result is AuthResult.Success) saved.remove<String>("pending")
@@ -128,5 +131,5 @@ class AppSessionViewModel @Inject constructor(
         delay(Duration.between(clock.instant(), session.expiresAt).toMillis().coerceAtLeast(1))
         coordinator.refreshSession()
     }
-    override fun onCleared() { clearOwners(); queuedLinks.clear(); retryDelivery = null }
+    override fun onCleared() { clearOwners(); publicOwner.viewModelStore.clear(); queuedLinks.clear(); retryDelivery = null }
 }

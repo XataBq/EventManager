@@ -21,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -42,11 +45,12 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
     shell: ru.eventpass.app.navigation.auth.SessionGate.Shell,
     entryProbe: @Composable (RootTab) -> Unit = {}) {
     val navigation = rememberNavigationState()
+    var selectedTicket by rememberSaveable { mutableStateOf<String?>(null) }
     val open by session.open.collectAsStateWithLifecycle()
     val forbidden by session.forbidden.collectAsStateWithLifecycle()
     LaunchedEffect(forbidden) {
         val event = forbidden as? ru.eventpass.app.navigation.auth.ReturnDestination.Event
-        if (event != null && navigation.currentStack.lastOrNull() == EventKey(event.eventId)) navigation.back()
+        if (event != null && (navigation.currentStack.lastOrNull() as? EventKey)?.eventId == event.eventId) navigation.back()
     }
     LaunchedEffect(shell.scope) {
         when (val destination = session.takeDestination(shell)) {
@@ -77,11 +81,19 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                 entryProvider = entryProvider {
                     entry<RootTab> { root ->
                         entryProbe(root)
-                        RootScreen(root, { navigation.openDemo("demo") }, navigation::openGallery,
+                        if (root == RootTab.Tickets) ru.eventpass.app.feature.tickets.TicketsRoute(selectedTicket, { selectedTicket = null }, navigation::openEvent,
+                            { navigation.openDemo("demo") }, navigation::openGallery, { navigation.currentStack.add(DemoToolsKey) })
+                        else RootScreen(root, { navigation.openDemo("demo") }, navigation::openGallery,
                             session.account?.email.orEmpty(),
                             { session.signOut() }, { navigation.currentStack.add(DemoToolsKey) })
                     }
-                    entry<EventKey> { EventReceiver(it.eventId, true) }
+                    entry<EventKey> { route -> ru.eventpass.app.feature.event.EventRoute(route.eventId, { _, _, _ ->
+                        session.guard(ru.eventpass.app.navigation.auth.AccessOutcome.Unauthenticated, ru.eventpass.app.navigation.auth.ReturnDestination.Event(route.eventId))
+                    }, { id ->
+                        selectedTicket = id
+                        while (navigation.currentStack.size > 1) navigation.currentStack.removeLastOrNull()
+                        navigation.select(RootTab.Tickets)
+                    }, navigation::back) }
                     entry<DemoToolsKey> { ru.eventpass.app.feature.tools.DemoTools(false, navigation::openGallery,
                         { navigation.openDemo("demo") }, { navigation.currentStack.add(OutboxKey) }, { session.receiveLink(it) }, session::guard) }
                     entry<OutboxKey> { ru.eventpass.app.feature.tools.DemoTools(true, {}, {}, {}, { session.receiveLink(it) }, session::guard) }

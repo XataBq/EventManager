@@ -88,7 +88,7 @@ internal data class AuthData(
     val nextError: ru.eventpass.core.domain.auth.AuthError? = null,
 )
 
-/** Only fake-server accounts/proofs/challenges persist. No sessions, outbox secrets or guest tickets. */
+/** Legacy auth v1 record, also embedded in product v2. No session or raw outbox secrets. */
 internal object AuthSnapshotCodec {
     fun encode(accounts: Map<UserId, Account>, data: AuthData): ByteArray {
         val bytes = ByteArrayOutputStream()

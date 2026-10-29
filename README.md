@@ -1,14 +1,14 @@
 # EventPass — Android
 
-Мобильный MVP по Figma. **29 октября 2026: T03 — DONE (H1 подтверждена пользователем); T04 — READY_FOR_HUMAN.** Auth UI и Activity-интеграция реализованы, ручной auth smoke ожидается. T02 остаётся IN_PROGRESS, H2 относится к T05. [Текущая сборка, проверки и ручные шаги](docs/18-t04-validation.md).
+Мобильный MVP по Figma. **29 октября: T03/T04 — DONE (H1 и auth smoke подтверждены пользователем); T05 — READY_FOR_HUMAN, H2 ожидается.** Мероприятие → заявка → временный гостевой QR → отдельный аккаунт/ручной вход → свои билеты и отмена работают в demo. T02 продолжается по фичам; следующий этап после H2 — T06. [Сборка, проверки и H2](docs/19-t05-validation.md).
 
 Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
 
 ## Сборка и запуск demo
 
-**Текущий APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.4.3-t04-demo**, code 7. SHA-256: `aed6b318515dc0ffb7ee438aa2bdc4d83ede65a46db74d14cc5667d135f5eeac`. Старт — Login без табов; после ручного входа — Билеты · Мероприятия · Профиль, в профиле доступен выход. SignUp/confirm/reset не логинят. Галерея, счётчик, имитация почты и demo controls: **Демо-инструменты** на Login и корневых экранах.
+**Текущий APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.5.0-t05-demo**, code 8, 34121262 байт. SHA-256: `d631ac0839624986f103e99cdfa2f6c1031e1d2a0f5f1ee9f665800d37662337`. Ссылка E: `eventpass-demo://demo/e/open-registration`; также Login → Демо-инструменты → Открыть demo-мероприятие. Имитация почты, UI-кит, reset/сценарии доступны из demo tools. Регистрация аккаунта/confirm/reset не логинят.
 
-T04: 56 JVM-тестов и 13 device-тестов Pixel 7 AVD/API 33 (три кнопки), assemble/Hilt/lint/isolation прошли; lint 0 ошибок / 4 уведомления о версиях. Вход, выход, root/hidden owner cleanup, signup/reset, ссылки/retry/rotation/expiry проверены. Snapshot — `noBackupFilesDir/demo-auth-v1.bin`, без сессии/raw секретов; после нового процесса — ручной Login, outbox пуст. [Границы и auth smoke](docs/18-t04-validation.md).
+T05: 71 JVM и 18 device-тестов API 33 (три кнопки), затем 6 адресных повторов после уточнения геометрии G01, assemble/Hilt/lint/isolation прошли. Lint 0 ошибок / 4 version notices. Реальная смерть фонового процесса и та же task восстанавливают тот же QR (screenshot decoder); новая task — без guest receipt, server data остаются. [Команды, red/green и границы](docs/19-t05-validation.md).
 
 После ревью `cfc0624` исправлены оба P2: отмена signIn до принятия сессии не открывает Shell; ошибку/отмену подтверждения можно явно повторить с тем же requestId, с сохранением защиты от параллельного и успешного дубля. Red/green и границы отмены — в отчёте T04.
 
@@ -49,7 +49,7 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
 
 При повторении наблюдавшегося TLS-сбоя Maven можно добавить `'-Dhttps.protocols=TLSv1.2'`; сертификаты по-прежнему проверяются. Для ограниченной по памяти среды использовался `--max-workers=2`. Wrapper содержит SHA-256 дистрибутива, его JAR также сверен с официальной контрольной суммой.
 
-APK: **[app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk)**. Версия `0.4.3-t04-demo`, applicationId `ru.eventpass.android.demo`, namespace `ru.eventpass.app`, seeds `t02-v1`/`t01-v1`. Искусственные seed-аккаунты: `alex@example.com`, `host@example.com`, пароль **DemoPass123!**. Билеты/мероприятия пока без операций T05.
+APK: **[app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk)**. Версия `0.5.0-t05-demo`, applicationId `ru.eventpass.android.demo`, seeds `t02-v1`/`t01-v1`. Аккаунты: `alex@example.com`, `host@example.com`, пароль **DemoPass123!**. Event Clock фиксирован 27 октября, auth Clock — UTC. Данные сервера schema 2 в прежнем `noBackupFilesDir/demo-auth-v1.bin`, сессия/outbox/guest UI не persist.
 
 Счётчик принадлежит Hilt ViewModel записи навигации и хранится в `SavedStateHandle`. Три стека и выбранная вкладка сохраняются отдельно; decorators продолжают владеть скрытыми записями. Back/закрытие удаляет demo-entry; повторное нажатие текущей вкладки возвращает к корню. Повтор одной ссылки не создаёт дубликат. Новый визит имеет отдельный ID записи, чтобы не наследовать состояние закрываемого экрана.
 
@@ -77,7 +77,7 @@ $adb = 'C:\Users\XataB\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 
 **История T01:** assemble/lint, 7 unit и 3 device-теста API 36.1, DI/очистка ViewModel, navigation/recreation/process death; исходный hash APK в отчёте T01. **T02.1:** assemble/lint, 24 unit и isolation. **T03:** 25 unit, 5 device, assemble/lint/isolation; актуальные результаты и hash — выше и в отчёте T03.
 
-Приёмка: T01 остаётся READY_FOR_HUMAN; H1 подтверждена пользователем 29 октября, T03 — DONE. T04 ждёт ручного auth smoke на code 7, H2–H4 ожидаются. Основание и ручные шаги — [отчёт T04](docs/18-t04-validation.md); новых прогонов на физическом устройстве и API 28/37 нет.
+Приёмка: T01 остаётся READY_FOR_HUMAN; H1 и auth smoke T04 приняты пользователем. T04 — DONE, T05 ждёт H2 на code 8; H2–H4 не закрыты. [H2/checks](docs/19-t05-validation.md).
 
 ## Начать здесь
 
@@ -108,4 +108,4 @@ $adb = 'C:\Users\XataB\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 
 Документация в репозитории — рабочий источник контекста для будущих агентов. После реализации задачи обновлять её статус, реальные команды проверки и связанные решения. Не превращать предложение в «реализовано» до проверки кодом. Исходный снимок Figma хранится отдельно и не переписывается при изменении решений.
 
-Ответы пользователя 27 октября заменяют часть решений 21 октября. Требуемый сценарий: гостю QR сразу без автоаккаунта, saved state flow до закрытия, затем письмо/кабинет; без сохранения анкеты перед входом, телефон optional. Данные и первая часть операций реализованы в T02.1, показ QR и Android guest state ещё относятся к T05. После подтверждённой H1 реализована UI/Activity-интеграция T04; ожидается ручной auth smoke. Следующий этап — T05/H2 и расширение T02 по нужным фичам.
+Ответы пользователя 27 октября заменяют раннюю Figma: гостю сразу QR без автоаккаунта, saved state текущего flow до закрытия; затем письмо/отдельный аккаунт и ручной вход. Анкета перед входом не сохраняется, телефон optional. T05 реализует этот путь; T04 auth smoke подтверждён 29 октября. Следующий этап после H2 — T06, создание и управление мероприятиями.

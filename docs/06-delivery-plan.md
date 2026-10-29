@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Статус на 29 октября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1/T02.2 подготовлены)**, **T03 — DONE (H1 подтверждена человеком)**, **T04 — READY_FOR_HUMAN**, T05–T09 — TODO. Ожидается ручной auth smoke; H2 относится к T05. Исторические статусы ниже сохраняют даты. Этот документ не разрешает запуск подагентов.
+Статус на 29 октября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1–T02.3 по нужным фичам)**, **T03 — DONE (H1)**, **T04 — DONE (auth smoke подтверждён пользователем)**, **T05 — READY_FOR_HUMAN (H2 ожидается)**, T06–T09 — TODO. Исторические статусы ниже сохраняют даты. Подагенты не разрешены этим планом.
 
 ## Порядок
 
@@ -83,6 +83,8 @@ flowchart LR
 
 ## T04 — auth, app shell и pending navigation
 
+**Приёмка 29 октября: DONE.** Пользователь ответил «Проверил, замечаний нет» на вопрос по ручному auth smoke APK 0.4.3-t04-demo / code 7. Устройство/Android не указаны. Зависимая интеграция T05 разрешена; H2 этим не закрыта. Ниже — история T04 до приёмки.
+
 **Статус 29 октября: READY_FOR_HUMAN.** После подтверждённой H1 реализованы auth Route/ViewModel/Screen, outbox UI, Login startup, Activity links и session gate с очисткой root/hidden owners, foreground/expiry и guards. APK `0.4.3-t04-demo`, code 7; 56 JVM и 13 device API 33, assemble/Hilt/lint (0 errors / 4 warnings)/isolation прошли. Ручной auth smoke ожидается, H2 не закрыта. Следующая задача — T05. [18-t04-validation.md](18-t04-validation.md). Ниже сохранён foundation-этап 28 октября.
 
 **Зависимости:** T02, T03, Q03. **Владение:** `feature/auth`, app navigation, session coordinator.
@@ -94,6 +96,8 @@ flowchart LR
 **Авто:** login failure/success/verification без автоматической сессии, reset по коду, return route без сохранения/отправки формы, Forbidden/Unauthenticated. **Человек:** краткий прогон входа/назад; полная приёмка с T05.
 
 ## T05 — первый сквозной сценарий: мероприятие → регистрация → билет
+
+**Статус 29 октября: READY_FOR_HUMAN.** После принятого auth smoke T04 реализованы общий E/форма, guest receipt + QR/saved-state/fullscreen, Tickets/история/отмена и T02.3 server persistence v2 с миграцией auth v1. APK 0.5.0-t05-demo, code 8; 71 JVM/18 device API 33, QR decoder, реальная смерть процесса/та же task/новая task, assemble/lint/isolation прошли. H2 ожидается; следующая задача — T06. [19-t05-validation.md](19-t05-validation.md). Ниже сохранена исходная постановка, включая статусы до выполнения.
 
 **Зависимости:** T04. **Владение:** `feature/event`, `feature/tickets`.
 
@@ -213,10 +217,11 @@ Remaining defects and next task:
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
-| T02 | IN_PROGRESS; T02.1 и T02.2 подготовлены | Общий fake и auth-only snapshot; интеграция T04: 56 JVM / 13 device. Полная persistence guest tickets и остальные команды — с T05/H2; `16-t02-domain-fake.md`, `18-t04-validation.md` |
+| T02 | IN_PROGRESS; T02.1–T02.3 подготовлены | Общий fake/server snapshot v2, auth migration, guest/auth submit и свой cancel; 71 JVM/18 device/OS restore. Editor/check-in и другие команды ещё впереди; `19-t05-validation.md` |
 | T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
-| T04 | READY_FOR_HUMAN, 29 октября 2026 | Auth UI/session/Activity links/outbox/guards; APK 0.4.3-t04-demo, code 7; 56 JVM / 13 device API 33 / lint / isolation. Ручной auth smoke ожидается; `18-t04-validation.md` |
-| T05–T09 | TODO; API не блокирует demo | Продуктовых экранов нет; после полной T04 — T05/H2 |
+| T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
+| T05 | READY_FOR_HUMAN | APK 0.5.0-t05-demo/code 8, guest QR/registration/Tickets/cancel/server persistence; H2 ожидается; `19-t05-validation.md` |
+| T06–T09 | TODO | Следующий этап после H2 — T06 |
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
 | H2–H4 | Ожидаются | Ручной auth smoke T04 не закрывает H2, следующая задача — T05 |
 | T10 | Будущий этап | API отсутствует по запросу пользователя |

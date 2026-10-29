@@ -22,6 +22,7 @@ import ru.eventpass.app.feature.auth.*
 import ru.eventpass.app.feature.demo.DemoRoute
 import ru.eventpass.app.feature.gallery.ComponentGallery
 import ru.eventpass.app.feature.tools.DemoTools
+import ru.eventpass.app.feature.event.EventRoute
 import ru.eventpass.app.navigation.auth.*
 import ru.eventpass.core.designsystem.*
 
@@ -41,12 +42,17 @@ fun EventPassApp(session: AppSessionViewModel = hiltViewModel(), entryProbe: @Co
     when (val value = gate) {
         is SessionGate.Shell -> if (session.isCurrent(value.scope)) key(value.scope) { PrivateShell(session, value, entryProbe) }
             else Box(Modifier.safeDrawingPadding()) { Text(stringResource(R.string.loading)) }
-        SessionGate.Login -> PublicNavigation(session)
-        SessionGate.Loading -> Box(Modifier.safeDrawingPadding().imePadding()) {
-            if (loadingTools) DemoTools(false, {}, {}, {}, { session.receiveLink(it) }, session::guard)
-            else AuthColumn {
-                Text(stringResource(R.string.loading))
-                TextAction(stringResource(R.string.auth_demo_tools), { loadingTools = true })
+        else -> Box {
+            // Keep one public registry while Unknown resolves to Guest after OS restoration.
+            PublicNavigation(session)
+            if (value == SessionGate.Loading) androidx.compose.material3.Surface(Modifier.fillMaxSize()) {
+                Box(Modifier.safeDrawingPadding().imePadding()) {
+                    if (loadingTools) DemoTools(false, {}, {}, {}, { session.receiveLink(it) }, session::guard)
+                    else AuthColumn {
+                        Text(stringResource(R.string.loading))
+                        TextAction(stringResource(R.string.auth_demo_tools), { loadingTools = true })
+                    }
+                }
             }
         }
     }
@@ -77,14 +83,25 @@ private fun PublicNavigation(session: AppSessionViewModel) {
     val link by session.link.collectAsStateWithLifecycle()
     fun pop() { if (stack.size > 1) stack.removeLastOrNull() }
     fun login() { while (stack.size > 1) stack.removeLastOrNull() }
-    LaunchedEffect(link.result) { if (link.result is AuthLinkResult.EmailConfirmed) login() }
+    fun flowLogin() {
+        val flow = stack.filterIsInstance<EventKey>().lastOrNull()
+        if (flow == null) login() else {
+            while (stack.lastOrNull() != flow) stack.removeLastOrNull()
+            stack.add(EventAuthKey(flow.flowId, EventAuthScreen.Login))
+        }
+    }
+    LaunchedEffect(link.result) { if (link.result is AuthLinkResult.EmailConfirmed) flowLogin() }
     LaunchedEffect(open) {
         open?.let { request ->
             val target: NavKey = request.demoId?.let { DemoDetails(it) }
                 ?: (request.destination as? ReturnDestination.Event)?.let { EventKey(it.eventId) } ?: LoginKey
             val sameDemo = target is DemoDetails && (stack.lastOrNull() as? DemoDetails)?.recordId == target.recordId
             if (target == LoginKey) login()
-            else if (!sameDemo && stack.lastOrNull() != target) stack.add(target)
+            else if (target is EventKey) {
+                val existing = stack.indexOfLast { it is EventKey && it.eventId == target.eventId }
+                if (existing < 0) stack.add(target)
+                else while (stack.lastIndex > existing) stack.removeLastOrNull()
+            } else if (!sameDemo && stack.lastOrNull() != target) stack.add(target)
             session.consumeOpen(request.id)
         }
     }
@@ -110,18 +127,20 @@ private fun PublicNavigation(session: AppSessionViewModel) {
                 entry<OutboxKey> { DemoTools(true, {}, {}, {}, session::receiveLink) }
                 entry<GalleryKey> { ComponentGallery(::pop) }
                 entry<DemoDetails> { DemoRoute(it.recordId, ::pop, { stack.add(GalleryKey) }) }
-                entry<EventKey> { route -> EventReceiver(route.eventId, false) {
-                    session.requireLogin(ReturnDestination.Event(route.eventId)); login()
-                } }
+                entry<EventKey> { route -> EventRoute(route.eventId, { email, signup, returning ->
+                    session.prefill(email)
+                    if (returning) session.requireLogin(ReturnDestination.Event(route.eventId)) else session.clearDestination()
+                    stack.add(EventAuthKey(route.flowId, if (signup) EventAuthScreen.SignUp else EventAuthScreen.Login))
+                }, {}, { pop() }) }
+                entry<EventAuthKey> { route ->
+                    fun push(screen: EventAuthScreen) { stack.add(route.copy(screen = screen)) }
+                    when (route.screen) {
+                        EventAuthScreen.Login -> LoginRoute(session, { push(EventAuthScreen.SignUp) }, { push(EventAuthScreen.Reset) }, { push(EventAuthScreen.Verification) }, { stack.add(DemoToolsKey) })
+                        EventAuthScreen.SignUp -> AccountFlowRoute(false, session, ::flowLogin, { stack.add(OutboxKey) })
+                        EventAuthScreen.Reset -> AccountFlowRoute(true, session, ::flowLogin, { stack.add(OutboxKey) })
+                        EventAuthScreen.Verification -> AccountFlowRoute(false, session, ::flowLogin, { stack.add(OutboxKey) }, verification = true)
+                    }
+                }
             })
-    }
-}
-
-@Composable
-fun EventReceiver(eventId: String, authenticated: Boolean, onLogin: () -> Unit = {}) {
-    AuthColumn {
-        Text(stringResource(R.string.auth_event_receiver, eventId), style = EventPassTypography.heading)
-        Text(stringResource(R.string.auth_event_unfinished))
-        if (!authenticated) EventPassButton(stringResource(R.string.auth_login), onLogin)
     }
 }
