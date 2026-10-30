@@ -94,7 +94,10 @@ data class GuestTicketSnapshot(
     val attendeeName: String,
     val displayNumber: String,
     val qrPayload: String,
-)
+    val manualCode: ru.eventpass.core.domain.checkin.ManualCode = ru.eventpass.core.domain.checkin.ManualCodePolicy.fromQr(qrPayload),
+) {
+    override fun toString() = "GuestTicketSnapshot(ticketId=$ticketId, eventId=$eventId, credentials=[redacted])"
+}
 
 sealed interface GuestRegistrationOutcome {
     data class Issued(val ticket: GuestTicketSnapshot, val email: String) : GuestRegistrationOutcome

@@ -1,8 +1,10 @@
 # EventPass — Android
 
+**T07 — IN_PROGRESS (независимая часть).** Пользователь ещё не проверял T06 и выбрал domain/fake/persistence и чистую scanner state model. Owner grants, Active→Used/AlreadyUsed, manual credential и schema 4 проверены без UI/камеры. [Объём, APK и остаток](docs/21-t07-validation.md).
+
 **T06 — READY_FOR_HUMAN, 30 октября.** H2 принята пользователем; T05 — DONE. Оставшаяся UI-интеграция T06 выполнена: MyEvents, редактор/черновики, вопросы, обложка, публикация, ссылка и управление событием. Ручной организаторский smoke ещё ожидается; H3/H4 не закрыты. [Проверки и checklist](docs/20-t06-validation.md).
 
-**Текущий APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.6.1-t06-demo**, code **11**, **34855946 байт**, SHA-256 `ab1567bb070cab86dca460830feb9298144495b38a0eeeccf87b9aadcb7d028d`. **101 JVM / 9 device** прошли; assemble app/test APK, Hilt/DI, lint (0 errors / 4 прежних warnings) и isolation успешны. Device: отдельный API 33 эмулятор, портрет, 3 кнопки; физический телефон не использовался.
+**Текущий foundation APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.7.0-t07-foundation-demo**, code **12**, **34079002 байт**, SHA-256 `ef163233826196c8006c05e8da12aebbdf0c2fdb5a400b6a1582136ad2ae9c69`. **126 JVM-тестов** реально исполнены, app/test APK, DI/lint/isolation успешны; lint 0 errors / 4 прежних warnings. Новых device/camera прогонов нет, scanner/volunteers UI отсутствует. Для ожидающей приёмки T06 сохранён [code 11](artifacts/apk/eventpass-0.6.1-t06-demo-code11.apk); сначала проверить его, затем обновляться: code 11 не читает schema 4.
 
 Мобильный MVP по Figma. T03/T04/T05 приняты пользователем; итоговая кодовая часть T06 проверена и ждёт организаторского smoke. T02 продолжается по фичам. После приёмки T06 — T07.
 

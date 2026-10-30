@@ -55,6 +55,9 @@ class FakeEventPassEnvironment(
     val events: EventRepository = product.events
     val registrations: RegistrationRepository = product.registrations
     val tickets: TicketRepository = product.tickets
+    private val admission = FakeCheckInOperations(state, lock, clock, authClock, authStorage, authBackend)
+    val checkIns: ru.eventpass.core.domain.checkin.CheckInRepository = admission.checkIns
+    val volunteers: ru.eventpass.core.domain.checkin.VolunteerRepository = admission.volunteers
 
     /** Demo storage plumbing for startup cover GC. No actor data or ticket credentials leave the store. */
     suspend fun retainedCoverAssetIds(): Set<String>? {
@@ -96,9 +99,12 @@ class FakeEventPassEnvironment(
         suspend fun setPolicy(policy: RegistrationPolicy) = mutate(true) { it.copy(policy = policy) }
         suspend fun failNextGuestSubmission(error: RegistrationError) = mutate { it.copy(nextSubmissionError = error) }
         suspend fun failNextEventEdit(error: ru.eventpass.core.domain.event.EventEditError) = mutate { it.copy(nextEventEditError = error) }
+        suspend fun failNextCheckIn(error: ru.eventpass.core.domain.checkin.CheckInError) = mutate { it.copy(nextCheckInError = error) }
+        suspend fun failNextVolunteer(error: ru.eventpass.core.domain.checkin.VolunteerError) = mutate { it.copy(nextVolunteerError = error) }
         suspend fun failNextRead(error: ru.eventpass.core.domain.event.ProductReadError) = mutate { it.copy(nextReadError = error) }
         suspend fun failNextCancellation(error: ru.eventpass.core.domain.registration.TicketError) = mutate { it.copy(nextTicketError = error) }
         suspend fun setTicketStatus(id: TicketId, status: TicketStatus) = mutate(true) {
+            require(status == TicketStatus.USED || it.checkIns.none { record -> record.ticketId == id }) { "A recorded check-in cannot be undone by a demo status toggle" }
             it.copy(tickets = it.tickets.map { ticket -> if (ticket.snapshot.ticketId == id) ticket.copy(status = status) else ticket })
         }
         fun outbox(): List<FakeTicketEmail> = state.value.outbox.toList()
@@ -152,6 +158,9 @@ internal data class FakeProductState(
     val drafts: Map<ru.eventpass.core.domain.event.DraftId, ru.eventpass.core.domain.event.EventDraft> = emptyMap(),
     val managementReadError: ru.eventpass.core.domain.event.ProductReadError? = null,
     val nextEventEditError: ru.eventpass.core.domain.event.EventEditError? = null,
+    val checkIns: List<ru.eventpass.core.domain.checkin.CheckInRecord> = emptyList(),
+    val nextCheckInError: ru.eventpass.core.domain.checkin.CheckInError? = null,
+    val nextVolunteerError: ru.eventpass.core.domain.checkin.VolunteerError? = null,
 )
 
 internal fun FakeProductState.activeAccount(now: java.time.Instant): Account? = auth.session

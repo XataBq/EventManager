@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Актуальный статус на 30 октября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1–T02.4 по фичам)**, **T03 — DONE (H1)**, **T04 — DONE (auth smoke)**, **T05 — DONE (H2 принята пользователем)**, **T06 — READY_FOR_HUMAN**, T07–T09 — TODO. 101 JVM / 9 device на code 11; организаторский smoke ожидается. [T06](20-t06-validation.md). Исторические статусы ниже сохраняют даты; подагенты не запускались.
+Актуальный статус на 30 октября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1–T02.5 по фичам)**, **T03 — DONE (H1)**, **T04 — DONE (auth smoke)**, **T05 — DONE (H2 принята пользователем)**, **T06 — READY_FOR_HUMAN**, **T07 — IN_PROGRESS (независимая часть)**, T08–T09 — TODO. T07 foundation: 126 JVM, code 12, без нового device-прогона; организаторский smoke T06/code 11 ожидается. [T06](20-t06-validation.md). Исторические статусы ниже сохраняют даты; подагенты не запускались.
 
 ## Порядок
 
@@ -121,6 +121,8 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 ## T07 — права волонтёра и сканер
 
+**IN_PROGRESS, независимая часть.** Пользователь ответил: «Ещё не проверял — выполнить независимую часть T07». T06 остаётся READY_FOR_HUMAN. Реализованы owner-only grants, event-scoped check-in, Used/first record/typed failures, schema 4 с миграциями и чистый ScannerController. 126 JVM, app/test APK/lint/isolation успешны; code 12 `0.7.0-t07-foundation-demo`. UI/routes/manual-code display/CameraX/decoder/permission lifecycle и сквозной owner→grant→scanner ждут приёмки T06. [Отчёт и checklist](21-t07-validation.md).
+
 **Зависимости:** T06. **Владение:** `feature/volunteers`, `feature/checkin`, camera adapter.
 
 **Сделать:** O05 grant/revoke, общий V02, ручной ввод и CameraX/QR decoder, один запрос на распознанный код до ответа, три состояния результата V03–V05, back/next без накопления стека, permission denied и сетевые сбои. Права перепроверяются при операции; revoke во время открытой камеры.
@@ -221,12 +223,13 @@ Remaining defects and next task:
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
-| T02 | IN_PROGRESS; T02.1–T02.4 по фичам | Общий store/schema 3, auth/tickets/editor ports, v1/v2 migration; UI T06 подключён. 101 JVM / 9 device; check-in и другие порты впереди |
+| T02 | IN_PROGRESS; T02.1–T02.5 по фичам | Общий store/schema 4, auth/tickets/editor/grants/check-in и migration; 126 JVM. UI/camera T07 и T08+ ещё впереди; `21-t07-validation.md` |
 | T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
 | T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
 | T05 | DONE | H2 принята пользователем; build id/устройство не уточнены. История проверок — `19-t05-validation.md` |
 | T06 | READY_FOR_HUMAN | Полная кодовая часть, code 11, 101 JVM / 9 device; организаторский smoke ожидается, `20-t06-validation.md` |
-| T07–T09 | TODO | После организаторского smoke T06 — T07 grants/общий scanner |
+| T07 | IN_PROGRESS | Независимые domain/fake/persistence/scanner state, code 12; зависимый UI после smoke T06, `21-t07-validation.md` |
+| T08–T09 | TODO | После полной T07 — T08 dashboard/интеграция; H3 целиком ещё не закрыта |
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
 | H2 | Принята пользователем | Актуальная запись `19-t05-validation.md`, build/устройство не уточнены |
 | H3–H4 | Ожидаются | Приёмка H2 их не закрывает |

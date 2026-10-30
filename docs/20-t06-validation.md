@@ -6,7 +6,9 @@
 
 ### Передаваемая сборка
 
-[app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.6.1-t06-demo / code 11**, **34855946 байт**, SHA-256 **`ab1567bb070cab86dca460830feb9298144495b38a0eeeccf87b9aadcb7d028d`**. ApplicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37. Debug-подпись v2 и aapt2/output metadata проверены. [Test APK](../app/build/outputs/apk/androidTest/demo/debug/app-demo-debug-androidTest.apk) также собран. Code 9 для истории H2 остаётся в `artifacts/apk/`; основной output code 10 заменён code 11, его прежний hash ниже — история, не текущая сборка. Передаваемый APK дополнительно сохранён в `artifacts/apk/eventpass-0.6.1-t06-demo-code11.apk` (локально, не в Git).
+Для ожидающей приёмки T06 закреплён отдельный code 11 по ссылке ниже. Основной output теперь T07 foundation/code 12; сначала T06 smoke, затем обновление: старый APK не читает schema 4. T06 не принята за пользователя.
+
+[app-demo-debug.apk](../artifacts/apk/eventpass-0.6.1-t06-demo-code11.apk): **0.6.1-t06-demo / code 11**, **34855946 байт**, SHA-256 **`ab1567bb070cab86dca460830feb9298144495b38a0eeeccf87b9aadcb7d028d`**. ApplicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37. Debug-подпись v2 и aapt2/output metadata проверены. [Test APK](../app/build/outputs/apk/androidTest/demo/debug/app-demo-debug-androidTest.apk) также собран. Code 9 для истории H2 остаётся в `artifacts/apk/`; основной output code 10 заменён code 11, его прежний hash ниже — история, не текущая сборка. Передаваемый APK дополнительно сохранён в `artifacts/apk/eventpass-0.6.1-t06-demo-code11.apk` (локально, не в Git).
 
 Seed `t02-v1` / технический `t01-v1` прежние. `alex@example.com` и `host@example.com`, пароль `DemoPass123!`. Один аккаунт, независимые owner/grant/ticket связи. Event Clock `2026-10-27T09:00Z` + временный offset, auth Clock system UTC + отдельный offset. Для smoke можно выбрать начало **2026-10-28 12:00**, Europe/Moscow, либо более позднюю дату относительно demo Clock. Реального backend/API, серверной публикации или почты нет: публикация меняет общий локальный demo store.
 

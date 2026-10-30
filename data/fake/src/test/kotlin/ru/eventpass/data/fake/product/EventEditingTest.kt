@@ -287,7 +287,7 @@ class EventEditingTest {
         assertTrue(restarted.auth.signIn("pending@example.com", AuthSecret("Pending123!")) is AuthResult.Success)
         saved(restarted.events.saveDraft(id, null, EventFields()))
         val migrated = ProductSnapshotCodec.restore(storage.bytes!!, seed())
-        assertEquals(3, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
+        assertEquals(4, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
         assertEquals(state.registrations, migrated.registrations); assertEquals(state.tickets, migrated.tickets)
         assertEquals(state.auth.passwords, migrated.auth.passwords)
         assertEquals(state.auth.challenges.keys, migrated.auth.challenges.keys)

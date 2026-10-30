@@ -7,12 +7,13 @@ import java.io.DataOutputStream
 import java.time.Instant
 import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.*
+import ru.eventpass.core.domain.checkin.*
 
 /** Closed fake-server data. Never used to recover a guest UI flow by email or ticket ID. */
 internal object ProductSnapshotCodec {
     fun encode(state: FakeProductState): ByteArray = ByteArrayOutputStream().also { bytes ->
         DataOutputStream(bytes).use { out ->
-            out.writeInt(3)
+            out.writeInt(4)
             val auth = AuthSnapshotCodec.encode(state.accounts, state.auth)
             out.writeInt(auth.size); out.write(auth)
             out.writeLong(state.nextId); out.writeUTF(state.policy.phone.name)
@@ -70,6 +71,13 @@ internal object ProductSnapshotCodec {
                 out.writeUTF(d.id.value); out.writeUTF(d.ownerId.value); out.writeLong(d.revision)
                 out.writeUTF(d.publishedEventId?.value.orEmpty()); out.fields(d.fields)
             }
+            out.writeInt(state.tickets.size)
+            state.tickets.forEach { out.writeUTF(it.snapshot.ticketId.value); out.writeUTF(it.snapshot.manualCode.value) }
+            out.writeInt(state.checkIns.size)
+            state.checkIns.forEach { r ->
+                out.writeUTF(r.id); out.writeUTF(r.eventId.value); out.writeUTF(r.ticketId.value); out.writeUTF(r.checkerId.value)
+                out.writeUTF(r.checkedAt.toString()); out.writeUTF(r.attendeeName); out.writeUTF(r.displayNumber)
+            }
         }
     }.toByteArray().also { require(it.size <= 8_388_608) }
 
@@ -81,7 +89,7 @@ internal object ProductSnapshotCodec {
                 val (accounts, auth) = AuthSnapshotCodec.decode(bytes)
                 return seed.copy(accounts = accounts, auth = auth)
             }
-            require(version == 2 || version == 3) { "Unsupported product snapshot" }
+            require(version in 2..4) { "Unsupported product snapshot" }
             val authLength = input.readInt().also { require(it in 1..1_048_576 && it <= input.available()) }
             val authBytes = ByteArray(authLength).also(input::readFully)
             val (accounts, auth) = AuthSnapshotCodec.decode(authBytes)
@@ -131,7 +139,7 @@ internal object ProductSnapshotCodec {
                 Ticket(snapshot, registration, status)
             }
             val grants = List(count()) { ScanGrant(EventId(input.readUTF()), UserId(input.readUTF()), input.readBoolean()) }
-            val drafts = if (version == 3) {
+            val drafts = if (version >= 3) {
                 val metadata = List(count()) {
                     Triple(EventId(input.readUTF()), input.readLong().also { require(it > 0) }, input.cover())
                 }
@@ -146,15 +154,28 @@ internal object ProductSnapshotCodec {
                     EventDraft(id, owner, revision, input.fields(), published)
                 }.also { require(it.map { d -> d.id }.distinct().size == it.size) }
             } else emptyList()
+            val checkIns = if (version == 4) {
+                val codes = List(count()) { TicketId(input.readUTF()) to ManualCode(input.readUTF()) }
+                require(codes.size == tickets.size && codes.map { it.first }.toSet() == tickets.map { it.snapshot.ticketId }.toSet())
+                require(codes.all { (id, code) -> tickets.single { it.snapshot.ticketId == id }.snapshot.manualCode == code })
+                List(count()) { CheckInRecord(input.readUTF(), EventId(input.readUTF()), TicketId(input.readUTF()), UserId(input.readUTF()),
+                    Instant.parse(input.readUTF()), input.readUTF(), input.readUTF()) }.also { records ->
+                    require(records.map { it.id }.distinct().size == records.size && records.map { it.ticketId }.distinct().size == records.size)
+                    require(records.all { r -> r.checkerId in accounts && tickets.any { t -> t.snapshot.ticketId == r.ticketId && t.snapshot.eventId == r.eventId && t.status == TicketStatus.USED } })
+                }
+            } else emptyList()
             require(input.available() == 0)
             require(events.map { it.id }.distinct().size == events.size)
             require(registrations.map { it.id }.distinct().size == registrations.size)
             require(tickets.map { it.snapshot.ticketId }.distinct().size == tickets.size)
             require(registrations.all { r -> events.any { it.id == r.eventId } })
             require(tickets.all { t -> registrations.any { it.id == t.registrationId && it.eventId == t.snapshot.eventId } })
+            require(tickets.map { it.snapshot.manualCode }.distinct().size == tickets.size)
+            require(grants.all { it.userId in accounts && events.any { e -> e.id == it.eventId } })
+            require(grants.map { it.eventId to it.userId }.distinct().size == grants.size)
             return seed.copy(accounts = accounts, auth = auth, events = events.associateBy { it.id },
                 registrations = registrations, tickets = tickets, grants = grants, policy = policy, nextId = nextId,
-                drafts = drafts.associateBy { it.id })
+                drafts = drafts.associateBy { it.id }, checkIns = checkIns)
         }
     }
 
