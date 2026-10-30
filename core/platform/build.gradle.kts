@@ -12,6 +12,8 @@ android {
 kotlin { compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 
 dependencies {
+    implementation(project(":core:domain"))
+    implementation(libs.coroutines.core)
     implementation(libs.zxing.core)
     testImplementation(libs.junit)
 }

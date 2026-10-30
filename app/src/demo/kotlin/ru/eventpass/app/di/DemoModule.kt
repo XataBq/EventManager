@@ -15,6 +15,24 @@ import ru.eventpass.data.fake.product.FakeEventPassEnvironment
 @Module
 @InstallIn(SingletonComponent::class)
 object DemoModule {
+    @Provides @Singleton fun provideCoverPreview(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context):
+        ru.eventpass.core.platform.EventCoverPreview = ru.eventpass.core.platform.AndroidEventCoverStore(context)
+    @Provides @Singleton fun provideCovers(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context,
+        environment: FakeEventPassEnvironment): ru.eventpass.core.domain.event.CoverImporter {
+        val store = ru.eventpass.core.platform.AndroidEventCoverStore(context)
+        return object : ru.eventpass.core.domain.event.CoverImporter {
+            private val initialization = kotlinx.coroutines.sync.Mutex()
+            private var initialized = false
+            override suspend fun importCover(source: String): ru.eventpass.core.domain.event.CoverImportResult {
+                initialization.lock()
+                try { if (!initialized) {
+                    environment.retainedCoverAssetIds()?.let { store.cleanupUnreferenced(it) }
+                    initialized = true
+                } } finally { initialization.unlock() }
+                return store.importCover(source)
+            }
+        }
+    }
     @Provides @Singleton fun provideDemoClock(): DemoClock = DemoClock()
     @Provides @Singleton fun provideEventClock(): DemoEventClock = DemoEventClock()
     @Provides fun provideAuthClock(clock: DemoClock): java.time.Clock = clock

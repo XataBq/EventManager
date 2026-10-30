@@ -1,4 +1,70 @@
-# T06 — независимая основа редактора, 29 октября 2026
+# T06 — редактор и управление мероприятиями, 30 октября 2026
+
+## UI-интеграция после H2 — 30 октября 2026
+
+**T06 — READY_FOR_HUMAN.** Актуальная запись [H2](19-t05-validation.md) подтверждает приёмку T05 пользователем; номер сборки и устройство там не уточнены. Условие H2 снято, повторный запрос не делался. Остаток T06 из foundation реализован; организаторский smoke ожидается. T02 остаётся IN_PROGRESS, H3 целиком относится к T08, H4 не закрыта.
+
+### Передаваемая сборка
+
+[app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.6.1-t06-demo / code 11**, **34855946 байт**, SHA-256 **`ab1567bb070cab86dca460830feb9298144495b38a0eeeccf87b9aadcb7d028d`**. ApplicationId `ru.eventpass.android.demo`, minSdk 28, compile/target 37. Debug-подпись v2 и aapt2/output metadata проверены. [Test APK](../app/build/outputs/apk/androidTest/demo/debug/app-demo-debug-androidTest.apk) также собран. Code 9 для истории H2 остаётся в `artifacts/apk/`; основной output code 10 заменён code 11, его прежний hash ниже — история, не текущая сборка. Передаваемый APK дополнительно сохранён в `artifacts/apk/eventpass-0.6.1-t06-demo-code11.apk` (локально, не в Git).
+
+Seed `t02-v1` / технический `t01-v1` прежние. `alex@example.com` и `host@example.com`, пароль `DemoPass123!`. Один аккаунт, независимые owner/grant/ticket связи. Event Clock `2026-10-27T09:00Z` + временный offset, auth Clock system UTC + отдельный offset. Для smoke можно выбрать начало **2026-10-28 12:00**, Europe/Moscow, либо более позднюю дату относительно demo Clock. Реального backend/API, серверной публикации или почты нет: публикация меняет общий локальный demo store.
+
+### Реализованный UI и состояние
+
+- Root Events — один MyEvents с вкладками «Организую / Волонтёр / Черновики», loading/empty/read error/retry. Вкладка в SavedStateHandle; временная ошибка чтения оставляет прежние данные. Владение и grant не взаимоисключающие; редактирование/ссылка владельца, публичная страница для обоих списков. Dashboard/Scanner/Volunteers не подменены фиктивными успехами.
+- `EditorKey(draftId/eventId, create, entryId)` содержит только ID и флаг нового draft. Hilt EditorViewModel наблюдает guarded readForEditing/observeEditor; чужой маршрут не раскрывает полей, сама mutation повторно проверяет owner/session. Прямой forged route проверен device-тестом. Root/hidden entry owners прежние; logout/expiry уничтожают private scope. ViewModel/Screen не знают fake, DTO и файлов. Preview — отдельный platform interface за DI и entry-scoped ViewModel.
+- Один редактор без оплаты/шагов: title, начало, optional end, явный IANA timezone, venue, unlimited либо числовой capacity. Дата вводится `ГГГГ-ММ-ДД ЧЧ:ММ`, парсится строго в зоне события. Невозможные/неоднозначные DST-времена отклоняются; иной часовой пояс устройства не применяется. Полностью пустые обязательные поля можно сохранить в draft; неверный частично набранный формат даты/лимита требует исправления и остаётся в форме, ложного сохранения нет. Неизвестная зона у ранее сохранённого неполного draft не вызывает падения: исходный Instant виден до исправления.
+- Явный save; dirty Back предлагает сохранить/выйти без сохранения/остаться. Пока идёт mutation, повторные действия и Back блокируются до результата. Смена таба сохраняет entry, повтор выбранного Events проходит через dirty Back. Unsaved input живёт в ViewModel (rotation), сохраняемый draft — в repository (новый процесс); autosave не заявляется. Ошибка записи не показывает успех. Временный read failure не очищает dirty форму. Description/sections не имеют нового UI-редактора и сохраняются из исходного документа.
+- Редактор text/checkbox/single-choice: стабильные question/option IDs, required, добавление/удаление/тип/название, порядок вопросов и вариантов без замены ID. После первой регистрации UI объясняет блокировку; data guard основан на сохранённой истории, а не на текущем числе билетов. formVersion меняется только со схемой; revision защищает всю правку. Конфликт оставляет ввод пользователю, для новой базовой ревизии нужно выйти/открыть editor заново.
+- Publication result — состояние того же editor entry, а не повторяемый effect. Приватный publication receipt восстанавливает тот же eventId после restart/повторного вызова. O03 показывает настоящую `eventpass-demo://demo/e/event-<UUID>`: Android Clipboard, Sharesheet и открытие общего E. Cancel share не меняет успех публикации. Ссылку можно снова скопировать из MyEvents. Cold/warm E parser прежний, новые IDs подходят его whitelist.
+- Owner может закрыть регистрацию или завершить E; dirty правки сначала сохраняются/отменяются. Общие Clock/availability/edit policy foundation сохранены: starts закрывает заявки, ends/manual finish завершают; terminal update запрещён. Ticket display metadata обновляется в той же транзакции, credentials/status/ownership/старые answers не меняются. Ранее выданный guest receipt/письмо остаётся снимком выдачи, постоянного guest cache не добавлено.
+- Поздние результаты проверяют cancellation и generation после suspend, старый finally не снимает busy новой entry. Проверены A → cancel/rebind → B → поздний A; старый save не запускает publish. Сохранены восемь auth-регрессий и обе T05 cancelled-submit-finally проверки.
+
+### Обложка и сохранение
+
+Optional PNG/JPEG до 5 MiB, crop отображения 16:9. Системный OpenDocument без широких media permissions; cancel не меняет прежнюю обложку. Файл проверяется по decoded content MIME/размеру/границам и пробному bounded decode, не расширению или provider MIME. Байты копируются на IO во внутренний `noBackupFilesDir/event-covers/<assetId>.image`, затем descriptor сохраняется draft/event в прежнем snapshot **schema 3**. Временный URI grant после копирования не нужен; image bytes/Bitmap не попадают в route/SavedStateHandle/snapshot. Preview до 1024px по длинной стороне, decode на IO, JPG EXIF учитывается. Верхний предел каждой стороны 32768px — обратимый технический default защиты decoder.
+
+Неполные `.tmp` удаляются при отказе/отмене. До первого импорта в новом процессе выполняется однократная очистка только собственных файлов без ссылок: retained IDs получены из **всех** events/drafts общего store под тем же Mutex. При ошибке чтения snapshot очистка пропускается. Текущие несохранённые импорты до следующего процесса не удаляются; это защищает другие живые editor entries. Схема/миграции v1/v2 foundation не менялись. В обычном запуске или StorageUnavailable данные не сбрасываются.
+
+Primary API references: [OpenDocument / storage access](https://developer.android.com/training/data-storage/shared/documents-files), [bounded bitmap decode](https://developer.android.com/topic/performance/graphics/load-bitmap), [platform EXIF](https://developer.android.com/reference/android/media/ExifInterface). Новых внешних библиотек нет; core:platform получил зависимости от существующих core:domain/coroutines. Wrapper/toolchain/daemon criteria и версии прежние (JBR 21 Studio1, Gradle 9.5 / AGP 9.3.3 / Kotlin 2.4.21); успешная сборка подтверждает это зафиксированное сочетание, не будущие версии.
+
+### Проверки текущего изменения
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
+.\gradlew.bat :core:domain:test :data:fake:test :app:testDemoDebugUnitTest :core:platform:testDebugUnitTest :app:assembleDemoDebug :app:assembleDemoDebugAndroidTest :app:lintDemoDebug :app:verifyDemoIsolation -I .gradle/t06-evidence/repeat-tests.init.gradle --offline --console=plain --max-workers=2
+```
+
+Последний полный прогон — **BUILD SUCCESSFUL, 55s**, 187 tasks: 64 executed / 123 up-to-date. Test tasks принудительно исполнены через init script `outputs.upToDateWhen { false }`; assemble/lint частично инкрементальны, clean не выполнялся. **101 JVM = domain 11 + fake 51 + app 36 + platform 3**, 0 failures/errors/skipped. Новые 7 VM-тестов: incomplete save/reload/publish/no duplicate, dirty Back и storage failure, строгие timezone/DST/invalid dates, denied route/logout, dirty read retry, stale revision и cancelled old save/finally. После этого изменена только устаревшая подпись шапки «T05» на общую «Демонстрация»; delivery-build.log подтверждает повтор assemble app/test APK/lint/isolation. Initial lint выявил LocalContext.getString для Sharesheet, исправлено через stringResource без baseline/исключений. Текущий lint: **0 errors / 4 прежних version notices**.
+
+```powershell
+# Только отдельный эмулятор, физический телефон не используется:
+adb -s emulator-5584 install -r app/build/outputs/apk/demo/debug/app-demo-debug.apk
+adb -s emulator-5584 install -r app/build/outputs/apk/androidTest/demo/debug/app-demo-debug-androidTest.apk
+adb -s emulator-5584 shell am instrument -w -r -e class ru.eventpass.app.EventEditorIntegrationTest,ru.eventpass.app.EntryOwnershipTest,ru.eventpass.app.NavigationSmokeTest ru.eventpass.android.demo.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+**9/9 device** на передаваемом APK (4 новых + 5 navigation/entry ownership), API 33 Android 13, `sdk_gphone64_x86_64`, 1080×2400, портрет, navigation_mode 0 (3 кнопки). Проверены: incomplete draft/recreate → publish → Clipboard → common E → guest custom question/ответ → receipt → form lock; forbidden editor route; новый environment с настоящим Android AtomicFile (Guest после чтения, draft/cover восстановлены после sign-in); MIME/content/oversize/unsupported URI, copy после удаления source, cleanup retained/unreferenced, JPG EXIF rotation. Test-only exported fixture provider находится только в test APK, не main manifest. Проверены существующие hidden owner/back/tab/warm link сценарии. Собственный эмулятор останавливается после проверки; подключённый физический телефон не изменялся.
+
+Эти проверки не являются OS process-kill proof новой сборки: есть Activity recreation, новый backend/AtomicFile и прежний независимый foundation restart test. Нет нового landscape/gesture/API28/API37/fontScale/IME/TalkBack/реального picker/Sheets UI прогона. System picker cancel/revoked cloud provider grant/реальное share target selection остаются ручными; импорт и копия проверены через test content provider. Подпись/metadata/hash и screenshots сохранены в `.gradle/t06-ui-evidence/`. Адресные screenshots editor/published просмотрены; полного визуального принятия нет.
+
+Figma skill применён: свежий O02 `17:9426` context+screenshot получен; O01 `29:558`, V01 `29:96`, O03 `29:664` вернули Starter limit. Для них использованы разрешённые источники `sources/figma-2026-10-21.json`, navigation/design docs и core:designsystem. Обложка — динамические данные, не sample image из макета. UI-kit/Inter/insets переиспользованы; оплата/«шаги» не перенесены. Точное визуальное совпадение недоступных frames не заявляется.
+
+Сохраняются реальные ограничения demo: локальный store одного устройства, нет API/настоящей почты/реального домена/App Links/PDF/камеры/check-in/grants UI/dashboard. Schema 3 не читается старым code 9, обратной миграции нет. Ошибка approval review 403 при сетевом сбое не выполнила команду; после восстановления повтор разрешён и успешен. CODE_REVIEW.md, чужие prompts, daemon settings и прочие посторонние изменения не менялись и не включаются автоматически в коммит.
+
+### Ручной организаторский smoke — ожидается
+
+1. Установить **code 11 / hash выше**. Войти Alex, открыть «Мероприятия», проверить Organizing/Volunteer/Drafts без глобальной роли. Создать draft только с названием, сохранить, закрыть/запустить приложение, снова войти и открыть draft.
+2. Заполнить start/optional end/zone/venue, проверить unlimited отдельно от 0 и невалидной даты. Проверить Back: остаться, сохранить и выйти, выйти без сохранения. Unsaved ввод после нового процесса не обещается; восстанавливаются явно сохранённые поля.
+3. Добавить text/checkbox/single-choice, required, несколько вариантов; переставить вопросы/варианты, изменить/удалить. Сохранить/reopen, убедиться, что всё на месте. Проверить ошибки пустого choice и дублей вариантов.
+4. Через системный picker выбрать PNG/JPG, отменить выбор, попробовать неверный файл/>5 MiB, убрать/заменить обложку. Проверить правильную ориентацию JPG, 16:9 preview и public E; после нового запуска и удаления исходного фото копия должна остаться.
+5. Publish → действующая demo-ссылка. Проверить настоящий Clipboard/ShareSheet, cancel share и отсутствие повторной публикации. Открыть свою ссылку; после logout открыть её гостем cold/warm, заполнить свою анкету, получить QR.
+6. Вернуться владельцем: вопросы заблокированы после первой регистрации, включая отмену всех и restart. Изменить metadata: E/MyEvents/Tickets согласованы, QR/status не меняются. Проверить close (описание/билеты остаются) и finish (не открывается переносом даты). Capacity ниже Active+Used отклоняется.
+7. Клавиатура, большие шрифты, TalkBack, обе альбомные ориентации и жесты/3 кнопки на своём устройстве. Записать build/hash/Android/замечания. **Агент smoke не принял**; после приёмки T06 — T07 grants и общий scanner. Полная H3 по-прежнему относится к T08.
+
+## История foundation — 29 октября (не текущая сборка)
+
 
 **IN_PROGRESS.** Пользователь ответил: «Ещё не проверял — выполнить независимую часть T06». H2 на T05/code 9 ожидается. В этом изменении выполнены только контракты/domain/fake/persistence и их тесты. MyEvents/editor/Published UI и полный путь публикация → гостевая заявка не подключены. T03/T04 остаются DONE, T02 продолжается; H3 не закрыта.
 

@@ -1,16 +1,16 @@
 # EventPass — Android
 
-**T06, 29 октября — IN_PROGRESS:** по ответу пользователя H2 ещё не проверена; выполнена только независимая domain/fake/persistence часть. Черновики, права, публикация и управление доступны через контракты и проверены JVM-тестами. UI MyEvents/редактора, picker и сквозная UI-публикация ожидают H2. [Объём и остаток T06](docs/20-t06-validation.md).
+**T06 — READY_FOR_HUMAN, 30 октября.** H2 принята пользователем; T05 — DONE. Оставшаяся UI-интеграция T06 выполнена: MyEvents, редактор/черновики, вопросы, обложка, публикация, ссылка и управление событием. Ручной организаторский smoke ещё ожидается; H3/H4 не закрыты. [Проверки и checklist](docs/20-t06-validation.md).
 
-**Текущая foundation-сборка:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.6.0-t06-foundation-demo**, code **10**, **34002962 байт**, SHA-256 `4605116c9d497efe4cac19f077d3f1383962c2d34cc61d1954c8c4b7ee9f70db`. 94 JVM-теста исполнены успешно; app/test APK, Hilt/DI, lint (0 errors / 4 warnings) и isolation прошли. Нового device/process proof нет. UI редактора в этой сборке отсутствует.
+**Текущий APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.6.1-t06-demo**, code **11**, **34855946 байт**, SHA-256 `ab1567bb070cab86dca460830feb9298144495b38a0eeeccf87b9aadcb7d028d`. **101 JVM / 9 device** прошли; assemble app/test APK, Hilt/DI, lint (0 errors / 4 прежних warnings) и isolation успешны. Device: отдельный API 33 эмулятор, портрет, 3 кнопки; физический телефон не использовался.
 
-Мобильный MVP по Figma. **29 октября: T03/T04 — DONE (H1 и auth smoke подтверждены пользователем); T05 — READY_FOR_HUMAN, H2 ожидается.** Мероприятие → заявка → временный гостевой QR → отдельный аккаунт/ручной вход → свои билеты и отмена работают в demo. T02 продолжается по фичам; итоговая UI-интеграция T06 зависит от H2. [Сборка, проверки и H2](docs/19-t05-validation.md).
+Мобильный MVP по Figma. T03/T04/T05 приняты пользователем; итоговая кодовая часть T06 проверена и ждёт организаторского smoke. T02 продолжается по фичам. После приёмки T06 — T07.
 
 Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
 
 ## Сборка и запуск demo
 
-**Отдельный APK для ожидающей H2:** [eventpass-0.5.1-t05-demo-code9.apk](artifacts/apk/eventpass-0.5.1-t05-demo-code9.apk), **0.5.1-t05-demo**, code 9, 33593307 байт. SHA-256: `7012bf6f5733c9e5e0f0ad48d34bc3244618454e281c19839d577c5153dc51d7`. Исправлен P2 ревью `1e54b80`: поздний finally отменённой заявки не снимает блокировку новой отправки. Ссылка E: `eventpass-demo://demo/e/open-registration`; demo tools/outbox/seed прежние.
+**Исторический APK T05/H2:** [eventpass-0.5.1-t05-demo-code9.apk](artifacts/apk/eventpass-0.5.1-t05-demo-code9.apk), **0.5.1-t05-demo**, code 9, 33593307 байт. SHA-256: `7012bf6f5733c9e5e0f0ad48d34bc3244618454e281c19839d577c5153dc51d7`. Исправлен P2 ревью `1e54b80`: поздний finally отменённой заявки не снимает блокировку новой отправки. Ссылка E: `eventpass-demo://demo/e/open-registration`; demo tools/outbox/seed прежние.
 
 T05 после P2: 73 JVM-теста (включая две новые гонки и 8 auth-регрессий), assemble app/test APK, Hilt/DI, lint (0 ошибок / 4 version notices) и isolation прошли. Нового device/process прогона для code 9 нет; прежние 18 device + 6 повторов/QR/process proof относятся к code 8. [RED/GREEN, текущая сборка и H2](docs/19-t05-validation.md).
 

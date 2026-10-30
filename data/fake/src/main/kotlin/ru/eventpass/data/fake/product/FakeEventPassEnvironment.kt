@@ -56,6 +56,18 @@ class FakeEventPassEnvironment(
     val registrations: RegistrationRepository = product.registrations
     val tickets: TicketRepository = product.tickets
 
+    /** Demo storage plumbing for startup cover GC. No actor data or ticket credentials leave the store. */
+    suspend fun retainedCoverAssetIds(): Set<String>? {
+        authBackend.initialize()
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { lock.withLock {
+            val current = state.value
+            if (!current.auth.healthy) null else buildSet {
+                current.events.values.mapNotNullTo(this) { it.cover?.assetId }
+                current.drafts.values.mapNotNullTo(this) { it.fields.cover?.assetId }
+            }
+        } }
+    }
+
     /** Debug/test controls, not authentication or organizer API implementations. */
     val scenarios = ScenarioController()
 

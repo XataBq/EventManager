@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Статус на 29 октября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1–T02.4 по нужным фичам)**, **T03 — DONE (H1)**, **T04 — DONE (auth smoke подтверждён пользователем)**, **T05 — READY_FOR_HUMAN (H2 ожидается)**, **T06 — IN_PROGRESS (независимые данные)**, T07–T09 — TODO. Исторические статусы ниже сохраняют даты. Подагенты не разрешены этим планом.
+Актуальный статус на 30 октября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1–T02.4 по фичам)**, **T03 — DONE (H1)**, **T04 — DONE (auth smoke)**, **T05 — DONE (H2 принята пользователем)**, **T06 — READY_FOR_HUMAN**, T07–T09 — TODO. 101 JVM / 9 device на code 11; организаторский smoke ожидается. [T06](20-t06-validation.md). Исторические статусы ниже сохраняют даты; подагенты не запускались.
 
 ## Порядок
 
@@ -106,6 +106,8 @@ flowchart LR
 **Авто:** формы/consent, optional phone, Unicode-имя; гостевой QR восстанавливается в той же записи flow, но не после её удаления; нет сохранения/автоотправки анкеты; билеты после отдельного signUp и входа. **Человек H2:** G02, соседний экран/Back, пересоздание Activity, закрытие flow и новый запуск без guest ticket; новая/существующая почта и пересечения связей. Потеря ответов анкеты при входе ожидаема по B04.
 
 ## T06 — создание и управление своими мероприятиями
+
+**30 октября — READY_FOR_HUMAN.** H2 принята по актуальной записи пользователя; MyEvents/editor/вопросы/cover/publish/link/close/finish подключены к общему store. 101 JVM и 9 device прошли, app/test APK/lint/isolation успешны. Code 11, `0.6.1-t06-demo`; ручной организаторский smoke остаётся за человеком, H3 целиком не закрыта. [Отчёт и checklist](20-t06-validation.md). Далее сохранена история foundation 29 октября.
 
 **29 октября — IN_PROGRESS.** Пользователь ответил «Ещё не проверял — выполнить независимую часть T06». H2/T05 остаются ожидающими. Выполнены контракты списка/редактора, отдельные неполные черновики, owner/session/revision guards, save/publish/update/close/finish в общем store, schema 3 с миграциями v1/v2 и тестами. 94 JVM, app/test APK, lint/isolation успешны; APK 0.6.0-t06-foundation-demo/code 10. MyEvents/editor UI, route guards, picker/durable cover adapter, clipboard/share и сквозной UI-путь не подключены. [Доказательства и точный остаток](20-t06-validation.md).
 
@@ -219,12 +221,13 @@ Remaining defects and next task:
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
-| T02 | IN_PROGRESS; T02.1–T02.4 по потребностям фич | Общий store/schema 3, auth/tickets/editor ports и миграции v1/v2; 94 JVM. UI T06 и check-in впереди; `20-t06-validation.md` |
+| T02 | IN_PROGRESS; T02.1–T02.4 по фичам | Общий store/schema 3, auth/tickets/editor ports, v1/v2 migration; UI T06 подключён. 101 JVM / 9 device; check-in и другие порты впереди |
 | T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
 | T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
-| T05 | READY_FOR_HUMAN | APK 0.5.1-t05-demo/code 9, P2 busy race исправлен, 73 JVM/assemble/lint/isolation; H2 ожидается. Старые runtime proof code 8 — `19-t05-validation.md` |
-| T06 | IN_PROGRESS | Только независимые domain/fake/persistence и тесты до H2; code 10, `20-t06-validation.md` |
-| T07–T09 | TODO | Полная UI-интеграция T06 — после H2, далее grants/общий scanner T07 |
+| T05 | DONE | H2 принята пользователем; build id/устройство не уточнены. История проверок — `19-t05-validation.md` |
+| T06 | READY_FOR_HUMAN | Полная кодовая часть, code 11, 101 JVM / 9 device; организаторский smoke ожидается, `20-t06-validation.md` |
+| T07–T09 | TODO | После организаторского smoke T06 — T07 grants/общий scanner |
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
-| H2–H4 | Ожидаются | Ручной auth smoke T04 не закрывает H2, следующая задача — T05 |
+| H2 | Принята пользователем | Актуальная запись `19-t05-validation.md`, build/устройство не уточнены |
+| H3–H4 | Ожидаются | Приёмка H2 их не закрывает |
 | T10 | Будущий этап | API отсутствует по запросу пользователя |

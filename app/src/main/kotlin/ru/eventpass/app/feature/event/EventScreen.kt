@@ -80,12 +80,12 @@ fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTi
         if (state.fullscreen) FullscreenTicketQr(receipt.ticket.qrPayload, receipt.ticket.displayNumber) { vm.fullscreen(false) }
     } else EventScreen(eventId, state, vm::edit, vm::submit, vm::refresh, { vm.openOwnTicket() }, {
         val email = state.form.email; vm.leaveForm(); onAuth(email, false, true)
-    })
+    }, cover = { cover -> ru.eventpass.app.feature.editor.ManagedCover(cover) })
 }
 
 @Composable
 fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> Unit, onSubmit: () -> Unit,
-    onRefresh: () -> Unit, onOwn: () -> Unit, onLogin: () -> Unit) {
+    onRefresh: () -> Unit, onOwn: () -> Unit, onLogin: () -> Unit, cover: @Composable (EventCover?) -> Unit = {}) {
     AuthColumn(Modifier.semantics { testTagsAsResourceId = true }) {
         val data = s.data
         if (s.loading) Text(stringResource(R.string.loading))
@@ -111,9 +111,7 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
                     }
                 })
             }
-            Box(Modifier.fillMaxWidth().height(160.dp).background(EventPassColors.surface, EventPassShapes.section), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.event_cover), style = EventPassTypography.hint, color = EventPassColors.muted)
-            }
+            cover(e.cover)
             if (e.sections.isNotEmpty()) Text(stringResource(R.string.event_program), style = EventPassTypography.label, color = EventPassColors.muted)
             e.sections.forEachIndexed { index, section -> EventPassSection(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EventPassDimens.medium)) {

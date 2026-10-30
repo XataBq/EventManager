@@ -45,6 +45,8 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
     shell: ru.eventpass.app.navigation.auth.SessionGate.Shell,
     entryProbe: @Composable (RootTab) -> Unit = {}) {
     val navigation = rememberNavigationState()
+    var editorBack by androidx.compose.runtime.remember { mutableStateOf<(() -> Unit)?>(null) }
+    fun back() { if (navigation.currentStack.lastOrNull() is EditorKey) editorBack?.invoke() ?: navigation.back() else navigation.back() }
     var selectedTicket by rememberSaveable { mutableStateOf<String?>(null) }
     val open by session.open.collectAsStateWithLifecycle()
     val forbidden by session.forbidden.collectAsStateWithLifecycle()
@@ -83,6 +85,10 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                         entryProbe(root)
                         if (root == RootTab.Tickets) ru.eventpass.app.feature.tickets.TicketsRoute(selectedTicket, { selectedTicket = null }, navigation::openEvent,
                             { navigation.openDemo("demo") }, navigation::openGallery, { navigation.currentStack.add(DemoToolsKey) })
+                        else if (root == RootTab.Events) ru.eventpass.app.feature.myevents.MyEventsRoute(
+                            { navigation.currentStack.add(EditorKey(draftId = java.util.UUID.randomUUID().toString(), create = true)) },
+                            { navigation.currentStack.add(EditorKey(draftId = it)) },
+                            { navigation.currentStack.add(EditorKey(eventId = it)) }, navigation::openEvent)
                         else RootScreen(root, { navigation.openDemo("demo") }, navigation::openGallery,
                             session.account?.email.orEmpty(),
                             { session.signOut() }, { navigation.currentStack.add(DemoToolsKey) })
@@ -94,6 +100,8 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                         while (navigation.currentStack.size > 1) navigation.currentStack.removeLastOrNull()
                         navigation.select(RootTab.Tickets)
                     }, navigation::back) }
+                    entry<EditorKey> { route -> ru.eventpass.app.feature.editor.EditorRoute(route.draftId, route.eventId, route.create,
+                        navigation::back, navigation::openEvent, { editorBack = it }) }
                     entry<DemoToolsKey> { ru.eventpass.app.feature.tools.DemoTools(false, navigation::openGallery,
                         { navigation.openDemo("demo") }, { navigation.currentStack.add(OutboxKey) }, { session.receiveLink(it) }, session::guard) }
                     entry<OutboxKey> { ru.eventpass.app.feature.tools.DemoTools(true, {}, {}, {}, { session.receiveLink(it) }, session::guard) }
@@ -121,18 +129,20 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                 }),
                 subtitle = stringResource(R.string.demo_badge),
                 variant = if (nested) TopBarVariant.Nested else TopBarVariant.Authenticated,
-                onBack = navigation::back,
+                onBack = ::back,
                 onProfile = { navigation.select(RootTab.Profile) },
             )
         },
         bottomBar = {
             EventPassBottomBar(BottomDestination.valueOf(navigation.currentTab.name),
-                { navigation.select(RootTab.valueOf(it.name)) })
+                { val tab = RootTab.valueOf(it.name)
+                    if (tab == navigation.currentTab && navigation.currentStack.lastOrNull() is EditorKey) back()
+                    else navigation.select(tab) })
         },
     ) { padding ->
         NavDisplay(
             entries = tabEntries.getValue(navigation.currentTab),
-            onBack = navigation::back,
+            onBack = ::back,
             modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
         )
     }
