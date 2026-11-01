@@ -4,7 +4,7 @@
 
 ## APK и воспроизводимость
 
-[app-demo-debug.apk](../app/build/outputs/apk/demo/debug/app-demo-debug.apk): **0.7.0-t07-foundation-demo**, code **12**, **34079002 байт**, SHA-256 `ef163233826196c8006c05e8da12aebbdf0c2fdb5a400b6a1582136ad2ae9c69`. [Сохранённая копия](../artifacts/apk/eventpass-0.7.0-t07-foundation-demo-code12.apk). ApplicationId `ru.eventpass.android.demo`, minSdk 28, target/compile 37; aapt2/output metadata и debug-подпись v2 проверены. Test APK собран. На устройство ничего не устанавливалось; новых device/camera/OS process-kill прогонов нет.
+[app-demo-debug.apk](../artifacts/apk/eventpass-0.7.0-t07-foundation-demo-code12.apk): **0.7.0-t07-foundation-demo**, code **12**, **34079002 байт**, SHA-256 `ef163233826196c8006c05e8da12aebbdf0c2fdb5a400b6a1582136ad2ae9c69`. [Сохранённая копия](../artifacts/apk/eventpass-0.7.0-t07-foundation-demo-code12.apk). ApplicationId `ru.eventpass.android.demo`, minSdk 28, target/compile 37; aapt2/output metadata и debug-подпись v2 проверены. Test APK собран. На устройство ничего не устанавливалось; новых device/camera/OS process-kill прогонов нет.
 
 Для ожидающей приёмки T06 сохранён [APK code 11](../artifacts/apk/eventpass-0.6.1-t06-demo-code11.apk), SHA-256 `ab1567bb070cab86dca460830feb9298144495b38a0eeeccf87b9aadcb7d028d`. Прежние 9 device относятся к T06, не T07. Сначала проверить T06 на этой сборке, затем устанавливать foundation: после записи schema 4 старый code 11 её не читает, обратной миграции нет. Данные автоматически не сбрасываются.
 

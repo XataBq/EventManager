@@ -1,5 +1,6 @@
 package ru.eventpass.app.feature.tickets
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -25,6 +26,9 @@ fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) ->
     LaunchedEffect(selected) { selected?.let { vm.selectIssued(it); onConsumed() } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(vm, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.refresh() } }
+    // The selected card belongs to the root entry, so NavDisplay cannot pop it.
+    // Dialog windows handle Back themselves before the card returns to the list.
+    BackHandler(enabled = s.selected != null && !s.fullscreen && !s.confirming) { vm.select(null) }
     TicketsScreen(s, vm::select, vm::history, { vm.refresh() }, { vm.fullscreen(true) }, { vm.confirm(true) }, onEvent, onDemo, onGallery, onTools)
     if (s.confirming) ConfirmDialog(stringResource(R.string.ticket_cancel_title), stringResource(R.string.ticket_cancel_description),
         stringResource(R.string.ticket_cancel), vm::cancel, { vm.confirm(false) }, destructive = true, loading = s.cancelling, dismissLabel = stringResource(R.string.ticket_keep))

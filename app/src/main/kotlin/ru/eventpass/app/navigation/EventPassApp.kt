@@ -56,7 +56,7 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
     }
     LaunchedEffect(shell.scope) {
         when (val destination = session.takeDestination(shell)) {
-            is ru.eventpass.app.navigation.auth.ReturnDestination.Event -> navigation.openEvent(destination.eventId)
+            is ru.eventpass.app.navigation.auth.ReturnDestination.Event -> navigation.openLinkedEvent(destination.eventId)
             is ru.eventpass.app.navigation.auth.ReturnDestination.Root -> navigation.select(destination.tab)
             null -> Unit
         }
@@ -64,7 +64,7 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
     LaunchedEffect(open) {
         open?.let { request ->
             request.demoId?.let(navigation::openDemo)
-            (request.destination as? ru.eventpass.app.navigation.auth.ReturnDestination.Event)?.let { navigation.openEvent(it.eventId) }
+            (request.destination as? ru.eventpass.app.navigation.auth.ReturnDestination.Event)?.let { navigation.openLinkedEvent(it.eventId) }
             (request.destination as? ru.eventpass.app.navigation.auth.ReturnDestination.Root)?.let { navigation.select(it.tab) }
             session.consumeOpen(request.id)
         }

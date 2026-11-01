@@ -1,12 +1,14 @@
 # EventPass — Android
 
+**Исправление системного Back — READY_FOR_HUMAN, 1 ноября.** Пользователь сообщил два дефекта H2; остальные проверенные пункты без замечаний. Карточка билета возвращает список, страница мероприятия — исходный таб/экран. Адресная перепроверка на code 13 ожидается; [отчёт и checklist](docs/23-navigation-back-validation.md).
+
 **T07 — IN_PROGRESS (независимая часть).** Пользователь ещё не проверял T06 и выбрал domain/fake/persistence и чистую scanner state model. Owner grants, Active→Used/AlreadyUsed, manual credential и schema 4 проверены без UI/камеры. [Объём, APK и остаток](docs/21-t07-validation.md).
 
-**T06 — READY_FOR_HUMAN, 30 октября.** H2 принята пользователем; T05 — DONE. Оставшаяся UI-интеграция T06 выполнена: MyEvents, редактор/черновики, вопросы, обложка, публикация, ссылка и управление событием. Ручной организаторский smoke ещё ожидается; H3/H4 не закрыты. [Проверки и checklist](docs/20-t06-validation.md).
+**T06 — READY_FOR_HUMAN, 30 октября.** После прежней приёмки H2 начата T06; теперь для T05 ожидается адресная перепроверка Back. Оставшаяся UI-интеграция T06 выполнена: MyEvents, редактор/черновики, вопросы, обложка, публикация, ссылка и управление событием. Ручной организаторский smoke ещё ожидается; H3/H4 не закрыты. [Проверки и checklist](docs/20-t06-validation.md).
 
-**Текущий foundation APK:** [app-demo-debug.apk](app/build/outputs/apk/demo/debug/app-demo-debug.apk), **0.7.0-t07-foundation-demo**, code **12**, **34079002 байт**, SHA-256 `ef163233826196c8006c05e8da12aebbdf0c2fdb5a400b6a1582136ad2ae9c69`. **126 JVM-тестов** реально исполнены, app/test APK, DI/lint/isolation успешны; lint 0 errors / 4 прежних warnings. Новых device/camera прогонов нет, scanner/volunteers UI отсутствует. Для ожидающей приёмки T06 сохранён [code 11](artifacts/apk/eventpass-0.6.1-t06-demo-code11.apk); сначала проверить его, затем обновляться: code 11 не читает schema 4.
+**Текущий APK:** [code 13](artifacts/apk/eventpass-0.7.1-t07-foundation-demo-code13.apk), **0.7.1-t07-foundation-demo**, **34079002 байт**, SHA-256 `5afa868a6eb19e301e24b83f9da1018985c2a03a7e6e8b11d271f3cf40ff41c8`. 41 app JVM-тест, app/test APK, DI/lint/isolation; device-проверки и ограничения — в [отчёте](docs/23-navigation-back-validation.md). T06 UI включён, scanner/volunteers UI T07 ещё отсутствует. На этой сборке можно повторить Back и провести ожидающий smoke T06; старые code 11/12 сохранены как история. Schema 4 прежняя; обратной миграции в code 11 нет.
 
-Мобильный MVP по Figma. T03/T04/T05 приняты пользователем; итоговая кодовая часть T06 проверена и ждёт организаторского smoke. T02 продолжается по фичам. После приёмки T06 — T07.
+Мобильный MVP по Figma. T03/T04 приняты пользователем; исправление Back T05 ждёт повторной проверки; итоговая кодовая часть T06 проверена и ждёт организаторского smoke. T02 продолжается по фичам. После приёмки T06 — T07.
 
 Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
 

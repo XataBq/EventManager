@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Актуальный статус на 30 октября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1–T02.5 по фичам)**, **T03 — DONE (H1)**, **T04 — DONE (auth smoke)**, **T05 — DONE (H2 принята пользователем)**, **T06 — READY_FOR_HUMAN**, **T07 — IN_PROGRESS (независимая часть)**, T08–T09 — TODO. T07 foundation: 126 JVM, code 12, без нового device-прогона; организаторский smoke T06/code 11 ожидается. [T06](20-t06-validation.md). Исторические статусы ниже сохраняют даты; подагенты не запускались.
+Актуальный статус на 1 ноября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1–T02.5 по фичам)**, **T03 — DONE (H1)**, **T04 — DONE (auth smoke)**, **T05 — READY_FOR_HUMAN (перепроверка Back H2)**, **T06 — READY_FOR_HUMAN**, **T07 — IN_PROGRESS (независимая часть)**, T08–T09 — TODO. T07 foundation — code 12; актуальное исправление Back — code 13, 41 app JVM и адресные device-проверки: [23-navigation-back-validation.md](23-navigation-back-validation.md). Организаторский smoke T06 остаётся за человеком; его можно провести на code 13. Исторические статусы ниже сохраняют даты; подагенты не запускались.
 
 ## Порядок
 
@@ -226,11 +226,11 @@ Remaining defects and next task:
 | T02 | IN_PROGRESS; T02.1–T02.5 по фичам | Общий store/schema 4, auth/tickets/editor/grants/check-in и migration; 126 JVM. UI/camera T07 и T08+ ещё впереди; `21-t07-validation.md` |
 | T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
 | T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
-| T05 | DONE | H2 принята пользователем; build id/устройство не уточнены. История проверок — `19-t05-validation.md` |
+| T05 | READY_FOR_HUMAN — исправление Back | Остальные проверенные пункты H2 без замечаний; адресная перепроверка code 13 ожидается. `23-navigation-back-validation.md` |
 | T06 | READY_FOR_HUMAN | Полная кодовая часть, code 11, 101 JVM / 9 device; организаторский smoke ожидается, `20-t06-validation.md` |
 | T07 | IN_PROGRESS | Независимые domain/fake/persistence/scanner state, code 12; зависимый UI после smoke T06, `21-t07-validation.md` |
 | T08–T09 | TODO | После полной T07 — T08 dashboard/интеграция; H3 целиком ещё не закрыта |
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
-| H2 | Принята пользователем | Актуальная запись `19-t05-validation.md`, build/устройство не уточнены |
+| H2 | Адресная перепроверка Back | Прежняя приёмка сохранена; 1 ноября пользователь сообщил два дефекта возврата. Исправлены в code 13, принятие исправления ожидается; `23-navigation-back-validation.md` |
 | H3–H4 | Ожидаются | Приёмка H2 их не закрывает |
 | T10 | Будущий этап | API отсутствует по запросу пользователя |

@@ -64,10 +64,16 @@ class NavigationState(
     }
 
     fun openEvent(eventId: String) {
+        if ((currentStack.lastOrNull() as? EventKey)?.eventId == eventId) return
+        currentStack.add(EventKey(eventId))
+    }
+
+    /** External delivery has a stable Tickets parent; in-app actions keep their caller's stack. */
+    fun openLinkedEvent(eventId: String) {
         selectedTab.value = RootTab.Tickets
         if ((currentStack.lastOrNull() as? EventKey)?.eventId == eventId) return
         while (currentStack.size > 1) currentStack.removeLastOrNull()
-        currentStack.add(EventKey(eventId))
+        openEvent(eventId)
     }
 
     fun back() {

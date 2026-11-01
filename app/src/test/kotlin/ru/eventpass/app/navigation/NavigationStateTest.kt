@@ -63,4 +63,60 @@ class NavigationStateTest {
         state.openDemo("demo")
         assertEquals(listOf(RootTab.Tickets, entry), state.currentStack.toList())
     }
+
+    @Test fun eventOpenedFromMyEventsReturnsToItsOwnTab() {
+        val state = navigation()
+        state.openDemo("demo")
+        val tickets = state.currentStack.toList()
+        state.select(RootTab.Events)
+        repeat(3) { state.openEvent("owned-event") }
+        assertEquals(RootTab.Events, state.currentTab)
+        assertEquals(2, state.currentStack.size)
+        assertEquals(tickets, state.stacks.getValue(RootTab.Tickets).toList())
+        state.back()
+        assertEquals(RootTab.Events, state.currentTab)
+        assertEquals(listOf(RootTab.Events), state.currentStack.toList())
+    }
+
+    @Test fun openingPublishedPageKeepsTheEditorEntryAndOtherEventParents() {
+        val state = navigation()
+        state.select(RootTab.Events)
+        val editor = EditorKey(draftId = "draft")
+        state.currentStack.add(editor)
+        state.openEvent("published-event")
+        val event = state.currentStack.last()
+        state.openEvent("another-event")
+        state.back()
+        assertEquals(event, state.currentStack.last())
+        state.back()
+        assertEquals(listOf(RootTab.Events, editor), state.currentStack.toList())
+    }
+
+    @Test fun externalEventLinksKeepTicketsParentWithoutReplacingMyEventsStack() {
+        val state = navigation()
+        state.select(RootTab.Events)
+        state.openEvent("owned-event")
+        val origin = state.currentStack.toList()
+        state.select(RootTab.Profile)
+        state.openLinkedEvent("linked-event")
+        val linked = state.currentStack.last()
+        repeat(3) { state.openLinkedEvent("linked-event") }
+        assertEquals(listOf(RootTab.Tickets, linked), state.currentStack.toList())
+        assertEquals(origin, state.stacks.getValue(RootTab.Events).toList())
+        state.back()
+        assertEquals(listOf(RootTab.Tickets), state.currentStack.toList())
+        state.select(RootTab.Events)
+        assertEquals(origin, state.currentStack.toList())
+    }
+
+    @Test fun eventReopenedAfterBackHasANewOwnerWithoutChangingItsParent() {
+        val state = navigation()
+        state.openEvent("event")
+        val first = state.currentStack.last()
+        state.back()
+        state.openEvent("event")
+        org.junit.Assert.assertNotEquals(first, state.currentStack.last())
+        state.back()
+        assertEquals(listOf(RootTab.Tickets), state.currentStack.toList())
+    }
 }

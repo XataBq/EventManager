@@ -73,6 +73,13 @@ class EventEditorIntegrationTest {
         assertEquals("T06 вопрос", event.questions.single().title)
         compose.onNodeWithTag("open-published").performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("event-${event.id.value}").fetchSemanticsNodes().isNotEmpty() }
+        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        compose.waitForIdle()
+        compose.onNodeWithTag("published-screen").assertExists()
+        compose.onNodeWithTag("tab-Events").assertIsSelected()
+        compose.onNodeWithTag("open-published").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("event-${event.id.value}").fetchSemanticsNodes().isNotEmpty() }
         runBlocking { e.auth.signOut() }
         compose.activityRule.scenario.onActivity { it.startActivity(Intent(Intent.ACTION_VIEW,
             Uri.parse("eventpass-demo://demo/e/${event.id.value}"), it, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)) }
