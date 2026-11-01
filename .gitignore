@@ -4,6 +4,8 @@
 **/build/
 # Locally retained APKs for manual acceptance on a specific build
 /artifacts/apk/
+# Generated seed QR/manual examples retained for local scanner acceptance
+/artifacts/demo/
 .cxx/
 .externalNativeBuild/
 

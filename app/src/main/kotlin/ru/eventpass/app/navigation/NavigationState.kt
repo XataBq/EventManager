@@ -29,6 +29,8 @@ data object GalleryKey : NavKey
 @Serializable data class EditorKey(val draftId: String? = null, val eventId: String? = null, val create: Boolean = false,
     val entryId: String = UUID.randomUUID().toString()) : NavKey
 @Serializable data class EventKey(val eventId: String, val flowId: String = UUID.randomUUID().toString()) : NavKey
+@Serializable data class ScannerKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
+@Serializable data class VolunteersKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
 @Serializable enum class EventAuthScreen { Login, SignUp, Reset, Verification }
 @Serializable data class EventAuthKey(val flowId: String, val screen: EventAuthScreen, val entryId: String = UUID.randomUUID().toString()) : NavKey
 
@@ -79,6 +81,11 @@ class NavigationState(
     fun back() {
         if (currentStack.size > 1) currentStack.removeLastOrNull()
         else selectedTab.value = RootTab.Tickets
+    }
+
+    fun returnToMyEvents() {
+        selectedTab.value = RootTab.Events
+        while (currentStack.size > 1) currentStack.removeLastOrNull()
     }
 
     /** Model-level reset. Live session cleanup also destroys scope-owned ViewModel stores. */

@@ -1,14 +1,14 @@
 # EventPass — Android
 
-**Исправление системного Back — READY_FOR_HUMAN, 1 ноября.** Пользователь сообщил два дефекта H2; остальные проверенные пункты без замечаний. Карточка билета возвращает список, страница мероприятия — исходный таб/экран. Адресная перепроверка на code 13 ожидается; [отчёт и checklist](docs/23-navigation-back-validation.md).
+**Back/H2 и T06 приняты на code 13.** Подтверждено пользователем 1 ноября; условие T07 UI снято. H3/H4 ожидаются.
 
-**T07 — IN_PROGRESS (независимая часть).** Пользователь ещё не проверял T06 и выбрал domain/fake/persistence и чистую scanner state model. Owner grants, Active→Used/AlreadyUsed, manual credential и schema 4 проверены без UI/камеры. [Объём, APK и остаток](docs/21-t07-validation.md).
+**T07 — READY_FOR_HUMAN, 1 ноября.** Volunteers/Scanner UI, manual code, CameraX/ZXing и permission/lifecycle подключены к существующей foundation. 138 JVM, app/test APK, DI/lint/isolation; device proof и ручной остаток — в [отчёте](docs/24-t07-ui-validation.md). Backend отсутствует, API отправлен на согласование; новые transport/auth/credential semantics не внедрялись.
 
-**T06 — READY_FOR_HUMAN, 30 октября.** После прежней приёмки H2 начата T06; теперь для T05 ожидается адресная перепроверка Back. Оставшаяся UI-интеграция T06 выполнена: MyEvents, редактор/черновики, вопросы, обложка, публикация, ссылка и управление событием. Ручной организаторский smoke ещё ожидается; H3/H4 не закрыты. [Проверки и checklist](docs/20-t06-validation.md).
+**T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. [Отчёт](docs/20-t06-validation.md).
 
-**Текущий APK:** [code 13](artifacts/apk/eventpass-0.7.1-t07-foundation-demo-code13.apk), **0.7.1-t07-foundation-demo**, **34079002 байт**, SHA-256 `5afa868a6eb19e301e24b83f9da1018985c2a03a7e6e8b11d271f3cf40ff41c8`. 41 app JVM-тест, app/test APK, DI/lint/isolation; device-проверки и ограничения — в [отчёте](docs/23-navigation-back-validation.md). T06 UI включён, scanner/volunteers UI T07 ещё отсутствует. На этой сборке можно повторить Back и провести ожидающий smoke T06; старые code 11/12 сохранены как история. Schema 4 прежняя; обратной миграции в code 11 нет.
+**Текущий APK:** [code 14](artifacts/apk/eventpass-0.7.2-t07-demo-code14.apk), **0.7.2-t07-demo**, **44354768 байт**, SHA-256 `a7f99c3af36b7c166305123f520a3d5509113bdb4a39c3ab5aa0e38ec20bcb3d`. 138 JVM, app/test APK, DI/lint/isolation, lint 0 errors / 4 прежних warnings. [Device evidence и camera/UI checklist](docs/24-t07-ui-validation.md). Schema 4 прежняя; scanner/volunteers UI включены, backend/dashboard отсутствуют.
 
-Мобильный MVP по Figma. T03/T04 приняты пользователем; исправление Back T05 ждёт повторной проверки; итоговая кодовая часть T06 проверена и ждёт организаторского smoke. T02 продолжается по фичам. После приёмки T06 — T07.
+Мобильный MVP по Figma. T03–T06 приняты пользователем. T07 ждёт camera/UI-приёмки; следующая функциональная задача — T08 dashboard/явка, полная H3 после T08.
 
 Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
 

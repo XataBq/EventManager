@@ -15,5 +15,9 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(libs.coroutines.core)
     implementation(libs.zxing.core)
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    implementation(libs.camera.view)
     testImplementation(libs.junit)
 }

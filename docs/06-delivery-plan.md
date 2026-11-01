@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Актуальный статус на 1 ноября: **T01 — READY_FOR_HUMAN**, **T02 — IN_PROGRESS (T02.1–T02.5 по фичам)**, **T03 — DONE (H1)**, **T04 — DONE (auth smoke)**, **T05 — READY_FOR_HUMAN (перепроверка Back H2)**, **T06 — READY_FOR_HUMAN**, **T07 — IN_PROGRESS (независимая часть)**, T08–T09 — TODO. T07 foundation — code 12; актуальное исправление Back — code 13, 41 app JVM и адресные device-проверки: [23-navigation-back-validation.md](23-navigation-back-validation.md). Организаторский smoke T06 остаётся за человеком; его можно провести на code 13. Исторические статусы ниже сохраняют даты; подагенты не запускались.
+Актуальный статус на 1 ноября: T01 — READY_FOR_HUMAN; T02 — IN_PROGRESS; T03–T06 — DONE; **T07 — READY_FOR_HUMAN**; T08–T09 — TODO. Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. T07 UI использует прежнюю foundation/schema 4; code 14, 138 JVM и адресные Android проверки — [24-t07-ui-validation.md](24-t07-ui-validation.md). Backend пока отсутствует, API-предложение отправлено на согласование. Исторические результаты ниже относятся к своим сборкам.
 
 ## Порядок
 
@@ -107,6 +107,8 @@ flowchart LR
 
 ## T06 — создание и управление своими мероприятиями
 
+**Актуальный статус T06: DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются.
+
 **30 октября — READY_FOR_HUMAN.** H2 принята по актуальной записи пользователя; MyEvents/editor/вопросы/cover/publish/link/close/finish подключены к общему store. 101 JVM и 9 device прошли, app/test APK/lint/isolation успешны. Code 11, `0.6.1-t06-demo`; ручной организаторский smoke остаётся за человеком, H3 целиком не закрыта. [Отчёт и checklist](20-t06-validation.md). Далее сохранена история foundation 29 октября.
 
 **29 октября — IN_PROGRESS.** Пользователь ответил «Ещё не проверял — выполнить независимую часть T06». H2/T05 остаются ожидающими. Выполнены контракты списка/редактора, отдельные неполные черновики, owner/session/revision guards, save/publish/update/close/finish в общем store, schema 3 с миграциями v1/v2 и тестами. 94 JVM, app/test APK, lint/isolation успешны; APK 0.6.0-t06-foundation-demo/code 10. MyEvents/editor UI, route guards, picker/durable cover adapter, clipboard/share и сквозной UI-путь не подключены. [Доказательства и точный остаток](20-t06-validation.md).
@@ -121,7 +123,7 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 ## T07 — права волонтёра и сканер
 
-**IN_PROGRESS, независимая часть.** Пользователь ответил: «Ещё не проверял — выполнить независимую часть T07». T06 остаётся READY_FOR_HUMAN. Реализованы owner-only grants, event-scoped check-in, Used/first record/typed failures, schema 4 с миграциями и чистый ScannerController. 126 JVM, app/test APK/lint/isolation успешны; code 12 `0.7.0-t07-foundation-demo`. UI/routes/manual-code display/CameraX/decoder/permission lifecycle и сквозной owner→grant→scanner ждут приёмки T06. [Отчёт и checklist](21-t07-validation.md).
+**READY_FOR_HUMAN, 1 ноября.** Volunteers/Scanner UI/manual/CameraX/permissions/lifecycle подключены. 138 JVM, app/test APK/lint/isolation, адресные device проверки; физическая camera/UI-приёмка ожидается, H3 целиком после T08. [Результат и checklist](24-t07-ui-validation.md). Foundation/schema 4 не реализовывались заново.
 
 **Зависимости:** T06. **Владение:** `feature/volunteers`, `feature/checkin`, camera adapter.
 
@@ -223,14 +225,14 @@ Remaining defects and next task:
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
-| T02 | IN_PROGRESS; T02.1–T02.5 по фичам | Общий store/schema 4, auth/tickets/editor/grants/check-in и migration; 126 JVM. UI/camera T07 и T08+ ещё впереди; `21-t07-validation.md` |
+| T02 | IN_PROGRESS; T02.1–T02.5 по фичам | Общий store/schema 4 и порты auth/tickets/editor/grants/check-in используются UI T07; 138 JVM текущего среза. T08+ впереди; 24-t07-ui-validation.md |
 | T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
 | T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
-| T05 | READY_FOR_HUMAN — исправление Back | Остальные проверенные пункты H2 без замечаний; адресная перепроверка code 13 ожидается. `23-navigation-back-validation.md` |
-| T06 | READY_FOR_HUMAN | Полная кодовая часть, code 11, 101 JVM / 9 device; организаторский smoke ожидается, `20-t06-validation.md` |
-| T07 | IN_PROGRESS | Независимые domain/fake/persistence/scanner state, code 12; зависимый UI после smoke T06, `21-t07-validation.md` |
+| T05 | DONE | Back/H2 приняты пользователем на code 13. |
+| T06 | DONE | Организаторский smoke принят пользователем на code 13. |
+| T07 | READY_FOR_HUMAN | UI/camera code 14; 138 JVM и адресный device proof; camera/UI человека ожидается, `24-t07-ui-validation.md`. |
 | T08–T09 | TODO | После полной T07 — T08 dashboard/интеграция; H3 целиком ещё не закрыта |
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
-| H2 | Адресная перепроверка Back | Прежняя приёмка сохранена; 1 ноября пользователь сообщил два дефекта возврата. Исправлены в code 13, принятие исправления ожидается; `23-navigation-back-validation.md` |
+| H2 | Принята пользователем | Back/H2 приняты на code 13; H3/H4 не закрыты. |
 | H3–H4 | Ожидаются | Приёмка H2 их не закрывает |
 | T10 | Будущий этап | API отсутствует по запросу пользователя |

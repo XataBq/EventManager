@@ -46,7 +46,14 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
     entryProbe: @Composable (RootTab) -> Unit = {}) {
     val navigation = rememberNavigationState()
     var editorBack by androidx.compose.runtime.remember { mutableStateOf<(() -> Unit)?>(null) }
-    fun back() { if (navigation.currentStack.lastOrNull() is EditorKey) editorBack?.invoke() ?: navigation.back() else navigation.back() }
+    var scannerBack by androidx.compose.runtime.remember { mutableStateOf<(() -> Unit)?>(null) }
+    var accessLost by androidx.compose.runtime.remember { mutableStateOf(false) }
+    fun back() { when (navigation.currentStack.lastOrNull()) {
+        is EditorKey -> editorBack?.invoke() ?: navigation.back()
+        is ScannerKey -> scannerBack?.invoke() ?: navigation.back()
+        else -> navigation.back()
+    } }
+    fun denied() { accessLost = true; navigation.returnToMyEvents() }
     var selectedTicket by rememberSaveable { mutableStateOf<String?>(null) }
     val open by session.open.collectAsStateWithLifecycle()
     val forbidden by session.forbidden.collectAsStateWithLifecycle()
@@ -88,7 +95,8 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                         else if (root == RootTab.Events) ru.eventpass.app.feature.myevents.MyEventsRoute(
                             { navigation.currentStack.add(EditorKey(draftId = java.util.UUID.randomUUID().toString(), create = true)) },
                             { navigation.currentStack.add(EditorKey(draftId = it)) },
-                            { navigation.currentStack.add(EditorKey(eventId = it)) }, navigation::openEvent)
+                            { navigation.currentStack.add(EditorKey(eventId = it)) }, navigation::openEvent,
+                            { navigation.currentStack.add(ScannerKey(it)) }, { navigation.currentStack.add(VolunteersKey(it)) })
                         else RootScreen(root, { navigation.openDemo("demo") }, navigation::openGallery,
                             session.account?.email.orEmpty(),
                             { session.signOut() }, { navigation.currentStack.add(DemoToolsKey) })
@@ -102,6 +110,11 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                     }, navigation::back) }
                     entry<EditorKey> { route -> ru.eventpass.app.feature.editor.EditorRoute(route.draftId, route.eventId, route.create,
                         navigation::back, navigation::openEvent, { editorBack = it }) }
+                    entry<ScannerKey> { route -> ru.eventpass.app.feature.checkin.ScannerRoute(route.eventId,
+                        navigation.currentTab == tab && navigation.currentStack.lastOrNull() == route,
+                        navigation::back, ::denied, { scannerBack = it }) }
+                    entry<VolunteersKey> { route -> ru.eventpass.app.feature.volunteers.VolunteersRoute(route.eventId,
+                        navigation.currentTab == tab && navigation.currentStack.lastOrNull() == route, ::denied) }
                     entry<DemoToolsKey> { ru.eventpass.app.feature.tools.DemoTools(false, navigation::openGallery,
                         { navigation.openDemo("demo") }, { navigation.currentStack.add(OutboxKey) }, { session.receiveLink(it) }, session::guard) }
                     entry<OutboxKey> { ru.eventpass.app.feature.tools.DemoTools(true, {}, {}, {}, { session.receiveLink(it) }, session::guard) }
@@ -115,6 +128,9 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
     BackHandler(navigation.currentStack.size == 1 && navigation.currentTab != RootTab.Tickets) {
         navigation.back()
     }
+    if (accessLost) androidx.compose.material3.AlertDialog(onDismissRequest = { accessLost = false },
+        text = { Text(stringResource(R.string.scan_access_lost)) },
+        confirmButton = { TextAction(stringResource(R.string.dismiss), { accessLost = false }) })
     Scaffold(
         // Protect every slot from side bars/cutouts; child bars consume only the remaining insets.
         modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).imePadding(),
@@ -136,7 +152,7 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
         bottomBar = {
             EventPassBottomBar(BottomDestination.valueOf(navigation.currentTab.name),
                 { val tab = RootTab.valueOf(it.name)
-                    if (tab == navigation.currentTab && navigation.currentStack.lastOrNull() is EditorKey) back()
+                    if (tab == navigation.currentTab && (navigation.currentStack.lastOrNull() is EditorKey || navigation.currentStack.lastOrNull() is ScannerKey)) back()
                     else navigation.select(tab) })
         },
     ) { padding ->

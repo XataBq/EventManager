@@ -180,6 +180,7 @@ fun GuestReceiptScreen(receipt: GuestReceipt, onQr: () -> Unit, onLogin: () -> U
             KeyValueRow(stringResource(R.string.event_venue), receipt.ticket.venue)
             Text(stringResource(R.string.ticket_number, receipt.ticket.displayNumber))
             TicketQr(receipt.ticket.qrPayload, receipt.ticket.displayNumber)
+            Text(stringResource(R.string.ticket_manual_code, receipt.ticket.manualCode.value), Modifier.testTag("ticket-manual-code"))
             EventPassButton(stringResource(R.string.ticket_open_qr), onQr, Modifier.testTag("open-fullscreen"))
         }
         Text(stringResource(R.string.ticket_guest_hint))

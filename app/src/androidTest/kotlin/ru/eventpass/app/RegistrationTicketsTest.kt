@@ -33,6 +33,7 @@ class RegistrationTicketsTest {
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("guest-receipt").fetchSemanticsNodes().isNotEmpty() }
         val e = compose.backend().environment()
         val ticket = e.scenarios.outbox().single().ticketId
+        compose.onNodeWithTag("ticket-manual-code").assertExists()
         assertEquals(2, e.scenarios.accounts().size)
         compose.onNodeWithTag("open-fullscreen").performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ticket-qr").fetchSemanticsNodes().isNotEmpty() }

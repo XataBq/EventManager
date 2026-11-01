@@ -1,4 +1,8 @@
-# T07 — независимая основа grants/check-in
+# T07 — grants/check-in и UI
+
+**READY_FOR_HUMAN, 1 ноября.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. Оставшаяся UI-интеграция выполнена в code 14: MyEvents → Volunteers/Scanner, manual code, CameraX/ZXing и permission lifecycle. **138 JVM**, app/test APK, lint/DI/isolation; device evidence и ручной camera/UI checklist — [24-t07-ui-validation.md](24-t07-ui-validation.md). Foundation/codec/schema 4 сохранены; backend отсутствует, API отправлен на согласование.
+
+## История независимой foundation code 12
 
 **IN_PROGRESS.** Пользователь прямо ответил: «Ещё не проверял — выполнить независимую часть T07». Организаторский smoke T06 ожидается на code 11. Реализованы только domain/fake/persistence, чистая модель scanner state и тесты; Volunteers/Scanner UI, routes, показ manual code и камера не подключены. T06 DONE/H3/H4 не отмечались. Архитектура текущей части — [t07-checkin-foundation](architecture/t07-checkin-foundation.md).
 

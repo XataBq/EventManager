@@ -1,0 +1,31 @@
+<resources>
+    <string name="scan_title">Сканер билетов</string>
+    <string name="scan_camera">Сканировать QR</string>
+    <string name="scan_hint">Наведите камеру на QR билета или введите код вручную.</string>
+    <string name="scan_manual">Код для ручной проверки</string>
+    <string name="scan_check">Проверить билет</string>
+    <string name="scan_submitting">Проверяем билет…</string>
+    <string name="scan_admitted">Проход разрешён</string>
+    <string name="scan_used">Билет уже использован</string>
+    <string name="scan_invalid">Билет недействителен</string>
+    <string name="scan_next">Следующее сканирование</string>
+    <string name="scan_first">Первый проход: %1$s · проверил %2$s</string>
+    <string name="scan_no_history">Сведения о первом проходе отсутствуют.</string>
+    <string name="scan_wrong_event">Билет другого мероприятия.</string>
+    <string name="scan_event_inactive">Мероприятие неактивно.</string>
+    <string name="scan_unknown">Билет не найден.</string>
+    <string name="scan_access_lost">Доступ к мероприятию отсутствует. Вы вернулись в «Мои мероприятия».</string>
+    <string name="scan_camera_failed">Камера недоступна. Попробуйте снова или введите код вручную.</string>
+    <string name="scan_permission_explanation">Доступ к камере нужен для чтения QR. Ручной ввод работает без камеры.</string>
+    <string name="scan_settings">Открыть настройки приложения</string>
+    <string name="scan_bad_format">Введите 12 символов кода билета. Допустимы пробелы и дефисы.</string>
+    <string name="ticket_manual_code">Код для проверки: %1$s</string>
+    <string name="volunteers_title">Волонтёры</string>
+    <string name="volunteers_hint">Волонтёр может проверять билеты только этого мероприятия. Аккаунт должен уже существовать.</string>
+    <string name="volunteer_email">Email или ID аккаунта</string>
+    <string name="volunteer_grant">Выдать право сканирования</string>
+    <string name="volunteer_revoke">Отозвать право</string>
+    <string name="volunteer_unknown">Аккаунт не найден. Приглашение не отправлено.</string>
+    <string name="volunteer_invalid">Проверьте email или ID аккаунта.</string>
+    <string name="volunteers_empty">Волонтёры пока не назначены.</string>
+</resources>

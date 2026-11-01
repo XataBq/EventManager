@@ -65,8 +65,9 @@ fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Bo
                     TicketStatus.USED -> R.string.ticket_used
                     TicketStatus.ACTIVE -> if (current) R.string.ticket_active else R.string.ticket_past
                 }), if (current) StatusTone.Success else StatusTone.Neutral)
-                if (event != null && selected.canDisplayQr(event, data.now)) {
+                if (!s.history && event != null && selected.canDisplayQr(event, data.now)) {
                     TicketQr(t.qrPayload, t.displayNumber)
+                    Text(stringResource(R.string.ticket_manual_code, t.manualCode.value), Modifier.testTag("ticket-manual-code"))
                     EventPassButton(stringResource(R.string.ticket_open_qr), onQr, Modifier.testTag("open-fullscreen"))
                 }
                 EventPassButton(stringResource(R.string.ticket_to_event), { onEvent(t.eventId.value) }, style = ActionStyle.Secondary)
