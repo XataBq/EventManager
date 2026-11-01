@@ -82,6 +82,27 @@ class CheckInUiIntegrationTest {
         compose.onNodeWithTag("scan-alex-owned").performScrollTo().performClick(); awaitTag("scan-input")
         assertEquals(2, (runBlocking { e.tickets.observeMyTickets().first() } as MyTicketsResult.Ready).tickets.size)
     }
+    @Test fun revokeErrorsAreVisibleInDialogAndRetryRevokesTheSameVolunteer() {
+        val e = compose.backend().environment()
+        compose.onNodeWithTag("tab-Events").performClick()
+        compose.onNodeWithTag("volunteers-alex-owned").performScrollTo().performClick(); awaitTag("volunteer-input")
+        for (error in listOf(VolunteerError.NETWORK, VolunteerError.TIMEOUT, VolunteerError.STORAGE_UNAVAILABLE)) {
+            compose.onNodeWithTag("volunteer-input").performScrollTo().performTextReplacement("host@example.com")
+            compose.onNodeWithTag("volunteer-grant").performScrollTo().performClick(); awaitTag("volunteer-host")
+            androidx.test.espresso.Espresso.closeSoftKeyboard()
+            compose.onNodeWithText(compose.activity.getString(R.string.volunteer_revoke)).performScrollTo().performClick()
+            runBlocking { e.scenarios.failNextVolunteer(error) }
+            compose.onAllNodesWithText(compose.activity.getString(R.string.volunteer_revoke)).onLast().performClick()
+            val message = compose.activity.getString(ru.eventpass.app.feature.volunteers.volunteerErrorResource(error))
+            val modalError = hasText(message) and hasAnyAncestor(isDialog())
+            compose.waitUntil(10_000) { compose.onAllNodes(modalError).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNode(modalError).assertIsDisplayed()
+            assertEquals(1, (runBlocking { e.volunteers.observeVolunteers(FakeFixtures.OWNED).first() } as VolunteersResult.Ready).volunteers.size)
+            compose.onNode(hasText(compose.activity.getString(R.string.ticket_retry)) and hasAnyAncestor(isDialog())).performClick()
+            compose.waitUntil(10_000) { compose.onAllNodes(isDialog()).fetchSemanticsNodes().isEmpty() }
+            compose.onNodeWithTag("volunteer-host").assertDoesNotExist()
+        }
+    }
     private fun cameraView(view: View): QrCameraPreview? = if (view is QrCameraPreview) view else
         (view as? ViewGroup)?.let { group -> (0 until group.childCount).firstNotNullOfOrNull { cameraView(group.getChildAt(it)) } }
     private fun startCamera(): QrCameraPreview {

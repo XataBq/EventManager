@@ -2,11 +2,11 @@
 
 **Back/H2 и T06 приняты на code 13.** Подтверждено пользователем 1 ноября; условие T07 UI снято. H3/H4 ожидаются.
 
-**T07 — READY_FOR_HUMAN, 1 ноября.** Volunteers/Scanner UI, manual code, CameraX/ZXing и permission/lifecycle подключены к существующей foundation. 138 JVM, app/test APK, DI/lint/isolation; device proof и ручной остаток — в [отчёте](docs/24-t07-ui-validation.md). Backend отсутствует, API отправлен на согласование; новые transport/auth/credential semantics не внедрялись.
+**T07 — READY_FOR_HUMAN, исправление code 15.** Ошибка revoke видна в Dialog с явным retry, back-camera/autofocus не обязательны в APK. 49 app JVM + 4 адресных device tests, assemble app/test, lint/DI/isolation/aapt прошли. [Результат и ограничения](docs/25-t07-fixes-validation.md). Полная UI-интеграция code 14 — [история](docs/24-t07-ui-validation.md); camera/UI человека ожидается. Backend отсутствует, API на согласовании.
 
 **T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. [Отчёт](docs/20-t06-validation.md).
 
-**Текущий APK:** [code 14](artifacts/apk/eventpass-0.7.2-t07-demo-code14.apk), **0.7.2-t07-demo**, **44354768 байт**, SHA-256 `a7f99c3af36b7c166305123f520a3d5509113bdb4a39c3ab5aa0e38ec20bcb3d`. 138 JVM, app/test APK, DI/lint/isolation, lint 0 errors / 4 прежних warnings. [Device evidence и camera/UI checklist](docs/24-t07-ui-validation.md). Schema 4 прежняя; scanner/volunteers UI включены, backend/dashboard отсутствуют.
+**Текущий APK:** [code 15](artifacts/apk/eventpass-0.7.3-t07-demo-code15.apk), **0.7.3-t07-demo**, **44076713 байт**, SHA-256 `0171bcc65518d65c82ba7af98be1bdd50c80f087710f2fcd357d1120a89b859d`. 49 app JVM / 4 адресных device, lint 0 errors / 4 прежних warnings; aapt не требует camera/autofocus. [Точные проверки и checklist](docs/25-t07-fixes-validation.md). Schema 4 прежняя, backend/dashboard отсутствуют.
 
 Мобильный MVP по Figma. T03–T06 приняты пользователем. T07 ждёт camera/UI-приёмки; следующая функциональная задача — T08 dashboard/явка, полная H3 после T08.
 

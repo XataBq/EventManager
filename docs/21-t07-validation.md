@@ -1,6 +1,6 @@
 # T07 — grants/check-in и UI
 
-**READY_FOR_HUMAN, 1 ноября.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. Оставшаяся UI-интеграция выполнена в code 14: MyEvents → Volunteers/Scanner, manual code, CameraX/ZXing и permission lifecycle. **138 JVM**, app/test APK, lint/DI/isolation; device evidence и ручной camera/UI checklist — [24-t07-ui-validation.md](24-t07-ui-validation.md). Foundation/codec/schema 4 сохранены; backend отсутствует, API отправлен на согласование.
+**READY_FOR_HUMAN, актуальное исправление code 15.** Volunteers/Scanner UI интегрированы, schema 4 прежняя. Исправлены revoke Dialog error/retry и camera/autofocus requirement; 49 app JVM / 4 device и aapt/assemble/lint/isolation — [25](25-t07-fixes-validation.md). Полная интеграция code 14 и ручной camera checklist — [24](24-t07-ui-validation.md). Back/H2/T06 приняты на code 13, camera/UI T07 и H3/H4 ожидаются. Backend отсутствует/API на согласовании.
 
 ## История независимой foundation code 12
 

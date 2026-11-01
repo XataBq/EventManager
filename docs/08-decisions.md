@@ -1,5 +1,7 @@
 # Решения и открытые вопросы
 
+**T07, code 15 — исправления по замечаниям пользователя.** Revoke error принадлежит confirmation и показана в Dialog с повтором той же команды; manifest явно снимает camera/autofocus requirement от CAMERA permission. [Проверки/ограничения](25-t07-fixes-validation.md). T07 остаётся READY_FOR_HUMAN, Back/H2/T06 приняты, H3/H4 ожидаются. Ранее выполненные прогоны ниже — история своих сборок.
+
 **1 ноября — T07 UI READY_FOR_HUMAN.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. Scanner/Volunteers используют прежние ports/store/controller/schema 4; CameraX 1.6.2 + существующий ZXing. Backend/API не согласованы. [Проверки/ограничения](24-t07-ui-validation.md). Более ранние датированные записи — история.
 
 **1 ноября — замечания повторной H2:** остальные проверенные пункты без замечаний, два дефекта системного Back. Исправление code 13 готово к адресной ручной перепроверке; T05 — READY_FOR_HUMAN в этой части. Прежняя приёмка не отменяет историю выполнения T06; организаторский smoke T06 и H3/H4 ожидаются. [23-navigation-back-validation.md](23-navigation-back-validation.md).

@@ -30,8 +30,11 @@ fun VolunteersRoute(eventId: String, visible: Boolean, onDenied: () -> Unit) {
     LaunchedEffect(state.denied) { if (visible && state.denied) onDenied() }
     VolunteersScreen(state, vm::edit, vm::grant, vm::confirm, vm::retry)
     state.revoke?.let {
-        ConfirmDialog(stringResource(R.string.volunteer_revoke), it.email, stringResource(R.string.volunteer_revoke),
-            vm::revoke, { vm.confirm(null) }, destructive = true, loading = state.busy)
+        val error = state.revokeError ?: state.error
+        ConfirmDialog(stringResource(R.string.volunteer_revoke), it.email,
+            stringResource(if (error == null) R.string.volunteer_revoke else R.string.ticket_retry),
+            vm::revoke, { vm.confirm(null) }, destructive = true, loading = state.busy,
+            errorText = error?.let { cause -> stringResource(volunteerErrorResource(cause)) })
     }
 }
 
@@ -42,14 +45,8 @@ fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> 
         Text(stringResource(R.string.volunteers_title), style = EventPassTypography.heading)
         Text(stringResource(R.string.volunteers_hint))
         if (s.loading) Text(stringResource(R.string.loading))
-        s.error?.let { InlineError(stringResource(when (it) {
-            VolunteerError.ACCOUNT_NOT_FOUND -> R.string.volunteer_unknown
-            VolunteerError.INVALID_TARGET -> R.string.volunteer_invalid
-            VolunteerError.NETWORK -> R.string.auth_network
-            VolunteerError.TIMEOUT -> R.string.auth_timeout
-            VolunteerError.STORAGE_UNAVAILABLE -> R.string.auth_storage
-            else -> R.string.scan_access_lost
-        })); TextAction(stringResource(R.string.ticket_retry), retry, enabled = !s.busy) }
+        if (s.revoke == null) s.error?.let { InlineError(stringResource(volunteerErrorResource(it)))
+            TextAction(stringResource(R.string.ticket_retry), retry, enabled = !s.busy) }
         if (!s.denied) {
             FormField(s.input, edit, stringResource(R.string.volunteer_email), Modifier.testTag("volunteer-input"), enabled = !s.busy && !s.loading)
             EventPassButton(stringResource(R.string.volunteer_grant), grant, Modifier.testTag("volunteer-grant"),
@@ -61,4 +58,13 @@ fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> 
             } }
         }
     }
+}
+
+fun volunteerErrorResource(error: VolunteerError): Int = when (error) {
+    VolunteerError.ACCOUNT_NOT_FOUND -> R.string.volunteer_unknown
+    VolunteerError.INVALID_TARGET -> R.string.volunteer_invalid
+    VolunteerError.NETWORK -> R.string.auth_network
+    VolunteerError.TIMEOUT -> R.string.auth_timeout
+    VolunteerError.STORAGE_UNAVAILABLE -> R.string.auth_storage
+    else -> R.string.scan_access_lost
 }

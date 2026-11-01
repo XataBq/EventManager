@@ -13,7 +13,7 @@
 | `EventPassFields.kt` | FormField: label/value/placeholder/focus/error/help/enabled, KeyboardOptions/Actions, multiline; PasswordField с локальным переключением видимости; SearchField |
 | `EventPassSelection.kt` | ConsentCheckbox, SettingsSwitch, OptionCard (radio semantics), SegmentedTabs с необязательными счётчиками и горизонтальным скроллом |
 | `EventPassData.kt` | StatusBadge/StatusDot/ResultMark с StatusTone; AvatarInitials, KeyValueRow, MetricCard, EventPassSection |
-| `EventPassStates.kt` | EmptyState, ErrorState с retry callback, InlineError с live region, ConfirmDialog с обычным/destructive/loading состояниями |
+| `EventPassStates.kt` | EmptyState, ErrorState с retry callback, InlineError с live region, ConfirmDialog с обычным/destructive/loading состояниями и optional errorText внутри окна |
 | `EventPassNavigation.kt` | TopBar Guest/Authenticated/Nested; BottomBar ровно Tickets/Events/Profile. System insets включены по умолчанию, в галерейных образцах явно отключены |
 | `EventPassIcons.kt`, `EventPassPreviews.kt` | Локальные VectorDrawable; previews кнопок/полей/выбора/статусов, 360/390dp и fontScale 1.3/2.0 |
 

@@ -11,7 +11,7 @@ import ru.eventpass.core.domain.event.*
 
 data class VolunteersUiState(val loading: Boolean = true, val volunteers: List<Volunteer> = emptyList(),
     val input: String = "", val revoke: Volunteer? = null, val busy: Boolean = false,
-    val error: VolunteerError? = null, val denied: Boolean = false)
+    val error: VolunteerError? = null, val denied: Boolean = false, val revokeError: VolunteerError? = null)
 
 @HiltViewModel
 class VolunteersViewModel @Inject constructor(private val repository: VolunteerRepository) : ViewModel() {
@@ -31,20 +31,23 @@ class VolunteersViewModel @Inject constructor(private val repository: VolunteerR
     fun stop() { active = false; generation++; observer?.cancel(); command?.cancel(); mutable.value = VolunteersUiState() }
     fun retry() { eventId?.let { start(it.value) } }
     fun edit(value: String) { if (!state.value.busy) mutable.value = state.value.copy(input = value.take(254), error = null) }
-    fun confirm(value: Volunteer?) { if (!state.value.busy) mutable.value = state.value.copy(revoke = value) }
+    fun confirm(value: Volunteer?) { if (!state.value.busy) mutable.value = state.value.copy(revoke = value, revokeError = null, error = null) }
     fun grant() { val value = state.value.input.trim(); if (value.isNotBlank()) send { repository.grant(it, value) } }
-    fun revoke() { val user = state.value.revoke?.grant?.userId ?: return; send { repository.revoke(it, user) } }
-    private fun send(action: suspend (EventId) -> VolunteerOutcome) {
+    fun revoke() { val user = state.value.revoke?.grant?.userId ?: return; send(revoking = true) { repository.revoke(it, user) } }
+    private fun send(revoking: Boolean = false, action: suspend (EventId) -> VolunteerOutcome) {
         val id = eventId ?: return; val token = generation
         if (state.value.loading || state.value.busy || state.value.denied || !active) return
-        mutable.value = state.value.copy(busy = true, error = null)
+        mutable.value = state.value.copy(busy = true, error = null, revokeError = null)
         command = viewModelScope.launch {
             try {
                 val result = action(id); currentCoroutineContext().ensureActive()
                 if (generation != token) return@launch
                 when (result) {
-                    is VolunteerOutcome.Updated -> mutable.value = state.value.copy(input = "", revoke = null)
-                    is VolunteerOutcome.Failed -> fail(result.error)
+                    is VolunteerOutcome.Updated -> mutable.value = state.value.copy(input = "", revoke = null, revokeError = null)
+                    is VolunteerOutcome.Failed -> if (revoking && result.error in setOf(VolunteerError.NETWORK,
+                        VolunteerError.TIMEOUT, VolunteerError.STORAGE_UNAVAILABLE))
+                        mutable.value = state.value.copy(revokeError = result.error)
+                    else fail(result.error)
                 }
             } finally { if (generation == token) mutable.value = state.value.copy(busy = false) }
         }

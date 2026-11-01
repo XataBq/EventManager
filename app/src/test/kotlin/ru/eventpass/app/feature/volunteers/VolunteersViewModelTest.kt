@@ -13,6 +13,32 @@ import kotlin.coroutines.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class VolunteersViewModelTest {
+    @Test fun networkFailureStaysWithRevokeConfirmationAndCanRetry() = revokeFailure(VolunteerError.NETWORK)
+    @Test fun timeoutStaysWithRevokeConfirmationAndCanRetry() = revokeFailure(VolunteerError.TIMEOUT)
+    @Test fun storageFailureStaysWithRevokeConfirmationAndCanRetry() = revokeFailure(VolunteerError.STORAGE_UNAVAILABLE)
+
+    private fun revokeFailure(error: VolunteerError) = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val e = FakeEventPassEnvironment(authPolicy = FakeAuthPolicy(passwordIterations = 1000))
+        e.scenarios.signInAs(FakeFixtures.ALEX)
+        e.volunteers.grant(FakeFixtures.OWNED, "host@example.com")
+        val vm = VolunteersViewModel(e.volunteers)
+        try {
+            vm.start(FakeFixtures.OWNED.value)
+            val volunteer = vm.state.first { !it.loading }.volunteers.single()
+            vm.confirm(volunteer); e.scenarios.failNextVolunteer(error); vm.revoke()
+            val failed = vm.state.first { it.revokeError == error && !it.busy }
+            assertEquals(volunteer, failed.revoke); assertEquals(listOf(volunteer), failed.volunteers)
+            assertNull(failed.error) // The failure belongs to the modal command, not the list/reload UI.
+            vm.confirm(null); assertNull(vm.state.value.revokeError)
+            vm.confirm(volunteer); assertNull(vm.state.value.revokeError)
+            vm.revoke()
+            vm.state.first { it.revoke == null && !it.busy }
+            assertNull(vm.state.value.revokeError)
+            assertTrue((e.volunteers.observeVolunteers(FakeFixtures.OWNED).first() as VolunteersResult.Ready).volunteers.isEmpty())
+        } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
+
     @Test fun unknownAccountAndConfirmedRevokeUseOneSharedList() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val e = FakeEventPassEnvironment(authPolicy = FakeAuthPolicy(passwordIterations = 1000))

@@ -48,11 +48,15 @@ fun ConfirmDialog(
     onConfirm: () -> Unit, onDismiss: () -> Unit,
     destructive: Boolean = false, loading: Boolean = false,
     dismissLabel: String = stringResource(R.string.ep_cancel),
+    errorText: String? = null,
 ) {
     AlertDialog(
         onDismissRequest = { if (!loading) onDismiss() },
         title = { Text(title, style = EventPassTypography.cardTitle) },
-        text = { Text(description, style = EventPassTypography.body) },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
+            Text(description, style = EventPassTypography.body)
+            errorText?.let { InlineError(it) }
+        } },
         confirmButton = { EventPassButton(confirmLabel, onConfirm, style = if (destructive) ActionStyle.Danger else ActionStyle.Primary, loading = loading) },
         dismissButton = { TextAction(dismissLabel, onDismiss, enabled = !loading) },
         shape = EventPassShapes.large,
