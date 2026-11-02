@@ -22,10 +22,90 @@ class DashboardViewModelTest {
         var load: suspend (String) -> AttendeesResult = { AttendeesResult.Page("revision",listOf(row),1,null) }
         var cancel: suspend (String) -> OwnerCancelResult = { OwnerCancelResult.Cancelled }
         var refresh: DashboardResult? = null
+        var refreshAction: (suspend () -> DashboardResult)? = null
         override fun observeDashboard(eventId: EventId) = stream
-        override suspend fun refreshDashboard(eventId: EventId) = refresh ?: stream.value
+        override suspend fun refreshDashboard(eventId: EventId) = refreshAction?.invoke() ?: refresh ?: stream.value
         override suspend fun attendees(eventId: EventId, query: String, cursor: AttendanceCursor?) = load(query)
         override suspend fun cancelRegistration(eventId: EventId, registrationId: String) = cancel(registrationId)
+    }
+    @Test fun lateRefreshCannotRollBackObserverTotalsOrEmptySearchPage() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val repo=Repo()
+        val pending=mutableListOf<Continuation<DashboardResult>>()
+        repo.refreshAction={ suspendCoroutine { pending+=it } }
+        repo.load={ AttendeesResult.Page((repo.stream.value as DashboardResult.Ready).dashboard.revision,emptyList(),0,null) }
+        val vm=DashboardViewModel(repo,SavedStateHandle(mapOf("query" to "no-match")))
+        try {
+            vm.start("event"); runCurrent(); vm.refresh(); runCurrent()
+            val latest=dashboard("after-checkin").copy(summary=AttendanceSummary(1,1,0,19))
+            repo.stream.value=DashboardResult.Ready(latest); runCurrent()
+            assertEquals(1,vm.state.value.dashboard!!.summary.checkedIn)
+            pending.single().resume(DashboardResult.Ready(dashboard())); runCurrent()
+            assertEquals(latest,vm.state.value.dashboard); assertEquals(0,vm.state.value.matches)
+            assertTrue(vm.state.value.rows.isEmpty()); assertFalse(vm.state.value.refreshing); assertFalse(vm.state.value.paging)
+            assertNull(vm.state.value.readError); assertNull(vm.state.value.pageError)
+        } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
+    @Test fun lateRefreshFailureCannotReplaceNewerObserverError() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val repo=Repo()
+        val pending=mutableListOf<Continuation<DashboardResult>>(); repo.refreshAction={ suspendCoroutine { pending+=it } }
+        val vm=DashboardViewModel(repo,SavedStateHandle())
+        try {
+            vm.start("event"); runCurrent(); vm.refresh(); runCurrent()
+            repo.stream.value=DashboardResult.Failed(AttendanceError.TIMEOUT); runCurrent()
+            pending.single().resume(DashboardResult.Failed(AttendanceError.NETWORK)); runCurrent()
+            assertEquals(AttendanceError.TIMEOUT,vm.state.value.readError)
+            assertFalse(vm.state.value.refreshing); assertEquals(listOf(row),vm.state.value.rows)
+        } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
+    @Test fun pageRefreshRequestedWhileBusyRunsOnceAfterOldRefreshFinishes() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val repo=Repo()
+        val pending=mutableListOf<Continuation<DashboardResult>>(); var calls=0
+        val latest=dashboard("page-C").copy(summary=AttendanceSummary(2,1,1,18))
+        repo.refreshAction={ calls++; if (calls==1) suspendCoroutine { pending+=it } else DashboardResult.Ready(latest) }
+        val vm=DashboardViewModel(repo,SavedStateHandle())
+        try {
+            vm.start("event"); runCurrent(); vm.refresh(); runCurrent()
+            repo.load={ AttendeesResult.Page(latest.revision,listOf(row.copy(status=TicketStatus.USED)),1,null) }
+            repo.stream.value=DashboardResult.Ready(dashboard("observer-B")); runCurrent()
+            assertTrue(vm.state.value.refreshing); assertEquals(1,calls)
+            // The mismatched page requested a read while refresh A was still pending.
+            pending.single().resume(DashboardResult.Ready(dashboard())); runCurrent()
+            assertEquals(2,calls); assertEquals(latest,vm.state.value.dashboard)
+            assertEquals(TicketStatus.USED,vm.state.value.rows.single().status)
+            assertFalse(vm.state.value.paging); assertFalse(vm.state.value.refreshing); assertNull(vm.state.value.pageError)
+        } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
+    @Test fun oldRefreshFinallyCannotUnlockNewOwnerOrReplayItsQueuedRead() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val repo=Repo()
+        val pending=mutableListOf<Continuation<DashboardResult>>(); repo.refreshAction={ suspendCoroutine { pending+=it } }
+        val vm=DashboardViewModel(repo,SavedStateHandle())
+        try {
+            vm.start("one"); runCurrent(); vm.refresh(); runCurrent(); vm.refresh()
+            vm.stop(); vm.start("two"); runCurrent(); vm.refresh(); runCurrent()
+            assertEquals(2,pending.size)
+            pending[0].resume(DashboardResult.Ready(dashboard("old"))); runCurrent()
+            assertTrue(vm.state.value.refreshing); assertEquals(2,pending.size)
+            pending[1].resume(DashboardResult.Ready(dashboard())); runCurrent()
+            assertFalse(vm.state.value.refreshing); assertEquals(2,pending.size)
+        } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
+    @Test fun stopCancelsQueuedFollowUpAfterImmediateRefreshReply() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler)); val repo=Repo()
+        var calls=0; var cancelled=false
+        val vm=DashboardViewModel(repo,SavedStateHandle())
+        try {
+            vm.start("event")
+            repo.load={ AttendeesResult.Page("page-C",emptyList(),0,null) }
+            repo.refreshAction={
+                calls++
+                if (calls==1) DashboardResult.Ready(dashboard("refresh-B"))
+                else try { awaitCancellation() } finally { cancelled=true }
+            }
+            vm.refresh()
+            assertEquals(2,calls); assertTrue(vm.state.value.refreshing)
+            vm.stop(); runCurrent()
+            assertTrue(cancelled); assertNull(vm.state.value.dashboard); assertFalse(vm.state.value.refreshing)
+        } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
     }
     @Test fun oldQueryAndFinallyCannotReplaceOrUnlockNewPage() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val repo=Repo()

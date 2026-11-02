@@ -22,13 +22,17 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
     private var id: EventId? = null; private var owner = 0L; private var request = 0L
     private var observer: Job? = null; private var page: Job? = null; private var command: Job? = null; private var refresh: Job? = null
     private var loadedRevision: String? = null; private var active = false
+    private var observation = 0L; private var refreshPending = false
     fun start(eventId: String) {
         stop(); active = true; id = EventId(eventId); val generation = owner
-        observer = viewModelScope.launch { repository.observeDashboard(EventId(eventId)).collect { if (generation == owner) accept(it) } }
+        observer = viewModelScope.launch { repository.observeDashboard(EventId(eventId)).collect { if (generation == owner) {
+            observation++; accept(it)
+        } } }
     }
     fun stop() {
         active = false; owner++; request++; observer?.cancel(); page?.cancel(); command?.cancel(); refresh?.cancel()
-        loadedRevision = null; mutable.value = DashboardUiState(query = saved["query"] ?: "")
+        loadedRevision = null; observation = 0; refreshPending = false
+        mutable.value = DashboardUiState(query = saved["query"] ?: "")
     }
     private fun denied(error: AttendanceError): Boolean {
         if (error !in setOf(AttendanceError.FORBIDDEN, AttendanceError.AUTHENTICATION_REQUIRED, AttendanceError.SESSION_CHANGED, AttendanceError.NOT_FOUND)) return false
@@ -75,12 +79,23 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
         }
     }
     fun refresh() {
-        val eventId = id ?: return; if (!active || state.value.refreshing) return; val generation = owner
+        val eventId = id ?: return; if (!active) return
+        if (state.value.refreshing) { refreshPending = true; return }
+        val generation = owner; val startedObservation = observation
         mutable.value = state.value.copy(refreshing = true)
-        refresh = viewModelScope.launch {
-            try { val result = repository.refreshDashboard(eventId); currentCoroutineContext().ensureActive(); if (generation == owner) accept(result) }
-            finally { if (generation == owner) mutable.value = state.value.copy(refreshing = false) }
+        // Publish the job before an immediate/cached reply can start a queued follow-up.
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val result = repository.refreshDashboard(eventId); currentCoroutineContext().ensureActive()
+                // Revisions are opaque: any intervening observation supersedes this read's result.
+                if (generation == owner && observation == startedObservation) accept(result)
+            } finally { if (generation == owner) {
+                mutable.value = state.value.copy(refreshing = false)
+                val followUp = refreshPending; refreshPending = false
+                if (followUp && currentCoroutineContext().isActive) refresh()
+            } }
         }
+        refresh = job; job.start()
     }
     fun confirm(row: Attendee?) { if (!state.value.cancelling) mutable.value = state.value.copy(selected = row, cancelError = null) }
     fun cancel() {

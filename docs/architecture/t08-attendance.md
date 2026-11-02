@@ -1,6 +1,6 @@
 # T08: owner dashboard и общая явка
 
-Текущая demo-реализация поверх T07. Backend/API-предложение ещё не согласованы; remote cursor/polling/security protocol не утверждены. T07 camera/UI и общая H3 ожидают человека. Результаты конкретной сборки — [26](../26-t08-validation.md).
+Текущая demo-реализация поверх T07. Backend/API-предложение ещё не согласованы; remote cursor/polling/security protocol не утверждены. T07 camera/UI и общая H3 ожидают человека. Результаты исходного среза — [26](../26-t08-validation.md), исправления refresh — [27](../27-t08-refresh-validation.md).
 
 ## Ответственность и данные
 
@@ -34,6 +34,8 @@ DashboardKey(eventId,entryId) — private Nav3 entry в исходном таб�
 
 Read/refresh error сохраняет доступный последний snapshot и отдельную ошибку; successful refresh показывает updatedAt из event Clock. В demo этот Clock фиксирован, поэтому timestamp может не измениться при повторном чтении. Это локальное обновление store, не синхронизация устройств и не polling/SSE. Access error немедленно очищает state и закрывает entry через host → MyEvents с сообщением. Session replacement/logout уничтожает private owners как раньше.
 
+Observer и refresh согласованы через локальное поколение наблюдений: каждый результат observer (Ready/Failed) увеличивает счётчик. Refresh запоминает owner и счётчик до suspend, его результат принимается только при совпадении обоих после возврата. Поэтому поздний ответ refresh не откатывает уже наблюдавшиеся totals/rows/error. SHA-256 revision не сравнивается по порядку, фиксированный Clock не определяет новизну. Запросы повторного чтения во время refresh объединяются в один follow-up после завершения текущего; page mismatch не теряется за busy guard. Stop/новый owner очищает отложенный запрос; старый finally не снимает refreshing новой entry. Job записывается до старта (CoroutineStart.LAZY), чтобы немедленный ответ не затирал ссылку на follow-up и stop отменял актуальное чтение. Счётчики/флаг только в памяти VM, repository/schema не менялись.
+
 Owner confirmation привязана к конкретному registration ID и хранится только в VM. Network/Timeout/Storage внутри Dialog; retry отправляет ту же отмену, busy блокирует повтор/dismiss. USED возвращает typed error, не меняет status. Поздний cancel result/finally старого owner не снимает busy новой операции. После IO write публикуется общий state: counters/own ticket/list наблюдают одну отмену. Отмена queued coroutine не мутирует; уже выполненный commit не обещает rollback при поздней отмене UI.
 
 Экспорт скрыт до настоящих файлов T09; MAX/участнические ответы/profile/remote не добавлены.
@@ -41,7 +43,7 @@ Owner confirmation привязана к конкретному registration ID 
 ## Доказательства и пределы
 
 - [AttendanceTest](../../data/fake/src/test/kotlin/ru/eventpass/data/fake/product/AttendanceTest.kt): права и forged IDs/pages, guest/auth totals, Used/legacy/counter, cancel/self/race/storage/restart/schema lock, stable pages/search/revision, queued cancel/session, startsAt/end/expiry.
-- [DashboardViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/dashboard/DashboardViewModelTest.kt): old query/finally, hidden/late cancel/new owner, denial/PII cleanup, refresh snapshot/freshness, revision reset/totals.
+- [DashboardViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/dashboard/DashboardViewModelTest.kt): old query/finally, hidden/late cancel/new owner, denial/PII cleanup, refresh snapshot/freshness, revision reset/totals; delayed refresh A после observer B, ошибка observer vs старый refresh, follow-up чтение страницы, изоляция очереди нового owner и stop после немедленного ответа с запуском отложенного job.
 - [DashboardIntegrationTest](../../app/src/androidTest/kotlin/ru/eventpass/app/DashboardIntegrationTest.kt): owner→scanner/manual→Back/явка→Volunteers→Back, query/recreation/modal errors/cancel/refresh/hidden/logout и forged volunteer route. Реальные результаты/ограничения — в отчёте, наличие теста не означает его запуск.
 
 Физическая камера/QR с бумаги/слабый свет и полная ручная H3 не доказаны автоматизацией T08. API 28/37, landscape/gestures/accessibility и новый OS process-kill не объявляются проверенными по API 33 recreation. Следующий срез T09, backend integration T10.

@@ -1,6 +1,6 @@
 # EventPass — Android
 
-**T08 — READY_FOR_HUMAN, независимая кодовая часть, 2 ноября.** Owner dashboard/участники/поиск/pages/отмена подключены к общему store, готовым Scanner/Volunteers. 155 JVM / 3 адресных device, app/test APK/lint/DI/isolation прошли. [Результат и H3 checklist](docs/26-t08-validation.md). T07 camera/UI на code 15 и общая H3 остаются ожидающими, backend/API не согласованы.
+**T08 — READY_FOR_HUMAN, исправление code 17, 2 ноября.** Поздний refresh не откатывает более новый dashboard/error из observer; отложенное чтение страницы и отмена при уходе проверены. 58 app JVM / 3 адресных device, app/test APK/lint/DI/isolation прошли. [Исправление и перепроверка](docs/27-t08-refresh-validation.md); исходный срез code 16 (155 JVM) и [H3 checklist](docs/26-t08-validation.md) сохранены как история. T07 camera/UI на code 15 и общая H3 остаются ожидающими, backend/API не согласованы.
 
 **Back/H2 и T06 приняты на code 13.** Подтверждено пользователем 1 ноября; условие T07 UI снято. H3/H4 ожидаются.
 
@@ -8,7 +8,7 @@
 
 **T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. [Отчёт](docs/20-t06-validation.md).
 
-**Текущий APK T08:** [code 16](artifacts/apk/eventpass-0.8.0-t08-demo-code16.apk), **0.8.0-t08-demo**, **44366256 байт**, SHA-256 `800ae88e4282696985f6c12ccbcfd55022453221f211b54ffa87241ba408ebf2`. 155 JVM / 3 device, lint 0 errors / 4 прежних notices; aapt/signature/DI/isolation успешны. [Проверки](docs/26-t08-validation.md). Schema 4 прежняя; сохранённый code 15 для T07 не перезаписывался.
+**Текущий APK T08:** [code 17](artifacts/apk/eventpass-0.8.1-t08-demo-code17.apk), **0.8.1-t08-demo**, **44367304 байт**, SHA-256 `d42d9c95e2e27dbd1bfe75bf399c2274de00f77c50d528edf961129ef6028f3e`. 58 app JVM / 3 device, lint 0 errors / 4 прежних notices; aapt/signature/DI/isolation успешны. [Проверки](docs/27-t08-refresh-validation.md). Schema 4 прежняя; архивные code 15/16 не перезаписывались.
 
 Мобильный MVP по Figma. T03–T06 приняты; T07 camera/UI и T08/H3 ждут человека. Независимая T08 завершена технически; следующий функциональный срез — T09, backend для T10.
 
