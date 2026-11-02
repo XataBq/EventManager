@@ -20,12 +20,18 @@ class DocumentsViewModel @Inject constructor(private val repository: DocumentsRe
     private val auth: AuthRepository) : ViewModel() {
     private val mutable=MutableStateFlow(DocumentsUiState()); val state=mutable.asStateFlow()
     private var owner=0L; private var job: Job?=null; private var session: SessionSnapshot?=null
+    private var resource: DocumentRequest?=null
     init { viewModelScope.launch { auth.observeSession().collect { if(it==auth.currentSession() && session!=null && it!=session) clear() } } }
-    fun clear() { owner++; job?.cancel(); session=null; mutable.value=DocumentsUiState() }
+    fun clear() { owner++; job?.cancel(); session=null; resource=null; mutable.value=DocumentsUiState() }
+    fun bind(request: DocumentRequest, visible: Boolean) {
+        if(!visible || (resource!=null && resource!=request)) clear()
+        if(visible) resource=request
+    }
+    fun unbind(recreating: Boolean) { if(!recreating) clear() }
     fun begin(request: DocumentRequest) {
         if(state.value.busy) return
         val current=auth.currentSession(); if(current.state !is SessionState.Authenticated) { mutable.value=DocumentsUiState(error=DocumentError.AUTHENTICATION_REQUIRED); return }
-        session=current; mutable.value=DocumentsUiState(busy=true,picker=DocumentPicker(UUID.randomUUID().toString(),request))
+        resource=request; session=current; mutable.value=DocumentsUiState(busy=true,picker=DocumentPicker(UUID.randomUUID().toString(),request))
     }
     fun launched(id: String) { state.value.picker?.takeIf { it.id==id }?.let { mutable.value=state.value.copy(picker=it.copy(launched=true)) } }
     fun pickerFailed(id: String) { if(state.value.picker?.id==id) mutable.value=DocumentsUiState(error=DocumentError.PROVIDER_UNAVAILABLE) }
@@ -51,7 +57,7 @@ class DocumentsViewModel @Inject constructor(private val repository: DocumentsRe
     }
     fun resend(id: TicketId) {
         if(state.value.busy) return
-        val generation=owner; session=auth.currentSession(); mutable.value=DocumentsUiState(busy=true)
+        val generation=owner; resource=DocumentRequest.TicketPdf(id); session=auth.currentSession(); mutable.value=DocumentsUiState(busy=true)
         job=viewModelScope.launch {
             try { val result=repository.resendTicket(id); currentCoroutineContext().ensureActive()
                 if(generation==owner && session==auth.currentSession()) mutable.value=when(result) {

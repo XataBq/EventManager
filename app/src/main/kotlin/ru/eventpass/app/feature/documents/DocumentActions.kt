@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.LocalActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -20,11 +21,15 @@ import ru.eventpass.core.domain.documents.*
 @Composable
 fun DocumentActions(request: DocumentRequest, visible: Boolean = true, enabled: Boolean = true) {
     val vm: DocumentsViewModel=hiltViewModel(); val s by vm.state.collectAsStateWithLifecycle()
+    val activity=LocalActivity.current
     var launchedId by rememberSaveable { mutableStateOf<String?>(null) }
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         vm.destination(launchedId,if(result.resultCode==Activity.RESULT_OK) result.data?.data?.toString() else null); launchedId=null
     }
-    DisposableEffect(request,visible) { vm.clear(); onDispose { vm.clear() } }
+    DisposableEffect(vm,request,visible,activity) {
+        vm.bind(request,visible)
+        onDispose { vm.unbind(recreating=activity?.isChangingConfigurations==true) }
+    }
     LaunchedEffect(s.picker) { s.picker?.takeIf { !it.launched }?.let { pending ->
         launchedId=pending.id; vm.launched(pending.id)
         try { picker.launch(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {

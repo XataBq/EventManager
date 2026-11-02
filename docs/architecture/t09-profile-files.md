@@ -1,6 +1,6 @@
 # T09: профиль, документы и demo resend
 
-Независимый срез поверх T08 `aaca508`. Q10/каскад удаления не реализован; backend/API не согласованы. T07 camera/UI и H3/H4 ожидают человека. Технические результаты и единый checklist — [28](../28-t09-validation.md).
+Независимый срез поверх T08 `aaca508`. Q10/каскад удаления не реализован; backend/API не согласованы. T07 camera/UI и H3/H4 ожидают человека. Исходный результат и единый checklist — [28](../28-t09-validation.md); исправление SAF recreation — [29](../29-t09-saf-recreation-validation.md).
 
 ## Ответственность и профиль
 
@@ -23,7 +23,7 @@ ProfileViewModel принадлежит прежнему RootTab.Profile; чет
 
 Системный Back, выбор другого таба, logout и demo tools из профиля проходят requestLeave. Dirty → Save/Discard, Back/dismiss диалога продолжает редактирование. Save failure видна внутри диалога; busy не даёт закрыть/повторить. Copy ID использует Android clipboard, только публичный user ID. Logout использует прежний AppSessionViewModel/AuthRepository и private-owner cleanup. Внешние host-переходы сохраняют существующую session/navigation policy.
 
-DocumentsViewModel — отдельный VM того же Tickets root/Dashboard entry, transient picker ID/request/session stamp/jobs/errors/messages. PII/credentials/URI/temp path не сериализуются. Route rememberSaveable хранит только случайный launch ID для доставки ActivityResult; после нового процесса отсутствие pending в VM делает результат неактуальным. Старый picker ID не совпадает с новой операцией. Смена session snapshot, hidden/resource change/dispose отменяют job и очищают state. SAF временно приостанавливает RESUMED dashboard observer; DocumentActions остаётся в header-композиции и не исчезает вместе с dashboard данными. Новый экспорт без доступного dashboard выключен. Запущенный picker не переоткрывается при recreation.
+DocumentsViewModel — отдельный VM того же Tickets root/Dashboard entry, transient picker ID/request/session stamp/jobs/errors/messages. PII/credentials/URI/temp path не сериализуются. Route rememberSaveable хранит только случайный launch ID для доставки ActivityResult; после нового процесса отсутствие pending в VM делает результат неактуальным. Старый picker ID не совпадает с новой операцией. Смена session snapshot, hidden/resource change/обычный dispose отменяют job и очищают state. Configuration dispose определяется Route через LocalActivity.isChangingConfigurations и сохраняет pending/launched/busy/captured session/активный writer. Идемпотентный bind того же request при новой композиции не сбрасывает VM; новый ресурс очищает старую операцию даже после configuration detach. Callback регистрируется заново, launch ID остаётся прежним, второй picker не запускается. SAF временно приостанавливает RESUMED dashboard observer; DocumentActions остаётся в header-композиции и не исчезает вместе с dashboard данными. Новый экспорт без доступного dashboard выключен.
 
 ## Авторизация и файловый путь
 
@@ -46,7 +46,7 @@ Resend использует тот же own/current ACTIVE guard, recipient из
 ## Доказательства и остаток
 
 - [ProfileDocumentsTest](../../data/fake/src/test/kotlin/ru/eventpass/data/fake/product/ProfileDocumentsTest.kt): profile/new contacts/history/session/storage, v1–v4/defaults/all writers/restart/corruption, own PDF/status, owner full snapshot, resend/outbox/cooldown.
-- [ProfileViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/profile/ProfileViewModelTest.kt), [DocumentsViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/documents/DocumentsViewModelTest.kt): dirty observer/Back, single flight, late result/finally/new owner, picker cancellation, logout и retry.
+- [ProfileViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/profile/ProfileViewModelTest.kt), [DocumentsViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/documents/DocumentsViewModelTest.kt): dirty observer/Back, single flight, late result/finally/new owner, picker cancellation, logout/retry, configuration rebind pending/writer и настоящий exit/hidden/смена ресурса. [SafRecreationTest](../../app/src/androidTest/kotlin/ru/eventpass/app/SafRecreationTest.kt) проверяет delivery через настоящий ActivityResultRegistry после Android recreation/rotation с controlled URI/provider.
 - [DocumentStreamsTest](../../core/platform/src/test/kotlin/ru/eventpass/core/platform/DocumentStreamsTest.kt): close/cancel/denial/partial transfer; [ProfileFilesIntegrationTest](../../app/src/androidTest/kotlin/ru/eventpass/app/ProfileFilesIntegrationTest.kt) и [ProfileRestartTest](../../app/src/androidTest/kotlin/ru/eventpass/app/ProfileRestartTest.kt): Android/provider/QR/system picker/profile/restart. Реальные запуски — в 28, наличие тестов не равно прохождению.
 
 Q10: требуется решение об активных собственных E, чужих tickets/местах/письмах, USED/check-in audit/checker identity и повторном signup. Кнопки ложного удаления/reset нет. H3/H4, физическая камера, независимые providers и реальные backend files/delivery не принимаются автоматизацией.

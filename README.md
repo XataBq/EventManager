@@ -1,6 +1,6 @@
 # EventPass — Android
 
-**T09 — IN_PROGRESS; независимый срез READY_FOR_HUMAN, 2 ноября.** Профиль/notifications, настоящие PDF своего Active билета и XLSX владельца, SAF и demo resend подключены к прежнему store/schema 5. 176 JVM / 13 завершённых device-проверок (включая отдельные restart steps), app/test APK/lint/DI/isolation прошли. [Результаты, документы и единый H3/H4 checklist](docs/28-t09-validation.md). Q10/deletion не согласован и недоступен; T07 camera/UI, T08/H3 и H4 ждут человека, backend/API ещё отсутствуют/не согласованы.
+**T09 — IN_PROGRESS; независимый срез READY_FOR_HUMAN, исправление code 19.** SAF pending и запись сохраняются при configuration recreation/повороте; обычный выход, hidden/resource change и logout очищают операцию. 66 app JVM / 5 device на текущем code 19, app/test APK/lint/DI/isolation успешны. [Исправление и ручная перепроверка](docs/29-t09-saf-recreation-validation.md); исходные профиль/PDF/XLSX/resend/schema 5, полный 176 JVM и H3/H4 checklist — [28](docs/28-t09-validation.md). Q10/deletion и backend/API не согласованы; T07 camera/UI/H3/H4 ждут человека.
 
 **Back/H2 и T06 приняты на code 13.** Подтверждено пользователем 1 ноября; условие T07 UI снято. H3/H4 ожидаются.
 
@@ -8,7 +8,7 @@
 
 **T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. [Отчёт](docs/20-t06-validation.md).
 
-**Текущий APK T09:** [code 18](artifacts/apk/eventpass-0.9.0-t09-demo-code18.apk), **0.9.0-t09-demo**, **44789394 байт**, SHA-256 `a5c76100b03e50d9f62cdbfb38925766a144d62938452d81cbd79063e6afae8f`. 176 JVM / 13 device, lint 0 errors / 4 прежних version notices; aapt/signature/DI/isolation успешны. [Проверки](docs/28-t09-validation.md). Schema 5 читает v1–v4 без reset; после записи v5 downgrade на code 17 с теми же данными не поддерживается. [Архив T08 code 17](artifacts/apk/eventpass-0.8.1-t08-demo-code17.apk) и code 15 сохранены.
+**Текущий APK T09:** [code 19](artifacts/apk/eventpass-0.9.1-t09-demo-code19.apk), **0.9.1-t09-demo**, **44488135 байт**, SHA-256 `660f12f354dd963066a24f3a17cee318fcec7a302961748d4acefbd7f25c0ece`. 66 app JVM / 5 device, lint 0 errors / 4 прежних version notices; aapt/signature/DI/isolation успешны. [Проверки](docs/29-t09-saf-recreation-validation.md). Schema 5 прежняя, downgrade на code 17 с теми же данными не поддерживается. Архивные APK code 15/17/18 сохранены.
 
 Мобильный MVP по Figma. T03–T06 приняты; T07 camera/UI, T08/H3 и H4 ждут человека. Независимая T09 готова к ручной проверке, полный T09 остаётся IN_PROGRESS до Q10/deletion и приёмок; T10 требует backend. Файлы и письма — demo defaults, не утверждённый API.
 

@@ -34,8 +34,38 @@ class DocumentsViewModelTest {
     }
     private class Files : DocumentFiles {
         var writes=0;var result: DocumentError?=null
+        var saveAction: (suspend () -> DocumentError?)?=null
         override suspend fun cleanup()=Unit
-        override suspend fun save(snapshot: DocumentSnapshot,destination: String,authorize: suspend()->DocumentError?): DocumentError? {authorize()?.let{return it};writes++;return result}
+        override suspend fun save(snapshot: DocumentSnapshot,destination: String,authorize: suspend()->DocumentError?): DocumentError? {authorize()?.let{return it};writes++;return saveAction?.invoke() ?: result}
+    }
+    @Test fun configurationRebindPreservesLaunchedPickerAndInFlightWriterForSameResource()=runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler));val auth=AuthFixture();val repo=Repo();val files=Files();val vm=DocumentsViewModel(repo,files,auth)
+        try {
+            for(resource in listOf(request,DocumentRequest.AttendanceXlsx(EventId("event")))) {
+                vm.bind(resource,true);vm.begin(resource);val id=vm.state.value.picker!!.id;vm.launched(id)
+                vm.unbind(recreating=true);vm.bind(resource,true);runCurrent()
+                assertEquals(id,vm.state.value.picker!!.id);assertTrue(vm.state.value.picker!!.launched);assertTrue(vm.state.value.busy)
+                val write=CompletableDeferred<DocumentError?>();files.saveAction={write.await()}
+                vm.destination(id,"content://test/export");runCurrent();val prepares=repo.prepares;val writes=files.writes
+                vm.unbind(recreating=true);vm.bind(resource,true);runCurrent()
+                assertTrue(vm.state.value.busy);assertEquals(prepares,repo.prepares);assertEquals(writes,files.writes)
+                write.complete(null);runCurrent();assertTrue(vm.state.value.saved);assertFalse(vm.state.value.busy)
+                assertEquals(prepares,repo.prepares);assertEquals(writes,files.writes)
+                vm.destination(id,"content://test/duplicate");runCurrent();assertEquals(writes,files.writes)
+                vm.unbind(recreating=false)
+            }
+        } finally {vm.viewModelScope.cancel();Dispatchers.resetMain()}
+    }
+    @Test fun realExitHiddenAndChangedResourceStillDiscardOldPicker()=runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler));val repo=Repo();val files=Files();val vm=DocumentsViewModel(repo,files,AuthFixture())
+        try {
+            for(reason in 0..2) {
+                vm.bind(request,true);vm.begin(request);val id=vm.state.value.picker!!.id;vm.launched(id)
+                when(reason) {0->vm.unbind(recreating=false);1->vm.bind(request,false);else->{vm.unbind(recreating=true);vm.bind(DocumentRequest.TicketPdf(TicketId("other")),true)}}
+                vm.destination(id,"content://test/late");runCurrent()
+                assertFalse(vm.state.value.busy);assertNull(vm.state.value.picker);assertEquals(0,repo.prepares);assertEquals(0,files.writes)
+            }
+        } finally {vm.viewModelScope.cancel();Dispatchers.resetMain()}
     }
     @Test fun pickerCancelDoesNotReadDataAndRetrySuccessRequiresCompletedWriter()=runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler));val auth=AuthFixture();val repo=Repo();val files=Files();val vm=DocumentsViewModel(repo,files,auth)
