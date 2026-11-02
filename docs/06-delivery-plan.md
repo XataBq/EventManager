@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Актуальный статус на 1 ноября: T01 — READY_FOR_HUMAN; T02 — IN_PROGRESS; T03–T06 — DONE; **T07 — READY_FOR_HUMAN**; T08–T09 — TODO. Back/H2 и T06 приняты пользователем на code 13. Исправления revoke dialog/optional back-camera — code 15, 49 app JVM / 4 адресных device, aapt/lint/isolation: [25-t07-fixes-validation.md](25-t07-fixes-validation.md). Полный UI-прогон code 14 сохранён в [24](24-t07-ui-validation.md). H3/H4 и camera/UI ожидаются, backend отсутствует/API на согласовании.
+Актуальный статус на 2 ноября: T01 — READY_FOR_HUMAN; T02 — IN_PROGRESS; T03–T06 — DONE; **T07 и T08 — READY_FOR_HUMAN**; T09 — TODO. T07 camera/UI code 15 ещё ожидается; независимая T08 code 16 завершена технически (155 JVM, 3 device), [26](26-t08-validation.md). Back/H2/T06 приняты на code 13; H3/H4 не приняты. Backend отсутствует/API ожидает согласования.
 
 ## Порядок
 
@@ -133,6 +133,8 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 ## T08 — дашборд и соединение сценариев
 
+**READY_FOR_HUMAN, 2 ноября — независимая кодовая часть.** Owner AttendanceRepository на общем store, dashboard/search/revision pages/cancel и общие counters готовы. 155 JVM, 3 device, app/test APK/lint/isolation, [26](26-t08-validation.md). T07 camera/UI и общая H3 не закрыты; следующий T09.
+
 **Зависимости:** T07. **Владение:** `feature/dashboard`, интеграция observe-потоков.
 
 **Сделать:** O04, live counters, список/поиск, отмена участника, переходы Volunteers/Scanner, freshness/error. Подписки должны обновляться от того же store, что TicketRepository. Не включать аналитику MAX.
@@ -225,13 +227,14 @@ Remaining defects and next task:
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
-| T02 | IN_PROGRESS; T02.1–T02.5 по фичам | Общий store/schema 4 прежние; полный прогон code 14 — 138 JVM, исправление code 15 — 49 app JVM; T08+ впереди. |
+| T02 | IN_PROGRESS; срезы по фичам | Общий store/schema 4, AttendanceRepository/cancel и T08 UI; 155 JVM; следующие profile/files/remote порты впереди. |
 | T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
 | T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
 | T05 | DONE | Back/H2 приняты пользователем на code 13. |
 | T06 | DONE | Организаторский smoke принят пользователем на code 13. |
 | T07 | READY_FOR_HUMAN | Code 15: revoke dialog/optional camera, 49 app JVM / 4 device, `25-t07-fixes-validation.md`; camera/UI человека ожидается. |
-| T08–T09 | TODO | После полной T07 — T08 dashboard/интеграция; H3 целиком ещё не закрыта |
+| T08 | READY_FOR_HUMAN | Независимая T08, code 16, 155 JVM / 3 device, `26-t08-validation.md`; T07 camera/UI и H3 ожидаются. |
+| T09 | TODO | Следующий функциональный срез; H4 позже. |
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
 | H2 | Принята пользователем | Back/H2 приняты на code 13; H3/H4 не закрыты. |
 | H3–H4 | Ожидаются | Приёмка H2 их не закрывает |

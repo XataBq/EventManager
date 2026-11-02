@@ -53,7 +53,7 @@ interface CheckInRepository {
     suspend fun checkIn(eventId: EventId, credential: TicketCredential): CheckInOutcome
 }
 
-data class Volunteer(val grant: ScanGrant, val email: String)
+data class Volunteer(val grant: ScanGrant, val email: String, val checkedInCount: Int = 0)
 enum class VolunteerError { AUTHENTICATION_REQUIRED, FORBIDDEN, NOT_FOUND, ACCOUNT_NOT_FOUND, INVALID_TARGET, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE }
 sealed interface VolunteersResult {
     data class Ready(val volunteers: List<Volunteer>) : VolunteersResult

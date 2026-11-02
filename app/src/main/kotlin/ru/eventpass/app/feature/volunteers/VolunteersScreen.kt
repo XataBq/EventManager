@@ -54,6 +54,7 @@ fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> 
             if (!s.loading && s.volunteers.isEmpty()) Text(stringResource(R.string.volunteers_empty))
             s.volunteers.forEach { volunteer -> EventPassSection(Modifier.fillMaxWidth().testTag("volunteer-${volunteer.grant.userId.value}")) {
                 Text(volunteer.email); Text(volunteer.grant.userId.value)
+                Text(stringResource(R.string.volunteer_checked, volunteer.checkedInCount))
                 TextAction(stringResource(R.string.volunteer_revoke), { confirm(volunteer) }, enabled = !s.busy)
             } }
         }

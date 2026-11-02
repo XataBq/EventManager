@@ -40,7 +40,7 @@ class MyEventsViewModel @Inject constructor(private val events: EventRepository,
 }
 @Composable
 fun MyEventsRoute(onCreate: () -> Unit, onDraft: (String) -> Unit, onEdit: (String) -> Unit, onOpen: (String) -> Unit,
-    onScan: (String) -> Unit, onVolunteers: (String) -> Unit) {
+    onScan: (String) -> Unit, onVolunteers: (String) -> Unit, onDashboard: (String) -> Unit) {
     val vm: MyEventsViewModel = hiltViewModel()
     val data by vm.data.collectAsStateWithLifecycle(); val tab by vm.tab.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -50,12 +50,12 @@ fun MyEventsRoute(onCreate: () -> Unit, onDraft: (String) -> Unit, onEdit: (Stri
     MyEventsScreen(data.content, tab, vm::select, vm::refresh, onCreate, onDraft, onEdit, onOpen, { id ->
         (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
             .setPrimaryClip(android.content.ClipData.newPlainText("EventPass", "eventpass-demo://demo/e/$id")); copied = true
-    }, copied, data.error, onScan, onVolunteers)
+    }, copied, data.error, onScan, onVolunteers, onDashboard)
 }
 @Composable
 fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refresh: () -> Unit,
     create: () -> Unit, draft: (String) -> Unit, edit: (String) -> Unit, open: (String) -> Unit, copyLink: (String) -> Unit, copied: Boolean, readError: EventEditError?,
-    scan: (String) -> Unit, volunteers: (String) -> Unit) {
+    scan: (String) -> Unit, volunteers: (String) -> Unit, dashboard: (String) -> Unit) {
     AuthColumn(Modifier.testTag("root-Events")) {
         Text(stringResource(R.string.events_title), style = EventPassTypography.heading)
         EventPassButton(stringResource(R.string.editor_new), create, Modifier.testTag("create-event"))
@@ -89,6 +89,7 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
                             else -> R.string.event_open
                         }), StatusTone.Neutral)
                         TextAction(stringResource(R.string.editor_open), { open(e.id.value) })
+                        if (tab == 0) TextAction(stringResource(R.string.dashboard_title), { dashboard(e.id.value) }, Modifier.testTag("dashboard-${e.id.value}"))
                         TextAction(stringResource(R.string.scan_title), { scan(e.id.value) }, Modifier.testTag("scan-${e.id.value}"))
                         if (tab == 0) TextAction(stringResource(R.string.volunteers_title), { volunteers(e.id.value) }, Modifier.testTag("volunteers-${e.id.value}"))
                         if (tab == 0) TextAction(stringResource(R.string.editor_edit), { edit(e.id.value) }, Modifier.testTag("edit-${e.id.value}"))

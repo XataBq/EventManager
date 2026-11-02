@@ -15,6 +15,7 @@ import ru.eventpass.data.fake.product.FakeEventPassEnvironment
 @Module
 @InstallIn(SingletonComponent::class)
 object DemoModule {
+    @Provides fun provideAttendance(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.attendance.AttendanceRepository = environment.attendance
     @Provides fun provideCheckIns(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.checkin.CheckInRepository = environment.checkIns
     @Provides fun provideVolunteers(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.checkin.VolunteerRepository = environment.volunteers
     @Provides @Singleton fun provideCoverPreview(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context):

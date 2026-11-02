@@ -1,0 +1,21 @@
+<resources>
+    <string name="dashboard_title">Дашборд и явка</string>
+    <string name="dashboard_registered">Зарегистрировано</string>
+    <string name="dashboard_checked">Пришли</string>
+    <string name="dashboard_expected">Ещё не пришли</string>
+    <string name="dashboard_absent">Не пришли</string>
+    <string name="dashboard_remaining">Свободных мест</string>
+    <string name="dashboard_unlimited">Без ограничения</string>
+    <string name="dashboard_updated">Обновлено: %1$s</string>
+    <string name="dashboard_local">Локальные demo-данные. Синхронизация устройств требует backend.</string>
+    <string name="dashboard_search">Поиск по имени или номеру билета</string>
+    <string name="dashboard_matches">Участники: %1$d</string>
+    <string name="dashboard_all_statuses">Список включает отменённые регистрации. Общие счётчики выше от поиска не зависят.</string>
+    <string name="dashboard_empty">В этом мероприятии ещё нет участников.</string>
+    <string name="dashboard_no_matches">По этому запросу никто не найден.</string>
+    <string name="dashboard_more">Показать ещё</string>
+    <string name="dashboard_stale">Данные изменились. Обновляем список с первой страницы.</string>
+    <string name="dashboard_bad_query">Проверьте поисковый запрос.</string>
+    <string name="attendance_cancel">Отменить участие</string>
+    <string name="volunteer_checked">Проверено: %1$d</string>
+</resources>

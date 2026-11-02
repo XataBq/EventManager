@@ -58,6 +58,7 @@ class FakeEventPassEnvironment(
     private val admission = FakeCheckInOperations(state, lock, clock, authClock, authStorage, authBackend)
     val checkIns: ru.eventpass.core.domain.checkin.CheckInRepository = admission.checkIns
     val volunteers: ru.eventpass.core.domain.checkin.VolunteerRepository = admission.volunteers
+    val attendance: ru.eventpass.core.domain.attendance.AttendanceRepository = FakeAttendanceOperations(state, lock, clock, authClock, authStorage, authBackend)
 
     /** Demo storage plumbing for startup cover GC. No actor data or ticket credentials leave the store. */
     suspend fun retainedCoverAssetIds(): Set<String>? {
@@ -102,6 +103,7 @@ class FakeEventPassEnvironment(
         suspend fun failNextCheckIn(error: ru.eventpass.core.domain.checkin.CheckInError) = mutate { it.copy(nextCheckInError = error) }
         suspend fun failNextVolunteer(error: ru.eventpass.core.domain.checkin.VolunteerError) = mutate { it.copy(nextVolunteerError = error) }
         suspend fun failNextRead(error: ru.eventpass.core.domain.event.ProductReadError) = mutate { it.copy(nextReadError = error) }
+        suspend fun failNextAttendanceRead(error: ru.eventpass.core.domain.attendance.AttendanceError) = mutate { it.copy(nextAttendanceReadError = error) }
         suspend fun failNextCancellation(error: ru.eventpass.core.domain.registration.TicketError) = mutate { it.copy(nextTicketError = error) }
         suspend fun setTicketStatus(id: TicketId, status: TicketStatus) = mutate(true) {
             require(status == TicketStatus.USED || it.checkIns.none { record -> record.ticketId == id }) { "A recorded check-in cannot be undone by a demo status toggle" }
@@ -161,6 +163,8 @@ internal data class FakeProductState(
     val checkIns: List<ru.eventpass.core.domain.checkin.CheckInRecord> = emptyList(),
     val nextCheckInError: ru.eventpass.core.domain.checkin.CheckInError? = null,
     val nextVolunteerError: ru.eventpass.core.domain.checkin.VolunteerError? = null,
+    val attendanceReadErrors: Map<EventId, ru.eventpass.core.domain.attendance.AttendanceError> = emptyMap(),
+    val nextAttendanceReadError: ru.eventpass.core.domain.attendance.AttendanceError? = null,
 )
 
 internal fun FakeProductState.activeAccount(now: java.time.Instant): Account? = auth.session

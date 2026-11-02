@@ -96,7 +96,8 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                             { navigation.currentStack.add(EditorKey(draftId = java.util.UUID.randomUUID().toString(), create = true)) },
                             { navigation.currentStack.add(EditorKey(draftId = it)) },
                             { navigation.currentStack.add(EditorKey(eventId = it)) }, navigation::openEvent,
-                            { navigation.currentStack.add(ScannerKey(it)) }, { navigation.currentStack.add(VolunteersKey(it)) })
+                            { navigation.currentStack.add(ScannerKey(it)) }, { navigation.currentStack.add(VolunteersKey(it)) },
+                            { navigation.currentStack.add(DashboardKey(it)) })
                         else RootScreen(root, { navigation.openDemo("demo") }, navigation::openGallery,
                             session.account?.email.orEmpty(),
                             { session.signOut() }, { navigation.currentStack.add(DemoToolsKey) })
@@ -115,6 +116,10 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                         navigation::back, ::denied, { scannerBack = it }) }
                     entry<VolunteersKey> { route -> ru.eventpass.app.feature.volunteers.VolunteersRoute(route.eventId,
                         navigation.currentTab == tab && navigation.currentStack.lastOrNull() == route, ::denied) }
+                    entry<DashboardKey> { route -> ru.eventpass.app.feature.dashboard.DashboardRoute(route.eventId,
+                        navigation.currentTab == tab && navigation.currentStack.lastOrNull() == route,
+                        { navigation.currentStack.add(ScannerKey(route.eventId)) },
+                        { navigation.currentStack.add(VolunteersKey(route.eventId)) }, ::denied) }
                     entry<DemoToolsKey> { ru.eventpass.app.feature.tools.DemoTools(false, navigation::openGallery,
                         { navigation.openDemo("demo") }, { navigation.currentStack.add(OutboxKey) }, { session.receiveLink(it) }, session::guard) }
                     entry<OutboxKey> { ru.eventpass.app.feature.tools.DemoTools(true, {}, {}, {}, { session.receiveLink(it) }, session::guard) }

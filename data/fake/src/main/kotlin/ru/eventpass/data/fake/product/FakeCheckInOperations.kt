@@ -66,7 +66,8 @@ internal class FakeCheckInOperations(private val state: MutableStateFlow<FakePro
     val volunteers = object : VolunteerRepository {
         override fun observeVolunteers(eventId: EventId): Flow<VolunteersResult> = initialized().map { s ->
             access(s, eventId, true)?.let { return@map VolunteersResult.Failed(it.volunteer()) }
-            VolunteersResult.Ready(s.grants.filter { it.eventId == eventId && it.active }.map { Volunteer(it, s.accounts.getValue(it.userId).email) })
+            VolunteersResult.Ready(s.grants.filter { it.eventId == eventId && it.active }.map { grant ->
+                Volunteer(grant, s.accounts.getValue(grant.userId).email, s.checkIns.count { it.eventId == eventId && it.checkerId == grant.userId }) })
         }.distinctUntilChanged()
         override suspend fun grant(eventId: EventId, emailOrId: String): VolunteerOutcome {
             val target = emailOrId.trim()

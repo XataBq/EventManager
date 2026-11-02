@@ -1,14 +1,16 @@
 # EventPass — Android
 
+**T08 — READY_FOR_HUMAN, независимая кодовая часть, 2 ноября.** Owner dashboard/участники/поиск/pages/отмена подключены к общему store, готовым Scanner/Volunteers. 155 JVM / 3 адресных device, app/test APK/lint/DI/isolation прошли. [Результат и H3 checklist](docs/26-t08-validation.md). T07 camera/UI на code 15 и общая H3 остаются ожидающими, backend/API не согласованы.
+
 **Back/H2 и T06 приняты на code 13.** Подтверждено пользователем 1 ноября; условие T07 UI снято. H3/H4 ожидаются.
 
 **T07 — READY_FOR_HUMAN, исправление code 15.** Ошибка revoke видна в Dialog с явным retry, back-camera/autofocus не обязательны в APK. 49 app JVM + 4 адресных device tests, assemble app/test, lint/DI/isolation/aapt прошли. [Результат и ограничения](docs/25-t07-fixes-validation.md). Полная UI-интеграция code 14 — [история](docs/24-t07-ui-validation.md); camera/UI человека ожидается. Backend отсутствует, API на согласовании.
 
 **T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. [Отчёт](docs/20-t06-validation.md).
 
-**Текущий APK:** [code 15](artifacts/apk/eventpass-0.7.3-t07-demo-code15.apk), **0.7.3-t07-demo**, **44076713 байт**, SHA-256 `0171bcc65518d65c82ba7af98be1bdd50c80f087710f2fcd357d1120a89b859d`. 49 app JVM / 4 адресных device, lint 0 errors / 4 прежних warnings; aapt не требует camera/autofocus. [Точные проверки и checklist](docs/25-t07-fixes-validation.md). Schema 4 прежняя, backend/dashboard отсутствуют.
+**Текущий APK T08:** [code 16](artifacts/apk/eventpass-0.8.0-t08-demo-code16.apk), **0.8.0-t08-demo**, **44366256 байт**, SHA-256 `800ae88e4282696985f6c12ccbcfd55022453221f211b54ffa87241ba408ebf2`. 155 JVM / 3 device, lint 0 errors / 4 прежних notices; aapt/signature/DI/isolation успешны. [Проверки](docs/26-t08-validation.md). Schema 4 прежняя; сохранённый code 15 для T07 не перезаписывался.
 
-Мобильный MVP по Figma. T03–T06 приняты пользователем. T07 ждёт camera/UI-приёмки; следующая функциональная задача — T08 dashboard/явка, полная H3 после T08.
+Мобильный MVP по Figma. T03–T06 приняты; T07 camera/UI и T08/H3 ждут человека. Независимая T08 завершена технически; следующий функциональный срез — T09, backend для T10.
 
 Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
 

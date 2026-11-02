@@ -106,8 +106,7 @@ internal class FakeTicketOperations(
                 val ticket = own(s, account).singleOrNull { it.snapshot.ticketId == ticketId } ?: return@transaction s to CancelTicketOutcome.Failed(TicketError.NOT_FOUND)
                 if (ticket.status == TicketStatus.USED) return@transaction s to CancelTicketOutcome.Failed(TicketError.USED)
                 s.nextTicketError?.let { return@transaction s.copy(nextTicketError = null) to CancelTicketOutcome.Failed(it) }
-                val cancelled = ticket.copy(status = TicketStatus.CANCELLED)
-                s.copy(tickets = s.tickets.map { if (it.snapshot.ticketId == ticketId) cancelled else it }) to CancelTicketOutcome.Cancelled(cancelled)
+                s.cancelTicket(ticket)
             }
         }
     }
