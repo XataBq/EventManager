@@ -1,0 +1,26 @@
+<resources>
+    <string name="profile_name">Имя</string>
+    <string name="profile_user_id">ID пользователя</string>
+    <string name="profile_copy_id">Скопировать ID</string>
+    <string name="profile_phone">Телефон (необязательно, +7…)</string>
+    <string name="profile_organization">Организация (необязательно)</string>
+    <string name="profile_notifications">Напоминания по email</string>
+    <string name="profile_notifications_hint">Настройка не отключает подтверждение, сброс пароля, выдачу билета и запрошенный повтор письма.</string>
+    <string name="profile_save">Сохранить</string>
+    <string name="profile_saved">Профиль сохранён</string>
+    <string name="profile_invalid">Введите имя до 200 символов, российский телефон или оставьте его пустым; организация — до 200 символов.</string>
+    <string name="profile_unsaved">Сохранить изменения?</string>
+    <string name="profile_unsaved_hint">Несохранённые изменения будут потеряны при выходе.</string>
+    <string name="profile_discard">Отбросить</string>
+    <string name="profile_delete_unavailable">Удаление аккаунта пока недоступно: согласуются последствия для мероприятий, билетов и истории проходов.</string>
+    <string name="document_pdf">Сохранить PDF билета</string>
+    <string name="document_xlsx">Экспорт участников в XLSX</string>
+    <string name="document_resend">Повторить письмо с билетом</string>
+    <string name="document_saved">Файл сохранён</string>
+    <string name="document_queued">Demo: письмо добавлено в outbox</string>
+    <string name="document_retry_at">Повтор письма доступен после %1$s</string>
+    <string name="document_retry_hint">Повторите действие кнопкой выше. Сохранение снова откроет выбор файла.</string>
+    <string name="document_write_failed">Не удалось записать файл. Возможно, осталась неполная копия — проверьте выбранную папку.</string>
+    <string name="document_provider_missing">Хранилище недоступно. Выберите другое место сохранения.</string>
+    <string name="document_not_current">Билет больше не активен. Обновите список билетов.</string>
+</resources>

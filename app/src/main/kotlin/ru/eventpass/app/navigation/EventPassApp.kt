@@ -47,6 +47,12 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
     val navigation = rememberNavigationState()
     var editorBack by androidx.compose.runtime.remember { mutableStateOf<(() -> Unit)?>(null) }
     var scannerBack by androidx.compose.runtime.remember { mutableStateOf<(() -> Unit)?>(null) }
+    var profileLeave by androidx.compose.runtime.remember { mutableStateOf<((() -> Unit) -> Unit)?>(null) }
+    fun select(tab: RootTab) {
+        if(navigation.currentTab == RootTab.Profile && tab != RootTab.Profile)
+            profileLeave?.invoke { navigation.select(tab) } ?: navigation.select(tab)
+        else navigation.select(tab)
+    }
     var accessLost by androidx.compose.runtime.remember { mutableStateOf(false) }
     fun back() { when (navigation.currentStack.lastOrNull()) {
         is EditorKey -> editorBack?.invoke() ?: navigation.back()
@@ -91,16 +97,17 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                     entry<RootTab> { root ->
                         entryProbe(root)
                         if (root == RootTab.Tickets) ru.eventpass.app.feature.tickets.TicketsRoute(selectedTicket, { selectedTicket = null }, navigation::openEvent,
-                            { navigation.openDemo("demo") }, navigation::openGallery, { navigation.currentStack.add(DemoToolsKey) })
+                            { navigation.openDemo("demo") }, navigation::openGallery, { navigation.currentStack.add(DemoToolsKey) },
+                            navigation.currentTab == tab && navigation.currentStack.lastOrNull() == root)
                         else if (root == RootTab.Events) ru.eventpass.app.feature.myevents.MyEventsRoute(
                             { navigation.currentStack.add(EditorKey(draftId = java.util.UUID.randomUUID().toString(), create = true)) },
                             { navigation.currentStack.add(EditorKey(draftId = it)) },
                             { navigation.currentStack.add(EditorKey(eventId = it)) }, navigation::openEvent,
                             { navigation.currentStack.add(ScannerKey(it)) }, { navigation.currentStack.add(VolunteersKey(it)) },
                             { navigation.currentStack.add(DashboardKey(it)) })
-                        else RootScreen(root, { navigation.openDemo("demo") }, navigation::openGallery,
-                            session.account?.email.orEmpty(),
-                            { session.signOut() }, { navigation.currentStack.add(DemoToolsKey) })
+                        else ru.eventpass.app.feature.profile.ProfileRoute(
+                            navigation.currentTab == tab && navigation.currentStack.lastOrNull() == root,
+                            navigation::back, { profileLeave=it }, { session.signOut() }, { navigation.currentStack.add(DemoToolsKey) })
                     }
                     entry<EventKey> { route -> ru.eventpass.app.feature.event.EventRoute(route.eventId, { _, _, _ ->
                         session.guard(ru.eventpass.app.navigation.auth.AccessOutcome.Unauthenticated, ru.eventpass.app.navigation.auth.ReturnDestination.Event(route.eventId))
@@ -151,14 +158,14 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                 subtitle = stringResource(R.string.demo_badge),
                 variant = if (nested) TopBarVariant.Nested else TopBarVariant.Authenticated,
                 onBack = ::back,
-                onProfile = { navigation.select(RootTab.Profile) },
+                onProfile = { select(RootTab.Profile) },
             )
         },
         bottomBar = {
             EventPassBottomBar(BottomDestination.valueOf(navigation.currentTab.name),
                 { val tab = RootTab.valueOf(it.name)
                     if (tab == navigation.currentTab && (navigation.currentStack.lastOrNull() is EditorKey || navigation.currentStack.lastOrNull() is ScannerKey)) back()
-                    else navigation.select(tab) })
+                    else select(tab) })
         },
     ) { padding ->
         NavDisplay(
@@ -166,31 +173,5 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
             onBack = ::back,
             modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
         )
-    }
-}
-
-@Composable
-private fun RootScreen(tab: RootTab, onOpenDemo: () -> Unit, onOpenGallery: () -> Unit, email: String, onSignOut: () -> Unit, onTools: () -> Unit) {
-    val (title, hint) = when (tab) {
-        RootTab.Tickets -> R.string.tickets_title to R.string.tickets_hint
-        RootTab.Events -> R.string.events_title to R.string.events_hint
-        RootTab.Profile -> R.string.profile_title to R.string.profile_hint
-    }
-    Column(
-        modifier = Modifier.fillMaxSize().testTag("root-${tab.name}")
-            .verticalScroll(rememberScrollState()).padding(EventPassDimens.page),
-        verticalArrangement = Arrangement.spacedBy(EventPassDimens.page),
-    ) {
-        Text(stringResource(title), style = MaterialTheme.typography.headlineMedium)
-        Text(stringResource(hint))
-        if (tab == RootTab.Profile) {
-            Text(email, modifier = Modifier.testTag("profile-email"))
-            EventPassButton(stringResource(R.string.auth_logout), onSignOut, Modifier.testTag("sign-out"))
-        }
-        TextAction(stringResource(R.string.auth_demo_tools), onTools)
-        if (tab == RootTab.Tickets) {
-            EventPassButton(stringResource(R.string.open_demo), onOpenDemo, Modifier.testTag("open-demo"))
-            EventPassButton(stringResource(R.string.open_gallery), onOpenGallery, Modifier.testTag("open-gallery"), style = ActionStyle.Secondary)
-        }
     }
 }

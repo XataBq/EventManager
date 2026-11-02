@@ -32,10 +32,12 @@ class AuthFoundationRegressionTest {
     private class BlockingStorage : FakeAuthStorage {
         @Volatile var bytes: ByteArray? = null
         @Volatile var blockNext = false
+        @Volatile var beforeWrite: () -> Unit = {}
         val entered = CompletableDeferred<Unit>()
         val release = CountDownLatch(1)
         override fun read() = bytes?.clone()
         override fun write(snapshot: ByteArray) {
+            beforeWrite()
             if (blockNext) {
                 blockNext = false
                 entered.complete(Unit)
@@ -124,10 +126,16 @@ class AuthFoundationRegressionTest {
         val caller = CoroutineScope(SupervisorJob() + dispatcher)
         val uiThread = AtomicReference<Thread>()
         val ui = Executors.newSingleThreadExecutor { task -> Thread(task, "auth-ui-contract").also(uiThread::set) }
+        val loginWriteEntered = CountDownLatch(1)
+        val releaseLoginWrite = CountDownLatch(1)
+        disk.beforeWrite = { loginWriteEntered.countDown(); check(releaseLoginWrite.await(10, TimeUnit.SECONDS)) }
         val login = caller.async { e.auth.signIn("alex@example.com", AuthSecret("DemoPass123!")) }
         var writer: kotlinx.coroutines.Deferred<AuthResult<EmailChallenge>>? = null
         try {
             dispatcher.next().run()
+            // Ensure the IO return suspends before releasing it; a cached/fast reply can complete inline.
+            check(loginWriteEntered.await(10, TimeUnit.SECONDS))
+            disk.beforeWrite = {}; releaseLoginWrite.countDown()
             val resumeLogin = dispatcher.next() // Login IO is complete; acceptance has not run.
             disk.blockNext = true
             writer = async { e.auth.signUp("Other", "contender@example.com", AuthSecret("NewDemoPass123!")) }
@@ -161,6 +169,7 @@ class AuthFoundationRegressionTest {
                 assertTrue(c.gate.value is SessionGate.Shell)
             }
         } finally {
+            releaseLoginWrite.countDown()
             disk.release.countDown()
             writer?.cancelAndJoin()
             caller.cancel()

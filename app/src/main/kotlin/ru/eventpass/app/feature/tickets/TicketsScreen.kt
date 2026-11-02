@@ -20,7 +20,7 @@ import ru.eventpass.core.domain.registration.*
 
 @Composable
 fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) -> Unit,
-    onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit) {
+    onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit, visible: Boolean = true) {
     val vm: TicketsViewModel = hiltViewModel()
     val s by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(selected) { selected?.let { vm.selectIssued(it); onConsumed() } }
@@ -29,7 +29,8 @@ fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) ->
     // The selected card belongs to the root entry, so NavDisplay cannot pop it.
     // Dialog windows handle Back themselves before the card returns to the list.
     BackHandler(enabled = s.selected != null && !s.fullscreen && !s.confirming) { vm.select(null) }
-    TicketsScreen(s, vm::select, vm::history, { vm.refresh() }, { vm.fullscreen(true) }, { vm.confirm(true) }, onEvent, onDemo, onGallery, onTools)
+    TicketsScreen(s, vm::select, vm::history, { vm.refresh() }, { vm.fullscreen(true) }, { vm.confirm(true) }, onEvent, onDemo, onGallery, onTools,
+        documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.TicketPdf(it.snapshot.ticketId),visible) })
     if (s.confirming) ConfirmDialog(stringResource(R.string.ticket_cancel_title), stringResource(R.string.ticket_cancel_description),
         stringResource(R.string.ticket_cancel), vm::cancel, { vm.confirm(false) }, destructive = true, loading = s.cancelling, dismissLabel = stringResource(R.string.ticket_keep))
     val selectedTicket = s.data?.tickets?.firstOrNull { it.snapshot.ticketId.value == s.selected }
@@ -41,7 +42,8 @@ fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) ->
 
 @Composable
 fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Boolean) -> Unit, onRefresh: () -> Unit,
-    onQr: () -> Unit, onCancel: () -> Unit, onEvent: (String) -> Unit, onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit) {
+    onQr: () -> Unit, onCancel: () -> Unit, onEvent: (String) -> Unit, onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit,
+    documents: @Composable (Ticket) -> Unit = {}) {
     AuthColumn(Modifier.testTag("root-Tickets")) {
         Text(stringResource(R.string.tickets_title), style = EventPassTypography.heading)
         SegmentedTabs(listOf(SegmentOption(stringResource(R.string.ticket_current)), SegmentOption(stringResource(R.string.ticket_history))), if (s.history) 1 else 0, { onHistory(it == 1) })
@@ -69,6 +71,7 @@ fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Bo
                     TicketQr(t.qrPayload, t.displayNumber)
                     Text(stringResource(R.string.ticket_manual_code, t.manualCode.value), Modifier.testTag("ticket-manual-code"))
                     EventPassButton(stringResource(R.string.ticket_open_qr), onQr, Modifier.testTag("open-fullscreen"))
+                    documents(selected)
                 }
                 EventPassButton(stringResource(R.string.ticket_to_event), { onEvent(t.eventId.value) }, style = ActionStyle.Secondary)
                 if (selected.status == TicketStatus.ACTIVE) EventPassButton(stringResource(R.string.ticket_cancel), onCancel, Modifier.testTag("cancel-ticket"), style = ActionStyle.Danger, loading = s.cancelling)

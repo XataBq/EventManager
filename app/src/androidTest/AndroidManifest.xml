@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <provider android:name="ru.eventpass.app.DocumentFixtureProvider" android:authorities="ru.eventpass.android.demo.test.documents" android:exported="true" />
         <provider android:name="ru.eventpass.app.CoverFixtureProvider" android:authorities="ru.eventpass.android.demo.test.covers" android:exported="true" />
     </application>
 </manifest>

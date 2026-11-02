@@ -1,6 +1,6 @@
 # EventPass — Android
 
-**T08 — READY_FOR_HUMAN, исправление code 17, 2 ноября.** Поздний refresh не откатывает более новый dashboard/error из observer; отложенное чтение страницы и отмена при уходе проверены. 58 app JVM / 3 адресных device, app/test APK/lint/DI/isolation прошли. [Исправление и перепроверка](docs/27-t08-refresh-validation.md); исходный срез code 16 (155 JVM) и [H3 checklist](docs/26-t08-validation.md) сохранены как история. T07 camera/UI на code 15 и общая H3 остаются ожидающими, backend/API не согласованы.
+**T09 — IN_PROGRESS; независимый срез READY_FOR_HUMAN, 2 ноября.** Профиль/notifications, настоящие PDF своего Active билета и XLSX владельца, SAF и demo resend подключены к прежнему store/schema 5. 176 JVM / 13 завершённых device-проверок (включая отдельные restart steps), app/test APK/lint/DI/isolation прошли. [Результаты, документы и единый H3/H4 checklist](docs/28-t09-validation.md). Q10/deletion не согласован и недоступен; T07 camera/UI, T08/H3 и H4 ждут человека, backend/API ещё отсутствуют/не согласованы.
 
 **Back/H2 и T06 приняты на code 13.** Подтверждено пользователем 1 ноября; условие T07 UI снято. H3/H4 ожидаются.
 
@@ -8,9 +8,9 @@
 
 **T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. [Отчёт](docs/20-t06-validation.md).
 
-**Текущий APK T08:** [code 17](artifacts/apk/eventpass-0.8.1-t08-demo-code17.apk), **0.8.1-t08-demo**, **44367304 байт**, SHA-256 `d42d9c95e2e27dbd1bfe75bf399c2274de00f77c50d528edf961129ef6028f3e`. 58 app JVM / 3 device, lint 0 errors / 4 прежних notices; aapt/signature/DI/isolation успешны. [Проверки](docs/27-t08-refresh-validation.md). Schema 4 прежняя; архивные code 15/16 не перезаписывались.
+**Текущий APK T09:** [code 18](artifacts/apk/eventpass-0.9.0-t09-demo-code18.apk), **0.9.0-t09-demo**, **44789394 байт**, SHA-256 `a5c76100b03e50d9f62cdbfb38925766a144d62938452d81cbd79063e6afae8f`. 176 JVM / 13 device, lint 0 errors / 4 прежних version notices; aapt/signature/DI/isolation успешны. [Проверки](docs/28-t09-validation.md). Schema 5 читает v1–v4 без reset; после записи v5 downgrade на code 17 с теми же данными не поддерживается. [Архив T08 code 17](artifacts/apk/eventpass-0.8.1-t08-demo-code17.apk) и code 15 сохранены.
 
-Мобильный MVP по Figma. T03–T06 приняты; T07 camera/UI и T08/H3 ждут человека. Независимая T08 завершена технически; следующий функциональный срез — T09, backend для T10.
+Мобильный MVP по Figma. T03–T06 приняты; T07 camera/UI, T08/H3 и H4 ждут человека. Независимая T09 готова к ручной проверке, полный T09 остаётся IN_PROGRESS до Q10/deletion и приёмок; T10 требует backend. Файлы и письма — demo defaults, не утверждённый API.
 
 Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
 

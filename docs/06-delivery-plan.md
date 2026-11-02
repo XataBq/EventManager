@@ -2,7 +2,7 @@
 
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Актуальный статус на 2 ноября: T01 — READY_FOR_HUMAN; T02 — IN_PROGRESS; T03–T06 — DONE; **T07 и T08 — READY_FOR_HUMAN**; T09 — TODO. T07 camera/UI code 15 ещё ожидается; текущая T08 code 17 исправляет поздний refresh (58 app JVM / 3 device), [27](27-t08-refresh-validation.md). Полный прогон code 16 — история в [26](26-t08-validation.md). Back/H2/T06 приняты на code 13; H3/H4 не приняты. Backend отсутствует/API ожидает согласования.
+Актуальный статус на 2 ноября: T01 — READY_FOR_HUMAN; T02 — IN_PROGRESS; T03–T06 — DONE; **T07 и T08 — READY_FOR_HUMAN; T09 — IN_PROGRESS**. Независимый профиль/файлы/resend T09 code 18 проверен: 176 JVM, 13 device (включая отдельные restart steps), [28](28-t09-validation.md). T08 основана на исправлении aaca508, code 17 сохранён. Back/H2/T06 приняты на code 13; T07 camera/UI/H3/H4 не приняты. Q10/deletion отложен; backend/API ожидают согласования.
 
 ## Порядок
 
@@ -145,6 +145,8 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 ## T09 — завершение MVP и ручная приёмка
 
+**IN_PROGRESS, независимый срез READY_FOR_HUMAN, 2 ноября.** Профиль, schema 5/v1–v4 migration, настоящие demo PDF/XLSX/SAF и resend готовы; 176 JVM/13 device, code 18, [28](28-t09-validation.md). Полный T09 не DONE: Q10/deletion и ручные T07/H3/H4 остаются. API/T10 не начаты.
+
 **Зависимости:** T08; Q09/Q10/Q11 и согласованный экспорт. **Владение:** `feature/profile`, file adapters, интеграционные исправления.
 
 **Сделать:** полный профиль, email preference, сохранение и возврат; PDF/XLSX настоящими файлами (fixtures/локальная генерация в demo, API port для будущего backend), повторы писем; удаление по согласованному контракту; пустые/ошибочные состояния всех фич, process death, insets, доступность, достаточная производительность списков.
@@ -227,14 +229,14 @@ Remaining defects and next task:
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
 | T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
-| T02 | IN_PROGRESS; срезы по фичам | Общий store/schema 4, AttendanceRepository/cancel и T08 UI; полный прогон code 16 — 155 JVM, fix code 17 — 58 app JVM; следующие profile/files/remote порты впереди. |
+| T02 | IN_PROGRESS; срезы по фичам | Общий store/schema 5, Profile/Documents и T09 UI; 176 JVM в текущем срезе; remote порты впереди. |
 | T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
 | T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
 | T05 | DONE | Back/H2 приняты пользователем на code 13. |
 | T06 | DONE | Организаторский smoke принят пользователем на code 13. |
 | T07 | READY_FOR_HUMAN | Code 15: revoke dialog/optional camera, 49 app JVM / 4 device, `25-t07-fixes-validation.md`; camera/UI человека ожидается. |
 | T08 | READY_FOR_HUMAN | Code 17: refresh/observer ordering, pending reread и stop, 58 app JVM / 3 device, `27-t08-refresh-validation.md`; исходная T08 — `26-t08-validation.md`. T07 camera/UI и H3 ожидаются. |
-| T09 | TODO | Следующий функциональный срез; H4 позже. |
+| T09 | IN_PROGRESS; независимый срез READY_FOR_HUMAN | Code 18: профиль/notifications, schema 5, PDF/XLSX/SAF/resend, 176 JVM/13 device, `28-t09-validation.md`; Q10/deletion и H3/H4 остаются. |
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
 | H2 | Принята пользователем | Back/H2 приняты на code 13; H3/H4 не закрыты. |
 | H3–H4 | Ожидаются | Приёмка H2 их не закрывает |

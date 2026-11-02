@@ -13,7 +13,7 @@ import ru.eventpass.core.domain.checkin.*
 internal object ProductSnapshotCodec {
     fun encode(state: FakeProductState): ByteArray = ByteArrayOutputStream().also { bytes ->
         DataOutputStream(bytes).use { out ->
-            out.writeInt(4)
+            out.writeInt(5)
             val auth = AuthSnapshotCodec.encode(state.accounts, state.auth)
             out.writeInt(auth.size); out.write(auth)
             out.writeLong(state.nextId); out.writeUTF(state.policy.phone.name)
@@ -78,6 +78,11 @@ internal object ProductSnapshotCodec {
                 out.writeUTF(r.id); out.writeUTF(r.eventId.value); out.writeUTF(r.ticketId.value); out.writeUTF(r.checkerId.value)
                 out.writeUTF(r.checkedAt.toString()); out.writeUTF(r.attendeeName); out.writeUTF(r.displayNumber)
             }
+            out.writeInt(state.profileDetails.size)
+            state.profileDetails.forEach { (id, profile) ->
+                out.writeUTF(id.value); out.writeUTF(profile.phone.orEmpty()); out.writeUTF(profile.organization.orEmpty())
+                out.writeBoolean(profile.notifications)
+            }
         }
     }.toByteArray().also { require(it.size <= 8_388_608) }
 
@@ -89,7 +94,7 @@ internal object ProductSnapshotCodec {
                 val (accounts, auth) = AuthSnapshotCodec.decode(bytes)
                 return seed.copy(accounts = accounts, auth = auth)
             }
-            require(version in 2..4) { "Unsupported product snapshot" }
+            require(version in 2..5) { "Unsupported product snapshot" }
             val authLength = input.readInt().also { require(it in 1..1_048_576 && it <= input.available()) }
             val authBytes = ByteArray(authLength).also(input::readFully)
             val (accounts, auth) = AuthSnapshotCodec.decode(authBytes)
@@ -154,7 +159,7 @@ internal object ProductSnapshotCodec {
                     EventDraft(id, owner, revision, input.fields(), published)
                 }.also { require(it.map { d -> d.id }.distinct().size == it.size) }
             } else emptyList()
-            val checkIns = if (version == 4) {
+            val checkIns = if (version >= 4) {
                 val codes = List(count()) { TicketId(input.readUTF()) to ManualCode(input.readUTF()) }
                 require(codes.size == tickets.size && codes.map { it.first }.toSet() == tickets.map { it.snapshot.ticketId }.toSet())
                 require(codes.all { (id, code) -> tickets.single { it.snapshot.ticketId == id }.snapshot.manualCode == code })
@@ -164,6 +169,16 @@ internal object ProductSnapshotCodec {
                     require(records.all { r -> r.checkerId in accounts && tickets.any { t -> t.snapshot.ticketId == r.ticketId && t.snapshot.eventId == r.eventId && t.status == TicketStatus.USED } })
                 }
             } else emptyList()
+            val profiles = if (version >= 5) buildMap<UserId, ProfileDetails> {
+                repeat(count()) {
+                    val id = UserId(input.readUTF()); require(id in accounts && id !in this)
+                    val phone = input.readUTF().takeIf(String::isNotEmpty); val org = input.readUTF().takeIf(String::isNotEmpty)
+                    val notifications = input.readBoolean()
+                    require(phone == null || RegistrationValidator.normalizeRussianPhone(phone) == phone)
+                    require(org == null || org.length <= 200 && org.none(Char::isISOControl))
+                    put(id, ProfileDetails(phone, org, notifications))
+                }
+            } else emptyMap()
             require(input.available() == 0)
             require(events.map { it.id }.distinct().size == events.size)
             require(registrations.map { it.id }.distinct().size == registrations.size)
@@ -175,7 +190,7 @@ internal object ProductSnapshotCodec {
             require(grants.map { it.eventId to it.userId }.distinct().size == grants.size)
             return seed.copy(accounts = accounts, auth = auth, events = events.associateBy { it.id },
                 registrations = registrations, tickets = tickets, grants = grants, policy = policy, nextId = nextId,
-                drafts = drafts.associateBy { it.id }, checkIns = checkIns)
+                drafts = drafts.associateBy { it.id }, checkIns = checkIns, profileDetails = profiles)
         }
     }
 

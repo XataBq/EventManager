@@ -22,7 +22,7 @@ object RegistrationValidator {
         val name = command.name.trim()
         val email = command.email.trim()
         if (name.isEmpty()) errors += FieldError(RegistrationField.Name, FieldIssue.REQUIRED)
-        else if (name.any { it.isISOControl() }) {
+        else if (!ru.eventpass.core.domain.auth.AuthInputPolicy().validName(name)) {
             errors += FieldError(RegistrationField.Name, FieldIssue.INVALID_NAME)
         }
         // Basic form validation only. No provider-specific rewriting or script restrictions.
@@ -76,7 +76,7 @@ object RegistrationValidator {
         )
     }
 
-    private fun normalizeRussianPhone(raw: String): String? {
+    fun normalizeRussianPhone(raw: String): String? {
         if (raw.any { it !in "0123456789+()- " }) return null
         val digits = raw.filter { it in '0'..'9' }
         if (digits.length != 11) return null

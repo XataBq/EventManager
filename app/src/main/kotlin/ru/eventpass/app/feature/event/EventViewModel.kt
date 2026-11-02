@@ -41,7 +41,7 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
             val current = mutable.value
             mutable.value = when (result) {
                 is PublicEventResult.Found -> current.copy(loading = false, data = result, notFound = false, readError = null,
-                    form = if (current.data == null) RegistrationForm(result.contact?.name.orEmpty(), result.contact?.email.orEmpty()) else current.form)
+                    form = if (current.data == null) RegistrationForm(result.contact?.name.orEmpty(), result.contact?.email.orEmpty(), result.contact?.phone.orEmpty()) else current.form)
                 PublicEventResult.NotFound -> current.copy(loading = false, data = null, notFound = true, readError = null)
                 is PublicEventResult.Failed -> current.copy(loading = false, readError = result.error)
             }
@@ -55,7 +55,7 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
     fun leaveForm() {
         formVersion++; submitJob?.cancel()
         val contact = mutable.value.data?.contact
-        mutable.value = mutable.value.copy(form = RegistrationForm(contact?.name.orEmpty(), contact?.email.orEmpty()), submitting = false, error = null)
+        mutable.value = mutable.value.copy(form = RegistrationForm(contact?.name.orEmpty(), contact?.email.orEmpty(), contact?.phone.orEmpty()), submitting = false, error = null)
     }
     fun fullscreen(value: Boolean) { saved["guestFullscreen"] = value; mutable.value = mutable.value.copy(fullscreen = value) }
     fun close() { leaveForm(); receipt.clear(); mutable.value = mutable.value.copy(receipt = null, fullscreen = false) }

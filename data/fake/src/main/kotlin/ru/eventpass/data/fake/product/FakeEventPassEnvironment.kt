@@ -44,6 +44,8 @@ class FakeEventPassEnvironment(
     authSecrets: FakeAuthSecrets = RandomAuthSecrets(),
     beforeAuthOperation: suspend (String) -> Unit = {},
     private val authClock: Clock = clock,
+    documentsPolicy: FakeDocumentsPolicy = FakeDocumentsPolicy(),
+    beforeProfileDocumentOperation: suspend (String) -> Unit = {},
 ) {
 
     private val lock = Mutex()
@@ -59,6 +61,9 @@ class FakeEventPassEnvironment(
     val checkIns: ru.eventpass.core.domain.checkin.CheckInRepository = admission.checkIns
     val volunteers: ru.eventpass.core.domain.checkin.VolunteerRepository = admission.volunteers
     val attendance: ru.eventpass.core.domain.attendance.AttendanceRepository = FakeAttendanceOperations(state, lock, clock, authClock, authStorage, authBackend)
+    private val profileDocuments = FakeProfileDocumentsOperations(state, lock, clock, authClock, authStorage, authBackend, documentsPolicy, beforeProfileDocumentOperation)
+    val profiles: ru.eventpass.core.domain.profile.ProfileRepository = profileDocuments
+    val documents: ru.eventpass.core.domain.documents.DocumentsRepository = profileDocuments
 
     /** Demo storage plumbing for startup cover GC. No actor data or ticket credentials leave the store. */
     suspend fun retainedCoverAssetIds(): Set<String>? {
@@ -112,6 +117,8 @@ class FakeEventPassEnvironment(
         fun outbox(): List<FakeTicketEmail> = state.value.outbox.toList()
         fun authOutbox(): List<FakeAuthMail> = state.value.auth.mail.toList()
         suspend fun failNextAuth(error: ru.eventpass.core.domain.auth.AuthError) = mutate { it.copy(auth = it.auth.copy(nextError = error)) }
+        suspend fun failNextProfile(error: ru.eventpass.core.domain.profile.ProfileError) = mutate { it.copy(nextProfileError = error) }
+        suspend fun failNextDocument(error: ru.eventpass.core.domain.documents.DocumentError) = mutate { it.copy(nextDocumentError = error) }
         fun accounts(): List<Account> = state.value.accounts.values.toList()
         fun registrationFor(ticketId: TicketId): Registration? {
             val current = state.value
@@ -165,6 +172,10 @@ internal data class FakeProductState(
     val nextVolunteerError: ru.eventpass.core.domain.checkin.VolunteerError? = null,
     val attendanceReadErrors: Map<EventId, ru.eventpass.core.domain.attendance.AttendanceError> = emptyMap(),
     val nextAttendanceReadError: ru.eventpass.core.domain.attendance.AttendanceError? = null,
+    val profileDetails: Map<UserId, ProfileDetails> = emptyMap(),
+    val nextProfileError: ru.eventpass.core.domain.profile.ProfileError? = null,
+    val nextDocumentError: ru.eventpass.core.domain.documents.DocumentError? = null,
+    val ticketResendAt: Map<TicketId, java.time.Instant> = emptyMap(),
 )
 
 internal fun FakeProductState.activeAccount(now: java.time.Instant): Account? = auth.session

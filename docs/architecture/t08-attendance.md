@@ -12,7 +12,7 @@
 | [DashboardViewModel](../../app/src/main/kotlin/ru/eventpass/app/feature/dashboard/DashboardViewModel.kt) | Entry-owned state, query/owner/request generations, read/refresh/page jobs и confirmation/cancel error |
 | [DashboardRoute/Screen](../../app/src/main/kotlin/ru/eventpass/app/feature/dashboard/DashboardScreen.kt) | Visible/RESUMED lifecycle, stateless LazyColumn со stable ticket keys, modal error/retry, callbacks |
 
-AttendanceRepository использует тот же state/Mutex/IO/storage/Clock/auth, что auth/tickets/editor/grants/check-in. Второго store/counters нет. Общий schema 4 codec не расширялся: header/summary/rows/revision/counts вычисляются, faults/read errors transient. Self cancel и owner cancel используют один status transition, но разные actor/resource guards. Registrations/answers/checkIns не удаляются; questionsLocked после первой Registration остаётся.
+AttendanceRepository использует тот же state/Mutex/IO/storage/Clock/auth, что auth/tickets/editor/grants/check-in. Второго store/counters нет. T08 проекции не расширяют persisted payload; текущая schema 5/profile migration описана в [05](../05-data-contracts.md): header/summary/rows/revision/counts вычисляются, faults/read errors transient. Self cancel и owner cancel используют один status transition, но разные actor/resource guards. Registrations/answers/checkIns не удаляются; questionsLocked после первой Registration остаётся.
 
 Owner-only guard через EventAccessPolicy.canViewAttendees: current verified/nonexpired account на каждом observe snapshot/page/refresh/cancel. Actor не передаётся UI. Страница повторно проверяет текущий access/auth generation перед возвратом. Owner другого E, volunteer, participant и guest не получают PII. Вложенный registrationId обязан принадлежать eventId, затем выбирается ticket той же регистрации/E. Generation/status/access перепроверяются под общим Mutex до мутации.
 
@@ -38,7 +38,7 @@ Observer и refresh согласованы через локальное пок�
 
 Owner confirmation привязана к конкретному registration ID и хранится только в VM. Network/Timeout/Storage внутри Dialog; retry отправляет ту же отмену, busy блокирует повтор/dismiss. USED возвращает typed error, не меняет status. Поздний cancel result/finally старого owner не снимает busy новой операции. После IO write публикуется общий state: counters/own ticket/list наблюдают одну отмену. Отмена queued coroutine не мутирует; уже выполненный commit не обещает rollback при поздней отмене UI.
 
-Экспорт скрыт до настоящих файлов T09; MAX/участнические ответы/profile/remote не добавлены.
+Owner XLSX подключён через DocumentsRepository/DocumentFiles T09, независимо от query/pages; [путь файлов](t09-profile-files.md); MAX/участнические ответы/profile/remote не добавлены.
 
 ## Доказательства и пределы
 

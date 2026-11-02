@@ -123,5 +123,5 @@ sealed interface PublicEventResult {
     data class Failed(val error: ProductReadError) : PublicEventResult
 }
 
-data class RegistrationContact(val email: String, val name: String)
+data class RegistrationContact(val email: String, val name: String, val phone: String? = null)
 enum class ProductReadError { NETWORK, TIMEOUT, STORAGE_UNAVAILABLE }

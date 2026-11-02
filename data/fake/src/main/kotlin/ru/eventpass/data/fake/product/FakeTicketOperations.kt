@@ -41,7 +41,7 @@ internal class FakeTicketOperations(
                     val availability = event.registrationAvailability(clock.instant(), count(s, eventId))
                     PublicEventResult.Found(event, availability, EventAccessPolicy.resolve(event, account,
                         account != null && own(s, account).any { it.snapshot.eventId == eventId && it.status != TicketStatus.CANCELLED }, s.grants, availability),
-                        s.policy, account?.takeIf { it.emailVerified }?.let { RegistrationContact(it.email, s.auth.names[it.id].orEmpty()) })
+                        s.policy, account?.takeIf { it.emailVerified }?.let { RegistrationContact(it.email, s.profileFields(it.id).name, s.profileFields(it.id).phone) })
                 }
             }
         }.distinctUntilChanged()

@@ -150,7 +150,7 @@ class CheckInTest {
         assertEquals(t.snapshot.qrPayload, restored.snapshot.qrPayload); assertEquals(t.snapshot.manualCode, restored.snapshot.manualCode)
         assertTrue(next.checkIns.checkIn(FakeFixtures.MIXED, manual(t)) is CheckInOutcome.Admitted)
         val after = ProductSnapshotCodec.restore(storage.bytes!!, seed())
-        assertEquals(4, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
+        assertEquals(5, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
         assertEquals(before.accounts, after.accounts); assertEquals(before.auth.passwords, after.auth.passwords)
         assertEquals(before.auth.challenges, after.auth.challenges); assertEquals(before.events, after.events)
         assertEquals(before.drafts, after.drafts); assertEquals(before.registrations, after.registrations); assertEquals(before.grants, after.grants)

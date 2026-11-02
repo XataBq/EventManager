@@ -29,7 +29,8 @@ fun DashboardRoute(eventId: String, visible: Boolean, scanner: () -> Unit, volun
         vm.start(eventId); vm.refresh(); try { awaitCancellation() } finally { vm.stop() }
     } }
     LaunchedEffect(s.denied) { if (visible && s.denied) onDenied() }
-    DashboardScreen(s, vm::query, vm::refresh, vm::more, vm::retryPage, vm::confirm, scanner, volunteers)
+    DashboardScreen(s, vm::query, vm::refresh, vm::more, vm::retryPage, vm::confirm, scanner, volunteers,
+        documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.AttendanceXlsx(ru.eventpass.core.domain.event.EventId(eventId)),visible,s.dashboard!=null) })
     s.selected?.let { target -> ConfirmDialog(stringResource(R.string.attendance_cancel), target.name,
         stringResource(if (s.cancelError == null) R.string.attendance_cancel else R.string.ticket_retry), vm::cancel,
         { vm.confirm(null) }, destructive = true, loading = s.cancelling,
@@ -38,7 +39,8 @@ fun DashboardRoute(eventId: String, visible: Boolean, scanner: () -> Unit, volun
 
 @Composable
 fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () -> Unit, more: () -> Unit,
-    retryPage: () -> Unit, confirm: (Attendee?) -> Unit, scanner: () -> Unit, volunteers: () -> Unit) {
+    retryPage: () -> Unit, confirm: (Attendee?) -> Unit, scanner: () -> Unit, volunteers: () -> Unit,
+    documents: @Composable () -> Unit = {}) {
     LazyColumn(Modifier.fillMaxSize().testTag("dashboard-screen"), contentPadding = PaddingValues(EventPassDimens.page),
         verticalArrangement = Arrangement.spacedBy(EventPassDimens.medium)) {
         item("header") {
@@ -65,6 +67,8 @@ fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () ->
                 TextAction(stringResource(R.string.scan_title), scanner, Modifier.testTag("dashboard-scanner"))
                 TextAction(stringResource(R.string.volunteers_title), volunteers, Modifier.testTag("dashboard-volunteers"))
             }
+            // Keep the picker owner composed while RESUMED dashboard observation pauses for SAF.
+            documents()
             s.readError?.let { InlineError(stringResource(attendanceErrorResource(it))) }
             EventPassButton(stringResource(R.string.ticket_refresh), refresh, Modifier.testTag("dashboard-refresh"), loading = s.refreshing)
         }

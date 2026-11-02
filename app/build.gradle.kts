@@ -13,8 +13,8 @@ android {
         applicationId = "ru.eventpass.android"
         minSdk = 28
         targetSdk = 37
-        versionCode = 17
-        versionName = "0.8.1-t08"
+        versionCode = 18
+        versionName = "0.9.0-t09"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     flavorDimensions += "backend"
@@ -78,4 +78,5 @@ dependencies {
     androidTestImplementation(libs.compose.test)
     // Compose Test's older transitive Espresso uses reflection removed on Android 16.
     androidTestImplementation(libs.espresso.core)
+    androidTestImplementation(libs.zxing.core)
 }
