@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.awaitCancellation
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
 import ru.eventpass.app.feature.event.*
@@ -20,17 +21,18 @@ import ru.eventpass.core.domain.registration.*
 
 @Composable
 fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) -> Unit,
-    onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit, visible: Boolean = true) {
-    val vm: TicketsViewModel = hiltViewModel()
+    onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit, visible: Boolean = true, vm: TicketsViewModel = hiltViewModel()) {
     val s by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(selected) { selected?.let { vm.selectIssued(it); onConsumed() } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(vm, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.refresh() } }
+    LaunchedEffect(vm, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+        vm.start(); vm.refresh(); try { awaitCancellation() } finally { vm.stop() }
+    } }
     // The selected card belongs to the root entry, so NavDisplay cannot pop it.
     // Dialog windows handle Back themselves before the card returns to the list.
-    BackHandler(enabled = s.selected != null && !s.fullscreen && !s.confirming) { vm.select(null) }
+    BackHandler(enabled = visible && s.selected != null && !s.fullscreen && !s.confirming) { vm.select(null) }
     TicketsScreen(s, vm::select, vm::history, { vm.refresh() }, { vm.fullscreen(true) }, { vm.confirm(true) }, onEvent, onDemo, onGallery, onTools,
-        documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.TicketPdf(it.snapshot.ticketId),visible) })
+        documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.TicketPdf(it.snapshot.ticketId),visible) }, visible = visible)
     if (s.confirming) ConfirmDialog(stringResource(R.string.ticket_cancel_title), stringResource(R.string.ticket_cancel_description),
         stringResource(R.string.ticket_cancel), vm::cancel, { vm.confirm(false) }, destructive = true, loading = s.cancelling, dismissLabel = stringResource(R.string.ticket_keep))
     val selectedTicket = s.data?.tickets?.firstOrNull { it.snapshot.ticketId.value == s.selected }
@@ -43,7 +45,9 @@ fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) ->
 @Composable
 fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Boolean) -> Unit, onRefresh: () -> Unit,
     onQr: () -> Unit, onCancel: () -> Unit, onEvent: (String) -> Unit, onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit,
-    documents: @Composable (Ticket) -> Unit = {}) {
+    documents: @Composable (Ticket) -> Unit = {}, visible: Boolean = true) {
+    EventPassRefresh(s.refreshing, onRefresh, Modifier.testTag("refresh-tickets"),
+        enabled = visible && !s.loading && !s.authenticationRequired && !s.fullscreen && !s.confirming && !s.cancelling) {
     AuthColumn(Modifier.testTag("root-Tickets")) {
         Text(stringResource(R.string.tickets_title), style = EventPassTypography.heading)
         SegmentedTabs(listOf(SegmentOption(stringResource(R.string.ticket_current)), SegmentOption(stringResource(R.string.ticket_history))), if (s.history) 1 else 0, { onHistory(it == 1) })
@@ -95,9 +99,9 @@ fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Bo
                 EventPassButton(stringResource(R.string.ticket_number, ticket.snapshot.displayNumber), { onSelect(ticket.snapshot.ticketId.value) }, Modifier.testTag("ticket-${ticket.snapshot.ticketId.value}"))
             } }
         }
-        TextAction(stringResource(R.string.ticket_refresh), onRefresh)
         TextAction(stringResource(R.string.auth_demo_tools), onTools)
         EventPassButton(stringResource(R.string.open_demo), onDemo, Modifier.testTag("open-demo"))
         EventPassButton(stringResource(R.string.open_gallery), onGallery, Modifier.testTag("open-gallery"), style = ActionStyle.Secondary)
+    }
     }
 }

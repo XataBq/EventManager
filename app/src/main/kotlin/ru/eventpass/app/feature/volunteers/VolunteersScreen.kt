@@ -18,17 +18,16 @@ import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.checkin.*
 
 @Composable
-fun VolunteersRoute(eventId: String, visible: Boolean, onDenied: () -> Unit) {
-    val vm: VolunteersViewModel = hiltViewModel()
+fun VolunteersRoute(eventId: String, visible: Boolean, onDenied: () -> Unit, vm: VolunteersViewModel = hiltViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(eventId, lifecycle, visible) {
         if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            vm.start(eventId); try { awaitCancellation() } finally { vm.stop() }
+            vm.start(eventId); vm.refresh(); try { awaitCancellation() } finally { vm.stop() }
         }
     }
     LaunchedEffect(state.denied) { if (visible && state.denied) onDenied() }
-    VolunteersScreen(state, vm::edit, vm::grant, vm::confirm, vm::retry)
+    VolunteersScreen(state, vm::edit, vm::grant, vm::confirm, vm::retry, visible)
     state.revoke?.let {
         val error = state.revokeError ?: state.error
         ConfirmDialog(stringResource(R.string.volunteer_revoke), it.email,
@@ -40,12 +39,15 @@ fun VolunteersRoute(eventId: String, visible: Boolean, onDenied: () -> Unit) {
 
 @Composable
 fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> Unit,
-    confirm: (Volunteer?) -> Unit, retry: () -> Unit) {
+    confirm: (Volunteer?) -> Unit, retry: () -> Unit, visible: Boolean = true) {
+    EventPassRefresh(s.refreshing, retry, Modifier.testTag("refresh-volunteers"), enabled = visible && !s.loading && !s.denied && !s.busy && s.revoke == null) {
     AuthColumn(Modifier.testTag("volunteers-screen")) {
         Text(stringResource(R.string.volunteers_title), style = EventPassTypography.heading)
         Text(stringResource(R.string.volunteers_hint))
         if (s.loading) Text(stringResource(R.string.loading))
         if (s.revoke == null) s.error?.let { InlineError(stringResource(volunteerErrorResource(it)))
+            if (!s.denied) TextAction(stringResource(R.string.ticket_retry), grant, enabled = !s.busy) }
+        s.readError?.let { InlineError(stringResource(volunteerErrorResource(it)))
             TextAction(stringResource(R.string.ticket_retry), retry, enabled = !s.busy) }
         if (!s.denied) {
             FormField(s.input, edit, stringResource(R.string.volunteer_email), Modifier.testTag("volunteer-input"), enabled = !s.busy && !s.loading)
@@ -58,6 +60,7 @@ fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> 
                 TextAction(stringResource(R.string.volunteer_revoke), { confirm(volunteer) }, enabled = !s.busy)
             } }
         }
+    }
     }
 }
 

@@ -33,6 +33,19 @@ internal class FakeProfileDocumentsOperations(private val state: MutableStateFlo
     }
     override fun observeProfile(): Flow<ProfileResult> = flow { auth.initialize(); emitAll(state) }
         .map(::profile).distinctUntilChanged()
+    override suspend fun refreshProfile(): ProfileResult {
+        auth.initialize(); val generation = state.value.auth.generation; beforeOperation("profile-read")
+        return withContext(Dispatchers.IO) { lock.withLock {
+            currentCoroutineContext().ensureActive(); val s = state.value
+            if (s.auth.generation != generation) return@withLock ProfileResult.Failed(ProfileError.SESSION_CHANGED)
+            val current = profile(s); if (current is ProfileResult.Failed) return@withLock current
+            s.nextReadError?.let {
+                state.value = s.copy(nextReadError = null)
+                return@withLock ProfileResult.Failed(ProfileError.valueOf(it.name))
+            }
+            current
+        } }
+    }
     override suspend fun saveProfile(fields: ProfileFields): ProfileResult {
         auth.initialize(); val generation = state.value.auth.generation; beforeOperation("profile")
         return withContext(Dispatchers.IO) { lock.withLock {

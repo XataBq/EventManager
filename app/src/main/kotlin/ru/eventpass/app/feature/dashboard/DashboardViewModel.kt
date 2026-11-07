@@ -22,7 +22,7 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
     private var id: EventId? = null; private var owner = 0L; private var request = 0L
     private var observer: Job? = null; private var page: Job? = null; private var command: Job? = null; private var refresh: Job? = null
     private var loadedRevision: String? = null; private var active = false
-    private var observation = 0L; private var refreshPending = false
+    private var observation = 0L; private var refreshPending = false; private var reading = false
     fun start(eventId: String) {
         stop(); active = true; id = EventId(eventId); val generation = owner
         observer = viewModelScope.launch { repository.observeDashboard(EventId(eventId)).collect { if (generation == owner) {
@@ -31,20 +31,21 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
     }
     fun stop() {
         active = false; owner++; request++; observer?.cancel(); page?.cancel(); command?.cancel(); refresh?.cancel()
-        loadedRevision = null; observation = 0; refreshPending = false
+        loadedRevision = null; observation = 0; refreshPending = false; reading = false
         mutable.value = DashboardUiState(query = saved["query"] ?: "")
     }
     private fun denied(error: AttendanceError): Boolean {
         if (error !in setOf(AttendanceError.FORBIDDEN, AttendanceError.AUTHENTICATION_REQUIRED, AttendanceError.SESSION_CHANGED, AttendanceError.NOT_FOUND)) return false
         stop(); mutable.value = state.value.copy(loading = false, denied = true, readError = error); return true
     }
-    private fun accept(result: DashboardResult) {
+    private fun accept(result: DashboardResult, refreshed: Boolean = false) {
         when (result) {
             is DashboardResult.Failed -> if (!denied(result.error)) mutable.value = state.value.copy(loading = false, readError = result.error)
             is DashboardResult.Ready -> {
                 val changed = state.value.dashboard?.revision != result.dashboard.revision
                 mutable.value = state.value.copy(dashboard = result.dashboard, loading = false, readError = null)
                 if (changed || (loadedRevision == null && !state.value.paging)) load(false)
+                else if (refreshed) load(false, keepRows = true)
             }
         }
     }
@@ -54,11 +55,11 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
     }
     fun more() { if (!state.value.paging && state.value.next != null) load(true) }
     fun retryPage() = load(state.value.rows.isNotEmpty() && state.value.next != null)
-    private fun load(append: Boolean) {
+    private fun load(append: Boolean, keepRows: Boolean = false) {
         val eventId = id ?: return; val dashboard = state.value.dashboard ?: return; if (!active) return
         page?.cancel(); val serial = ++request; val generation = owner; val query = state.value.query
         val cursor = if (append) state.value.next else null
-        if (!append) { loadedRevision = null; mutable.value = state.value.copy(rows = emptyList(), next = null, matches = 0) }
+        if (!append && !keepRows) { loadedRevision = null; mutable.value = state.value.copy(rows = emptyList(), next = null, matches = 0) }
         mutable.value = state.value.copy(paging = true, pageError = null)
         page = viewModelScope.launch {
             try {
@@ -67,9 +68,9 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
                 when (result) {
                     is AttendeesResult.Failed -> if (!denied(result.error)) {
                         mutable.value = state.value.copy(pageError = result.error)
-                        if (result.error == AttendanceError.STALE_PAGE) refresh()
+                        if (result.error == AttendanceError.STALE_PAGE) requestRefresh(followUp = true)
                     }
-                    is AttendeesResult.Page -> if (result.revision != dashboard.revision) refresh() else {
+                    is AttendeesResult.Page -> if (result.revision != dashboard.revision) requestRefresh(followUp = true) else {
                         loadedRevision = result.revision
                         mutable.value = state.value.copy(rows = if (append) state.value.rows + result.rows else result.rows,
                             matches = result.totalMatches, next = result.next)
@@ -78,18 +79,23 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
             } finally { if (generation == owner && serial == request) mutable.value = state.value.copy(paging = false) }
         }
     }
-    fun refresh() {
+    fun refresh() = requestRefresh(followUp = false)
+    private fun requestRefresh(followUp: Boolean) {
         val eventId = id ?: return; if (!active) return
-        if (state.value.refreshing) { refreshPending = true; return }
+        if (reading) { if (followUp) refreshPending = true; return }
         val generation = owner; val startedObservation = observation
-        mutable.value = state.value.copy(refreshing = true)
+        reading = true; mutable.value = state.value.copy(refreshing = !state.value.loading)
         // Publish the job before an immediate/cached reply can start a queued follow-up.
         val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
             try {
                 val result = repository.refreshDashboard(eventId); currentCoroutineContext().ensureActive()
                 // Revisions are opaque: any intervening observation supersedes this read's result.
-                if (generation == owner && observation == startedObservation) accept(result)
+                if (generation == owner && observation == startedObservation) {
+                    accept(result, refreshed = true)
+                    page?.join()
+                }
             } finally { if (generation == owner) {
+                reading = false
                 mutable.value = state.value.copy(refreshing = false)
                 val followUp = refreshPending; refreshPending = false
                 if (followUp && currentCoroutineContext().isActive) refresh()

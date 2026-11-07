@@ -150,6 +150,10 @@ internal class FakeTicketOperations(
         } }
     }
     private suspend fun update(change: (FakeProductState) -> FakeProductState) {
-        auth.initialize(); withContext(Dispatchers.IO) { lock.withLock { state.value = change(state.value) } }
+        auth.initialize(); val generation = state.value.auth.generation
+        withContext(Dispatchers.IO) { lock.withLock {
+            currentCoroutineContext().ensureActive()
+            if (state.value.auth.generation == generation) state.value = change(state.value)
+        } }
     }
 }

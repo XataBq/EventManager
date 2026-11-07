@@ -22,14 +22,15 @@ import ru.eventpass.core.domain.registration.TicketStatus
 import ru.eventpass.core.domain.event.EventLifecycle
 
 @Composable
-fun DashboardRoute(eventId: String, visible: Boolean, scanner: () -> Unit, volunteers: () -> Unit, onDenied: () -> Unit) {
-    val vm: DashboardViewModel = hiltViewModel(); val s by vm.state.collectAsStateWithLifecycle()
+fun DashboardRoute(eventId: String, visible: Boolean, scanner: () -> Unit, volunteers: () -> Unit, onDenied: () -> Unit,
+    vm: DashboardViewModel = hiltViewModel()) {
+    val s by vm.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(eventId, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
         vm.start(eventId); vm.refresh(); try { awaitCancellation() } finally { vm.stop() }
     } }
     LaunchedEffect(s.denied) { if (visible && s.denied) onDenied() }
-    DashboardScreen(s, vm::query, vm::refresh, vm::more, vm::retryPage, vm::confirm, scanner, volunteers,
+    DashboardScreen(s, vm::query, vm::refresh, vm::more, vm::retryPage, vm::confirm, scanner, volunteers, visible = visible,
         documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.AttendanceXlsx(ru.eventpass.core.domain.event.EventId(eventId)),visible,s.dashboard!=null) })
     s.selected?.let { target -> ConfirmDialog(stringResource(R.string.attendance_cancel), target.name,
         stringResource(if (s.cancelError == null) R.string.attendance_cancel else R.string.ticket_retry), vm::cancel,
@@ -40,7 +41,8 @@ fun DashboardRoute(eventId: String, visible: Boolean, scanner: () -> Unit, volun
 @Composable
 fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () -> Unit, more: () -> Unit,
     retryPage: () -> Unit, confirm: (Attendee?) -> Unit, scanner: () -> Unit, volunteers: () -> Unit,
-    documents: @Composable () -> Unit = {}) {
+    documents: @Composable () -> Unit = {}, visible: Boolean = true) {
+    EventPassRefresh(s.refreshing, refresh, Modifier.testTag("refresh-dashboard"), enabled = visible && !s.loading && !s.denied && s.selected == null) {
     LazyColumn(Modifier.fillMaxSize().testTag("dashboard-screen"), contentPadding = PaddingValues(EventPassDimens.page),
         verticalArrangement = Arrangement.spacedBy(EventPassDimens.medium)) {
         item("header") {
@@ -69,8 +71,10 @@ fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () ->
             }
             // Keep the picker owner composed while RESUMED dashboard observation pauses for SAF.
             documents()
-            s.readError?.let { InlineError(stringResource(attendanceErrorResource(it))) }
-            EventPassButton(stringResource(R.string.ticket_refresh), refresh, Modifier.testTag("dashboard-refresh"), loading = s.refreshing)
+            s.readError?.let {
+                InlineError(stringResource(attendanceErrorResource(it)))
+                TextAction(stringResource(R.string.ticket_retry), refresh)
+            }
         }
         if (s.dashboard != null) {
             item("search") {
@@ -97,6 +101,7 @@ fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () ->
                 if (s.next != null) EventPassButton(stringResource(R.string.dashboard_more), more, Modifier.testTag("dashboard-more"), loading = s.paging)
             }
         }
+    }
     }
 }
 fun attendanceErrorResource(error: AttendanceError): Int = when (error) {

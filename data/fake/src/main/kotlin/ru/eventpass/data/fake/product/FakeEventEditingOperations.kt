@@ -60,9 +60,11 @@ internal class FakeEventEditingOperations(
     }
 
     suspend fun refreshMyEvents() {
-        auth.initialize()
+        auth.initialize(); val generation = state.value.auth.generation
         withContext(Dispatchers.IO) { lock.withLock {
+            currentCoroutineContext().ensureActive()
             val s = state.value
+            if (s.auth.generation != generation) return@withLock
             state.value = s.copy(managementReadError = s.nextReadError, nextReadError = null, revision = s.revision + 1)
         } }
     }

@@ -111,3 +111,7 @@ Desktop H1 32 не переносить в mobile. Значения sp — ст�
 Предлагаемая реализация: Compose Material 3 с собственными токенами; edge-to-edge с корректными systemBars/IME insets; скроллируемые формы; подходящие keyboardType/IME actions; TalkBack labels; описания иконок действий; статус всегда текстом, не только цветом. Режим fullscreen QR скрывает лишние элементы, яркость при необходимости меняется только для окна и восстанавливается при выходе.
 
 Ручная проверка: 360/390–412dp, font scale 1.0 и 1.3 (критические экраны также 2.0), клавиатура, длинные ФИО/email/заголовки, тёмная системная панель, TalkBack на основных действиях. Не считать совпадение картинки достаточной проверкой поведения.
+
+## Обновление данных жестом T09a
+
+Обычные продуктовые «Обновить» удалены. EventPassRefresh использует pinned Material3 1.4.0 Modifier.pullToRefresh и Indicator по токенам EventPassColors/Dimens. Он оборачивает существующий AuthColumn.verticalScroll/LazyColumn, включая short/empty/error, без второй прокрутки и Activity interceptor. Indicator по центру сверху внутри уже защищённого Scaffold content; initial loading отделён от manual refreshing. Custom accessibility action «Обновить данные» + live stateDescription доступны без видимой кнопки; полноценный TalkBack/IME/все ориентации проверяет человек на новой сборке. Error retry, mutation retry, resend и more/next остаются отдельными. Figma snapshot не переписывается; [Адресное обновление T09a](architecture/t09a-refresh.md).

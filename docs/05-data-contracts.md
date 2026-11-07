@@ -25,11 +25,11 @@ SignUp/confirm/reset не создают сессию; после подтвер
 | Порт | Чтение / наблюдение | Команды |
 |---|---|---|
 | AuthRepository | observeSession | signIn, signUp, signOut, requestVerification, confirmEmail, requestPasswordResetCode, verifyResetCode, resetPassword, reauthenticate; подтверждение не создаёт сессию |
-| ProfileRepository | observeProfile | updateProfile, updateEmailPreference, deleteAccount |
+| ProfileRepository | observeProfile / refreshProfile | updateProfile, updateEmailPreference, deleteAccount |
 | EventRepository | observePublicEvent, observeMyEvents, observeAccess | saveDraft, publish, updateEvent, finishEvent, closeRegistration |
 | RegistrationRepository | observeOwnRegistrations | submitGuest, registerAuthenticated, cancelRegistration; без completePending |
 | TicketRepository | observeMyTickets (билеты на email аккаунта) | observeTicket, getTicketDocument; только после входа |
-| VolunteerRepository | observeVolunteers (owner only) | grantByEmailOrId, revoke |
+| VolunteerRepository | observeVolunteers / refreshVolunteers(eventId) (owner only) | grantByEmailOrId, revoke |
 | CheckInRepository | readResult, observeOwnScanCount | checkIn(eventId, credential); requestId только если его поддержит реальный API |
 | AttendanceRepository | observeDashboard, observeAttendees(query, cursor) | exportAttendees(eventId) |
 | Navigation return destination | Разрешённый маршрут возврата | Только eventId/route; не хранит ответы анкеты |
@@ -132,3 +132,7 @@ Debug ScenarioController умеет выбрать seed, сменить тест
 7. Production-сборка не содержит fake store/debug outbox/автовход; при ещё не реализованном API release должен быть явно заблокирован.
 
 «Централизованно заменить» означает заменить реализации и DI, сохранив UI-контракты. Это не обещание, что интеграция сведётся к смене одной строки URL.
+
+## Адресные read-команды T09a
+
+TicketRepository.refreshMyTickets и EventRepository.refreshMyEvents/refreshPublicEvent сохраняют прежний observer-путь. AttendanceRepository.refreshDashboard согласуется с attendees текущих E/query/revision. Добавлены VolunteerRepository.refreshVolunteers(eventId): VolunteersResult (verified owner E) и ProfileRepository.refreshProfile(): ProfileResult (текущий verified actor). Это чтение общего state под прежним Mutex/IO с проверкой session generation/cancellation; transient Network/Timeout/Storage не вызывает запись snapshot, save/grant/revoke или смену identity. Observer priority и UI owner generations защищают поздние replies. Порты не определяют новый HTTP API, schema 5 прежняя. [Адресное обновление T09a](architecture/t09a-refresh.md).

@@ -17,6 +17,7 @@ class ProfileViewModelTest {
         val values=MutableStateFlow<ProfileResult>(ProfileResult.Ready(profile))
         var save: suspend(ProfileFields)->ProfileResult={ProfileResult.Ready(profile.copy(fields=it))}
         override fun observeProfile()=values
+        override suspend fun refreshProfile()=values.value
         override suspend fun saveProfile(fields: ProfileFields)=save(fields)
     }
     @Test fun observerDoesNotEraseDirtyFormAndBackCanDiscardOrSave()=runTest {

@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.awaitCancellation
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -62,12 +63,14 @@ fun registrationErrorText(error: RegistrationError): String = when (error) {
 }
 
 @Composable
-fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTicket: (String) -> Unit, onClose: () -> Unit) {
-    val vm: EventViewModel = hiltViewModel()
+fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTicket: (String) -> Unit, onClose: () -> Unit,
+    visible: Boolean = true, vm: EventViewModel = hiltViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(eventId, lifecycle) { vm.bind(eventId); lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.refresh() } }
-    DisposableEffect(vm) { onDispose { vm.leaveForm() } }
+    LaunchedEffect(eventId, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+        vm.bind(eventId); vm.refresh(); try { awaitCancellation() } finally { vm.stopReading() }
+    } }
+    DisposableEffect(vm) { onDispose { vm.stopReading(); vm.leaveForm() } }
     LaunchedEffect(state.action) { when (val action = state.action) {
         is EventAction.Login -> { onAuth(action.email, false, true); vm.consume(action.id) }
         is EventAction.Ticket -> { onTicket(action.ticketId); vm.consume(action.id) }
@@ -80,13 +83,14 @@ fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTi
         if (state.fullscreen) FullscreenTicketQr(receipt.ticket.qrPayload, receipt.ticket.displayNumber) { vm.fullscreen(false) }
     } else EventScreen(eventId, state, vm::edit, vm::submit, vm::refresh, { vm.openOwnTicket() }, {
         val email = state.form.email; vm.leaveForm(); onAuth(email, false, true)
-    }, cover = { cover -> ru.eventpass.app.feature.editor.ManagedCover(cover) })
+    }, cover = { cover -> ru.eventpass.app.feature.editor.ManagedCover(cover) }, visible = visible)
 }
 
 @Composable
 fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> Unit, onSubmit: () -> Unit,
-    onRefresh: () -> Unit, onOwn: () -> Unit, onLogin: () -> Unit, cover: @Composable (EventCover?) -> Unit = {}) {
-    AuthColumn(Modifier.semantics { testTagsAsResourceId = true }) {
+    onRefresh: () -> Unit, onOwn: () -> Unit, onLogin: () -> Unit, cover: @Composable (EventCover?) -> Unit = {}, visible: Boolean = true) {
+    EventPassRefresh(s.refreshing, onRefresh, Modifier.testTag("refresh-event"), enabled = visible && !s.loading && !s.submitting && s.receipt == null && !s.fullscreen) {
+    AuthColumn(Modifier.testTag("event-screen-$eventId").semantics { testTagsAsResourceId = true }) {
         val data = s.data
         if (s.loading) Text(stringResource(R.string.loading))
         s.readError?.let { InlineError(readErrorText(it)); EventPassButton(stringResource(R.string.ticket_retry), onRefresh) }
@@ -124,7 +128,6 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
                     }
                 }
             } }
-            TextAction(stringResource(R.string.ticket_refresh), onRefresh)
             if (data.contact == null) TextAction(stringResource(R.string.auth_login), onLogin, Modifier.testTag("event-login"))
             if (data.access.canViewOwnTicket) {
                 EventPassButton(stringResource(R.string.ticket_own), onOwn)
@@ -166,6 +169,7 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
                 Text(stringResource(R.string.event_ticket_hint), style = EventPassTypography.hint)
             }
         }
+    }
     }
 }
 

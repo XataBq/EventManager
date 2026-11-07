@@ -60,6 +60,7 @@ class VolunteersViewModelTest {
         val pending = mutableListOf<Continuation<VolunteerOutcome>>()
         val repo = object : VolunteerRepository {
             override fun observeVolunteers(eventId: EventId) = flowOf(VolunteersResult.Ready(emptyList()))
+            override suspend fun refreshVolunteers(eventId: EventId) = VolunteersResult.Ready(emptyList())
             override suspend fun grant(eventId: EventId, emailOrId: String): VolunteerOutcome = suspendCoroutine { pending += it }
             override suspend fun revoke(eventId: EventId, userId: UserId): VolunteerOutcome = error("not expected")
         }
@@ -79,6 +80,7 @@ class VolunteersViewModelTest {
         val list = MutableStateFlow<VolunteersResult>(VolunteersResult.Ready(listOf(Volunteer(ScanGrant(EventId("event"), UserId("user")), "user@example.com"))))
         val repo = object : VolunteerRepository {
             override fun observeVolunteers(eventId: EventId) = list
+            override suspend fun refreshVolunteers(eventId: EventId) = list.value
             override suspend fun grant(eventId: EventId, emailOrId: String): VolunteerOutcome = error("not expected")
             override suspend fun revoke(eventId: EventId, userId: UserId): VolunteerOutcome = error("not expected")
         }

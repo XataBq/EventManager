@@ -51,7 +51,6 @@
     <string name="ticket_used_no_cancel">Использованный билет нельзя отменить.</string>
     <string name="ticket_missing">Билет недоступен</string>
     <string name="ticket_retry">Повторить</string>
-    <string name="ticket_refresh">Обновить</string>
     <string name="ticket_back">Назад</string>
     <string name="ticket_qr_error">Не удалось построить QR. Повторите попытку.</string>
     <string name="tools_open_event">Открыть demo-мероприятие</string>

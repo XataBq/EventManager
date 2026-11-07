@@ -17,7 +17,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
 import ru.eventpass.app.feature.editor.editErrorResource
@@ -26,47 +26,74 @@ import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.EventRepository
 import ru.eventpass.core.domain.event.*
 
-data class MyEventsUiState(val content: MyEventsResult? = null, val error: EventEditError? = null)
+data class MyEventsUiState(val content: MyEventsResult? = null, val error: EventEditError? = null,
+    val loading: Boolean = true, val refreshing: Boolean = false)
 @HiltViewModel
 class MyEventsViewModel @Inject constructor(private val events: EventRepository, private val saved: SavedStateHandle) : ViewModel() {
-    val data = events.observeMyEvents().runningFold(MyEventsUiState()) { old, next ->
-        if (next is MyEventsResult.Failed && next.error in setOf(EventEditError.Network, EventEditError.Timeout, EventEditError.StorageUnavailable)
-            && old.content is MyEventsResult.Ready) old.copy(error = next.error)
-        else MyEventsUiState(next)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MyEventsUiState())
+    private val mutable = MutableStateFlow(MyEventsUiState()); val data = mutable.asStateFlow()
+    private var active = false; private var owner = 0L
+    private var observer: Job? = null; private var read: Job? = null
+    fun start() {
+        if (active) return
+        active = true; val generation = owner
+        mutable.value = data.value.copy(loading = data.value.content == null)
+        observer = viewModelScope.launch { events.observeMyEvents().collect { next -> if (generation == owner) {
+            val old = data.value
+            mutable.value = if (next is MyEventsResult.Failed && next.error in setOf(EventEditError.Network, EventEditError.Timeout, EventEditError.StorageUnavailable)
+                && old.content is MyEventsResult.Ready) old.copy(error = next.error, loading = false)
+            else old.copy(content = next, error = null, loading = false)
+        } } }
+    }
+    fun stop() { active = false; owner++; observer?.cancel(); read?.cancel()
+        mutable.value = data.value.copy(loading = false, refreshing = false) }
     val tab = saved.getStateFlow("myEventsTab", 0)
     fun select(value: Int) { saved["myEventsTab"] = value.coerceIn(0, 2) }
-    fun refresh() { viewModelScope.launch { events.refreshMyEvents() } }
+    fun refresh() {
+        if (!active || read?.isActive == true) return
+        val generation = owner; mutable.value = data.value.copy(refreshing = !data.value.loading)
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            try { events.refreshMyEvents() }
+            finally { if (generation == owner) mutable.value = data.value.copy(loading = false, refreshing = false) }
+        }
+        read = job; job.start()
+    }
 }
 @Composable
 fun MyEventsRoute(onCreate: () -> Unit, onDraft: (String) -> Unit, onEdit: (String) -> Unit, onOpen: (String) -> Unit,
-    onScan: (String) -> Unit, onVolunteers: (String) -> Unit, onDashboard: (String) -> Unit) {
-    val vm: MyEventsViewModel = hiltViewModel()
+    onScan: (String) -> Unit, onVolunteers: (String) -> Unit, onDashboard: (String) -> Unit, visible: Boolean = true,
+    vm: MyEventsViewModel = hiltViewModel()) {
     val data by vm.data.collectAsStateWithLifecycle(); val tab by vm.tab.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val context = LocalContext.current
     var copied by remember { mutableStateOf(false) }
-    LaunchedEffect(lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.refresh() } }
+    LaunchedEffect(vm, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+        vm.start(); vm.refresh(); try { awaitCancellation() } finally { vm.stop() }
+    } }
     MyEventsScreen(data.content, tab, vm::select, vm::refresh, onCreate, onDraft, onEdit, onOpen, { id ->
         (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
             .setPrimaryClip(android.content.ClipData.newPlainText("EventPass", "eventpass-demo://demo/e/$id")); copied = true
-    }, copied, data.error, onScan, onVolunteers, onDashboard)
+    }, copied, data.error, onScan, onVolunteers, onDashboard, data.refreshing, visible && !data.loading)
 }
 @Composable
 fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refresh: () -> Unit,
     create: () -> Unit, draft: (String) -> Unit, edit: (String) -> Unit, open: (String) -> Unit, copyLink: (String) -> Unit, copied: Boolean, readError: EventEditError?,
-    scan: (String) -> Unit, volunteers: (String) -> Unit, dashboard: (String) -> Unit) {
+    scan: (String) -> Unit, volunteers: (String) -> Unit, dashboard: (String) -> Unit,
+    refreshing: Boolean = false, refreshEnabled: Boolean = true) {
+    val denied = (data as? MyEventsResult.Failed)?.error in setOf(EventEditError.AuthenticationRequired, EventEditError.SessionChanged, EventEditError.Forbidden)
+    EventPassRefresh(refreshing, refresh, Modifier.testTag("refresh-events"), enabled = refreshEnabled && !denied) {
     AuthColumn(Modifier.testTag("root-Events")) {
         Text(stringResource(R.string.events_title), style = EventPassTypography.heading)
         EventPassButton(stringResource(R.string.editor_new), create, Modifier.testTag("create-event"))
         SegmentedTabs(listOf(SegmentOption(stringResource(R.string.my_organizing)), SegmentOption(stringResource(R.string.my_volunteering)),
             SegmentOption(stringResource(R.string.my_drafts))), tab, select)
         if (copied) Text(stringResource(R.string.editor_copied))
-        TextAction(stringResource(R.string.ticket_refresh), refresh)
-        readError?.let { InlineError(stringResource(editErrorResource(it))) }
+        readError?.let { InlineError(stringResource(editErrorResource(it))); TextAction(stringResource(R.string.ticket_retry), refresh) }
         when (data) {
             null -> Text(stringResource(R.string.loading))
-            is MyEventsResult.Failed -> InlineError(stringResource(editErrorResource(data.error)))
+            is MyEventsResult.Failed -> {
+                InlineError(stringResource(editErrorResource(data.error)))
+                TextAction(stringResource(R.string.ticket_retry), refresh)
+            }
             is MyEventsResult.Ready -> {
                 if (tab == 2) {
                     if (data.drafts.isEmpty()) Text(stringResource(R.string.my_empty))
@@ -98,5 +125,6 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
                 }
             }
         }
+    }
     }
 }

@@ -6,9 +6,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import java.util.UUID
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import ru.eventpass.core.domain.*
 import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.*
@@ -21,6 +20,7 @@ sealed interface EventAction {
     data class Ticket(val ticketId: String, override val id: String = UUID.randomUUID().toString()) : EventAction
 }
 data class EventUiState(val loading: Boolean = true, val data: PublicEventResult.Found? = null,
+    val refreshing: Boolean = false,
     val notFound: Boolean = false, val readError: ProductReadError? = null, val form: RegistrationForm = RegistrationForm(),
     val submitting: Boolean = false, val error: RegistrationError? = null, val existingGuest: Boolean = false,
     val action: EventAction? = null, val receipt: GuestReceipt? = null, val fullscreen: Boolean = false)
@@ -34,24 +34,44 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
     private var eventId: EventId? = null
     private var submitJob: Job? = null
     private var formVersion = 0L
+    private var owner = 0L; private var observer: Job? = null; private var read: Job? = null
+    private var active = false
     fun bind(id: String) {
-        if (eventId != null) return
-        val key = EventId(id); eventId = key
-        viewModelScope.launch { events.observePublicEvent(key).collect { result ->
+        val key = EventId(id)
+        if (active && eventId == key) return
+        stopReading()
+        if (eventId != null && eventId != key) { close(); mutable.value = EventUiState() }
+        eventId = key; active = true; val generation = owner
+        mutable.value = state.value.copy(loading = state.value.data == null && !state.value.notFound)
+        observer = viewModelScope.launch { events.observePublicEvent(key).collect { result -> if (generation == owner) {
             val current = mutable.value
+            val stale = result is PublicEventResult.Found && current.data?.event?.formVersion?.let { it != result.event.formVersion } == true
+            if (stale) { formVersion++; submitJob?.cancel() }
             mutable.value = when (result) {
                 is PublicEventResult.Found -> current.copy(loading = false, data = result, notFound = false, readError = null,
-                    form = if (current.data == null) RegistrationForm(result.contact?.name.orEmpty(), result.contact?.email.orEmpty(), result.contact?.phone.orEmpty()) else current.form)
+                    form = if (current.data == null || stale) RegistrationForm(result.contact?.name.orEmpty(), result.contact?.email.orEmpty(), result.contact?.phone.orEmpty()) else current.form,
+                    error = if (stale) RegistrationError.StaleForm else current.error,
+                    submitting = current.submitting && !stale, existingGuest = current.existingGuest && !stale)
                 PublicEventResult.NotFound -> current.copy(loading = false, data = null, notFound = true, readError = null)
                 is PublicEventResult.Failed -> current.copy(loading = false, readError = result.error)
             }
-        } }
+        } } }
+    }
+    fun stopReading() {
+        active = false; owner++; observer?.cancel(); read?.cancel()
+        mutable.value = state.value.copy(loading = false, refreshing = false)
     }
     fun edit(form: RegistrationForm) { if (!mutable.value.submitting) mutable.value = mutable.value.copy(form = form, error = null, existingGuest = false) }
-    fun refresh() { eventId?.let { id -> viewModelScope.launch {
-        mutable.value = mutable.value.copy(loading = true)
-        try { events.refreshPublicEvent(id) } finally { mutable.value = mutable.value.copy(loading = false) }
-    } } }
+    fun refresh() {
+        val id = eventId ?: return
+        if (!active || state.value.receipt != null || read?.isActive == true) return
+        val generation = owner; mutable.value = state.value.copy(refreshing = !state.value.loading)
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            try { events.refreshPublicEvent(id) }
+            finally { if (generation == owner) mutable.value = state.value.copy(loading = false, refreshing = false) }
+        }
+        read = job; job.start()
+    }
     fun leaveForm() {
         formVersion++; submitJob?.cancel()
         val contact = mutable.value.data?.contact
@@ -61,7 +81,9 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
     fun close() { leaveForm(); receipt.clear(); mutable.value = mutable.value.copy(receipt = null, fullscreen = false) }
     fun consume(id: String) { if (mutable.value.action?.id == id) mutable.value = mutable.value.copy(action = null) }
     fun openOwnTicket() = viewModelScope.launch {
+        val generation = owner; if (!active) return@launch
         val result = tickets.observeMyTickets().first()
+        currentCoroutineContext().ensureActive(); if (generation != owner) return@launch
         val ticket = (result as? MyTicketsResult.Ready)?.tickets?.firstOrNull { it.snapshot.eventId == eventId && it.status != TicketStatus.CANCELLED }
         if (ticket != null) mutable.value = mutable.value.copy(action = EventAction.Ticket(ticket.snapshot.ticketId.value))
         else mutable.value = mutable.value.copy(error = when (result) {

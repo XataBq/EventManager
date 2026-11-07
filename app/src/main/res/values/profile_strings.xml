@@ -1,4 +1,5 @@
 <resources>
+    <string name="profile_refresh_conflict">Сохранённый профиль изменился. Ваши правки оставлены в форме; проверьте их перед сохранением.</string>
     <string name="profile_name">Имя</string>
     <string name="profile_user_id">ID пользователя</string>
     <string name="profile_copy_id">Скопировать ID</string>

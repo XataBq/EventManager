@@ -64,11 +64,25 @@ internal class FakeCheckInOperations(private val state: MutableStateFlow<FakePro
         }
     }
     val volunteers = object : VolunteerRepository {
-        override fun observeVolunteers(eventId: EventId): Flow<VolunteersResult> = initialized().map { s ->
-            access(s, eventId, true)?.let { return@map VolunteersResult.Failed(it.volunteer()) }
-            VolunteersResult.Ready(s.grants.filter { it.eventId == eventId && it.active }.map { grant ->
+        private fun list(s: FakeProductState, eventId: EventId): VolunteersResult {
+            access(s, eventId, true)?.let { return VolunteersResult.Failed(it.volunteer()) }
+            return VolunteersResult.Ready(s.grants.filter { it.eventId == eventId && it.active }.map { grant ->
                 Volunteer(grant, s.accounts.getValue(grant.userId).email, s.checkIns.count { it.eventId == eventId && it.checkerId == grant.userId }) })
-        }.distinctUntilChanged()
+        }
+        override fun observeVolunteers(eventId: EventId): Flow<VolunteersResult> = initialized().map { list(it, eventId) }.distinctUntilChanged()
+        override suspend fun refreshVolunteers(eventId: EventId): VolunteersResult {
+            auth.initialize(); val generation = state.value.auth.generation
+            return withContext(Dispatchers.IO) { lock.withLock {
+                currentCoroutineContext().ensureActive(); val s = state.value
+                if (generation != s.auth.generation) return@withLock VolunteersResult.Failed(VolunteerError.SESSION_CHANGED)
+                val current = list(s, eventId); if (current is VolunteersResult.Failed) return@withLock current
+                s.nextReadError?.let {
+                    state.value = s.copy(nextReadError = null)
+                    return@withLock VolunteersResult.Failed(VolunteerError.valueOf(it.name))
+                }
+                current
+            } }
+        }
         override suspend fun grant(eventId: EventId, emailOrId: String): VolunteerOutcome {
             val target = emailOrId.trim()
             return change(eventId) { s ->

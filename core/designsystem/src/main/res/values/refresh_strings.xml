@@ -1,0 +1,5 @@
+<resources>
+    <string name="refresh_action">Обновить данные</string>
+    <string name="refresh_active">Обновление данных</string>
+    <string name="refresh_idle">Обновление не выполняется</string>
+</resources>

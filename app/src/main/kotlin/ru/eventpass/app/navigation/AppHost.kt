@@ -131,7 +131,7 @@ private fun PublicNavigation(session: AppSessionViewModel) {
                     session.prefill(email)
                     if (returning) session.requireLogin(ReturnDestination.Event(route.eventId)) else session.clearDestination()
                     stack.add(EventAuthKey(route.flowId, if (signup) EventAuthScreen.SignUp else EventAuthScreen.Login))
-                }, {}, { pop() }) }
+                }, {}, { pop() }, visible = stack.lastOrNull() == route) }
                 entry<EventAuthKey> { route ->
                     fun push(screen: EventAuthScreen) { stack.add(route.copy(screen = screen)) }
                     when (route.screen) {

@@ -1,5 +1,7 @@
 # EventPass — Android
 
+**T09a — READY_FOR_HUMAN, 7 ноября.** Обычные продуктовые кнопки «Обновить» заменены жестом сверху вниз у Tickets/list/card, MyEvents, public Event, Dashboard/Volunteers и Profile. Обновляется только видимая entry/её ресурс; сохранены выбор, query и dirty fields. 187 JVM / 26 device API 33 + 9 повторов с жестами, assemble/lint/DI/isolation успешны. [Проверки и новый ручной checklist](docs/30-t09a-refresh-validation.md), [архитектура](docs/architecture/t09a-refresh.md). Приёмка нового UX ожидается; прежняя приёмка demo 6 ноября сохраняется, Q10/T10 отдельно.
+
 **T09 — IN_PROGRESS; независимый срез READY_FOR_HUMAN, исправление code 19.** SAF pending и запись сохраняются при configuration recreation/повороте; обычный выход, hidden/resource change и logout очищают операцию. 66 app JVM / 5 device на текущем code 19, app/test APK/lint/DI/isolation успешны. [Исправление и ручная перепроверка](docs/29-t09-saf-recreation-validation.md); исходные профиль/PDF/XLSX/resend/schema 5, полный 176 JVM и H3/H4 checklist — [28](docs/28-t09-validation.md). Q10/deletion и backend/API не согласованы; T07 camera/UI/H3/H4 ждут человека.
 
 **Back/H2 и T06 приняты на code 13.** Подтверждено пользователем 1 ноября; условие T07 UI снято. H3/H4 ожидаются.
@@ -8,7 +10,7 @@
 
 **T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. [Отчёт](docs/20-t06-validation.md).
 
-**Текущий APK T09:** [code 19](artifacts/apk/eventpass-0.9.1-t09-demo-code19.apk), **0.9.1-t09-demo**, **44488135 байт**, SHA-256 `660f12f354dd963066a24f3a17cee318fcec7a302961748d4acefbd7f25c0ece`. 66 app JVM / 5 device, lint 0 errors / 4 прежних version notices; aapt/signature/DI/isolation успешны. [Проверки](docs/29-t09-saf-recreation-validation.md). Schema 5 прежняя, downgrade на code 17 с теми же данными не поддерживается. Архивные APK code 15/17/18 сохранены.
+**Текущий APK T09a:** [code 20](artifacts/apk/eventpass-0.9.2-t09a-demo-code20.apk), **0.9.2-t09a-demo**, **44871450 байт**, SHA-256 `a5a89fabffd084955d12b8658ae755ef30d4e3c3b3aa19efe47ebf7485f30d02`. [Точные проверки/ограничения](docs/30-t09a-refresh-validation.md). Schema 5/стек прежние; архив code 19 и более ранние APK сохранены. Новая ручная приёмка жеста ещё не пройдена.
 
 Мобильный MVP по Figma. T03–T06 приняты; T07 camera/UI, T08/H3 и H4 ждут человека. Независимая T09 готова к ручной проверке, полный T09 остаётся IN_PROGRESS до Q10/deletion и приёмок; T10 требует backend. Файлы и письма — demo defaults, не утверждённый API.
 

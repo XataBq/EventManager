@@ -1,5 +1,7 @@
 # План разработки для агентов
 
+**T09a — READY_FOR_HUMAN (7 ноября):** адресное обновление видимой поверхности жестом реализовано на code 20. 187 JVM / 26 device + 9 повторов с жестами, assemble/lint/DI/isolation прошли; [результаты и новый checklist](30-t09a-refresh-validation.md). Новый UX ждёт человека; предыдущая приёмка 6 ноября сохраняется, Q10/T10 отдельно.
+
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
 Актуальный статус на 2 ноября: T01 — READY_FOR_HUMAN; T02 — IN_PROGRESS; T03–T06 — DONE; **T07 и T08 — READY_FOR_HUMAN; T09 — IN_PROGRESS**. Code 19 исправляет потерю SAF pending при recreation/повороте: 66 app JVM / 5 device, [29](29-t09-saf-recreation-validation.md). Исходный независимый профиль/файлы/resend — [28](28-t09-validation.md). Back/H2/T06 приняты на code 13; T07 camera/UI/H3/H4 не приняты. Q10/deletion и backend/API ожидают согласования.
@@ -155,6 +157,12 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 **Выход:** принятый demo MVP, пригодный для API-интеграции. Его нельзя объявлять production-ready без backend.
 
+## T09a — обновление экрана жестом сверху вниз
+
+**READY_FOR_HUMAN, code 20, 7 ноября.** Реализован разрешённый объём: общий EventPassRefresh, шесть Screen / семь поверхностей, scoped read-порты Profile/Volunteers, visible + RESUMED и owner/observation guards. 187 JVM / 26 device API 33 + 9 повторов с жестами, assemble/lint/DI/isolation прошли; [APK/hash/checklist](30-t09a-refresh-validation.md), [текущее поведение](architecture/t09a-refresh.md). Новая человеческая приёмка ожидается; DONE не отмечен.
+
+Поверхности: Tickets/list/card, MyEvents/сегменты, Event текущего E, Dashboard/Volunteers того же E и Profile. Без backend/schema/Q10; прежние формы/guest receipt/Scanner/editor/SAF не приобретают reload команды. READY_FOR_HUMAN после технических проверок, DONE после новой ручной приёмки жеста.
+
 ## T10 — интеграция API (внешняя зависимость)
 
 **Зависимости:** доступный backend и согласованные контракты; T09 не обязательно ждать для ранней сверки схемы.
@@ -240,4 +248,5 @@ Remaining defects and next task:
 | H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
 | H2 | Принята пользователем | Back/H2 приняты на code 13; H3/H4 не закрыты. |
 | H3–H4 | Ожидаются | Приёмка H2 их не закрывает |
+| T09a | READY_FOR_HUMAN, code 20 | Обычные refresh buttons удалены; адресный pull/semantic action, single-flight и retention, 187 JVM / 26 device; `30-t09a-refresh-validation.md`. Новый UX ждёт человека |
 | T10 | Будущий этап | API отсутствует по запросу пользователя |

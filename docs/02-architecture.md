@@ -121,3 +121,7 @@ flowchart LR
 DataStore — настройки и demo snapshot через адаптер; Room не вводить до требований к большому кэшу/пагинации. Production session storage — отдельный порт, решение после auth-контракта; не переносить demo-пароли/токены в реальную реализацию.
 
 Офлайн разрешено показать ранее сохранённый собственный билет с отметкой актуальности. Разрешать проход или выдавать новый билет при отсутствии backend-связи нельзя. Стабы работают локально по определению, но сценарий Offline должен имитировать эти ограничения. Оптимистичное изменение статуса на Used до подтверждения запрещено.
+
+## Обновление видимого экрана T09a
+
+Общий EventPassRefresh в core:designsystem рисует gesture/indicator/semantics без domain/navigation/repository. Конкретный Route связывает read своего entry VM и resource, initial/lifecycle/manual single-flight согласованы через visible + RESUMED и поколения. Общий store/schema/модули прежние; ProfileRepository.refreshProfile и VolunteerRepository.refreshVolunteers — минимальные read-порты, без команд/HTTP. [Адресное обновление T09a](architecture/t09a-refresh.md).

@@ -10,6 +10,7 @@ import ru.eventpass.core.domain.checkin.*
 import ru.eventpass.core.domain.event.*
 
 data class VolunteersUiState(val loading: Boolean = true, val volunteers: List<Volunteer> = emptyList(),
+    val refreshing: Boolean = false, val readError: VolunteerError? = null,
     val input: String = "", val revoke: Volunteer? = null, val busy: Boolean = false,
     val error: VolunteerError? = null, val denied: Boolean = false, val revokeError: VolunteerError? = null)
 
@@ -19,17 +20,35 @@ class VolunteersViewModel @Inject constructor(private val repository: VolunteerR
     private var eventId: EventId? = null
     private var active = false
     private var observer: Job? = null; private var command: Job? = null; private var generation = 0L
+    private var read: Job? = null; private var observation = 0L
     fun start(id: String) {
         stop(); active = true; eventId = EventId(id)
-        observer = viewModelScope.launch { repository.observeVolunteers(EventId(id)).collect { result ->
-            when (result) {
-                is VolunteersResult.Ready -> mutable.value = mutable.value.copy(loading = false, volunteers = result.volunteers, error = null)
-                is VolunteersResult.Failed -> fail(result.error)
-            }
-        } }
+        val token = generation
+        observer = viewModelScope.launch { repository.observeVolunteers(EventId(id)).collect { result -> if (token == generation) {
+            observation++; accept(result)
+        } } }
     }
-    fun stop() { active = false; generation++; observer?.cancel(); command?.cancel(); mutable.value = VolunteersUiState() }
-    fun retry() { eventId?.let { start(it.value) } }
+    fun stop() { active = false; generation++; observer?.cancel(); command?.cancel(); read?.cancel(); observation = 0; mutable.value = VolunteersUiState() }
+    fun retry() = refresh()
+    private fun accept(result: VolunteersResult) {
+        when (result) {
+            is VolunteersResult.Ready -> mutable.value = state.value.copy(loading = false, volunteers = result.volunteers, readError = null)
+            is VolunteersResult.Failed -> fail(result.error, reading = true)
+        }
+    }
+    fun refresh() {
+        val id = eventId ?: return
+        if (!active || read?.isActive == true || state.value.busy || state.value.revoke != null) return
+        val token = generation; val started = observation
+        mutable.value = state.value.copy(refreshing = !state.value.loading, readError = null)
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val result = repository.refreshVolunteers(id); currentCoroutineContext().ensureActive()
+                if (token == generation && observation == started) accept(result)
+            } finally { if (token == generation) mutable.value = state.value.copy(loading = false, refreshing = false) }
+        }
+        read = job; job.start()
+    }
     fun edit(value: String) { if (!state.value.busy) mutable.value = state.value.copy(input = value.take(254), error = null) }
     fun confirm(value: Volunteer?) { if (!state.value.busy) mutable.value = state.value.copy(revoke = value, revokeError = null, error = null) }
     fun grant() { val value = state.value.input.trim(); if (value.isNotBlank()) send { repository.grant(it, value) } }
@@ -37,6 +56,7 @@ class VolunteersViewModel @Inject constructor(private val repository: VolunteerR
     private fun send(revoking: Boolean = false, action: suspend (EventId) -> VolunteerOutcome) {
         val id = eventId ?: return; val token = generation
         if (state.value.loading || state.value.busy || state.value.denied || !active) return
+        observation++
         mutable.value = state.value.copy(busy = true, error = null, revokeError = null)
         command = viewModelScope.launch {
             try {
@@ -52,10 +72,10 @@ class VolunteersViewModel @Inject constructor(private val repository: VolunteerR
             } finally { if (generation == token) mutable.value = state.value.copy(busy = false) }
         }
     }
-    private fun fail(error: VolunteerError) {
+    private fun fail(error: VolunteerError, reading: Boolean = false) {
         val denied = error in setOf(VolunteerError.AUTHENTICATION_REQUIRED, VolunteerError.FORBIDDEN,
             VolunteerError.SESSION_CHANGED, VolunteerError.NOT_FOUND)
-        mutable.value = if (denied) VolunteersUiState(loading = false, error = error, denied = true)
-        else state.value.copy(loading = false, error = error)
+        if (denied) { stop(); mutable.value = VolunteersUiState(loading = false, error = error, denied = true) }
+        else mutable.value = if (reading) state.value.copy(loading = false, readError = error) else state.value.copy(loading = false, error = error)
     }
 }

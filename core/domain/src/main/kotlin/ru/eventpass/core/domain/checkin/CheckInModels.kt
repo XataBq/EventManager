@@ -65,6 +65,7 @@ sealed interface VolunteerOutcome {
 }
 interface VolunteerRepository {
     fun observeVolunteers(eventId: EventId): Flow<VolunteersResult>
+    suspend fun refreshVolunteers(eventId: EventId): VolunteersResult
     suspend fun grant(eventId: EventId, emailOrId: String): VolunteerOutcome
     suspend fun revoke(eventId: EventId, userId: UserId): VolunteerOutcome
 }

@@ -25,5 +25,6 @@ object ProfilePolicy {
 }
 interface ProfileRepository {
     fun observeProfile(): Flow<ProfileResult>
+    suspend fun refreshProfile(): ProfileResult
     suspend fun saveProfile(fields: ProfileFields): ProfileResult
 }

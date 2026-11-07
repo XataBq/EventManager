@@ -50,3 +50,7 @@ Resend использует тот же own/current ACTIVE guard, recipient из
 - [DocumentStreamsTest](../../core/platform/src/test/kotlin/ru/eventpass/core/platform/DocumentStreamsTest.kt): close/cancel/denial/partial transfer; [ProfileFilesIntegrationTest](../../app/src/androidTest/kotlin/ru/eventpass/app/ProfileFilesIntegrationTest.kt) и [ProfileRestartTest](../../app/src/androidTest/kotlin/ru/eventpass/app/ProfileRestartTest.kt): Android/provider/QR/system picker/profile/restart. Реальные запуски — в 28, наличие тестов не равно прохождению.
 
 Q10: требуется решение об активных собственных E, чужих tickets/местах/письмах, USED/check-in audit/checker identity и повторном signup. Кнопки ложного удаления/reset нет. H3/H4, физическая камера, независимые providers и реальные backend files/delivery не принимаются автоматизацией.
+
+## Чтение профиля жестом T09a
+
+ProfileRepository.refreshProfile перечитывает read-model, не start/reset/save. Чистая форма принимает поля, dirty сохраняет name/phone/org/preference и обновляет baseline; изменение baseline с оставшимися правками показывает conflict. Refresh read error отдельна от save/confirmation error. Owner/observation guards не допускают отката новым observer/save или утечки ответа новой личности. DocumentActions/DocumentsViewModel не изменялись; SAF pending/writer по-прежнему переживают recreation, Tickets сохраняет выбранную read-model, Dashboard держит DocumentActions при paused observer. [T09a](t09a-refresh.md).

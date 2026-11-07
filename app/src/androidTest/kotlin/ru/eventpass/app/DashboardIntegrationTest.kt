@@ -59,7 +59,8 @@ class DashboardIntegrationTest {
         compose.waitUntil(10_000) { compose.onAllNodes(isDialog()).fetchSemanticsNodes().isEmpty() }
         assertEquals(0,(runBlocking { e.attendance.observeDashboard(FakeFixtures.ATTENDING).first() } as DashboardResult.Ready).dashboard.summary.registered)
         runBlocking { e.scenarios.failNextAttendanceRead(AttendanceError.TIMEOUT) }
-        reveal("dashboard-refresh"); compose.onNodeWithTag("dashboard-refresh").performClick()
+        compose.onNodeWithTag("dashboard-screen").performScrollToIndex(0)
+        compose.onNodeWithTag("dashboard-screen").performTouchInput { swipeDown() }
         compose.waitUntil(10_000) { compose.onAllNodesWithText(compose.activity.getString(R.string.auth_timeout)).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("dashboard-event").assertExists()
         compose.onNodeWithTag("tab-Profile").performClick(); compose.onNodeWithTag("tab-Events").performClick(); await("dashboard-query")

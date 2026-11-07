@@ -136,3 +136,7 @@ sequenceDiagram
 Auth: ожидание письма, повтор отправки с cooldown, задание/сброс пароля. Tickets: история, пустое состояние, отмена, fullscreen QR. MyEvents: пустые вкладки, черновики, прошедшие. Editor: вопрос/варианты/ошибки/несохранённое. Scanner: ручной ввод, permission denied, загрузка, сеть. Dashboard: отмена участника, экспорт/ошибка. Profile: подтверждение выхода/удаления и повторная аутентификация.
 
 Фильтр-иконка на «Мои билеты» и часть служебных значков не имеют поведения в заметках: по принятому Q13 скрыть, не добавлять случайные функции. Внутри Android убрать «Открыть в приложении» и браузерную формулировку разрешения камеры.
+
+## Обновление видимого экрана T09a
+
+Pull принадлежит текущей видимой entry: Tickets/list/card, MyEvents/выбранный сегмент, public Event текущего eventId, Dashboard/Volunteers того же E, Profile. Tickets/MyEvents/Event больше не запускают read из скрытого STARTED owner; host передаёт visible по tab + верхнему ключу, lifecycle — RESUMED. Обновление не меняет стек/parent/выбор/query. Fullscreen/confirmation блокируют underlying gesture; auth/editor/Scanner/guest receipt не получают reload. SAF pending при configuration change сохраняется по прежнему c75ce56. [Адресное обновление T09a](architecture/t09a-refresh.md).

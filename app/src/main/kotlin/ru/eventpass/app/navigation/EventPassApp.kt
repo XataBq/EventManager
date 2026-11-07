@@ -104,7 +104,8 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                             { navigation.currentStack.add(EditorKey(draftId = it)) },
                             { navigation.currentStack.add(EditorKey(eventId = it)) }, navigation::openEvent,
                             { navigation.currentStack.add(ScannerKey(it)) }, { navigation.currentStack.add(VolunteersKey(it)) },
-                            { navigation.currentStack.add(DashboardKey(it)) })
+                            { navigation.currentStack.add(DashboardKey(it)) },
+                            navigation.currentTab == tab && navigation.currentStack.lastOrNull() == root)
                         else ru.eventpass.app.feature.profile.ProfileRoute(
                             navigation.currentTab == tab && navigation.currentStack.lastOrNull() == root,
                             navigation::back, { profileLeave=it }, { session.signOut() }, { navigation.currentStack.add(DemoToolsKey) })
@@ -115,7 +116,7 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                         selectedTicket = id
                         while (navigation.currentStack.size > 1) navigation.currentStack.removeLastOrNull()
                         navigation.select(RootTab.Tickets)
-                    }, navigation::back) }
+                    }, navigation::back, visible = navigation.currentTab == tab && navigation.currentStack.lastOrNull() == route) }
                     entry<EditorKey> { route -> ru.eventpass.app.feature.editor.EditorRoute(route.draftId, route.eventId, route.create,
                         navigation::back, navigation::openEvent, { editorBack = it }) }
                     entry<ScannerKey> { route -> ru.eventpass.app.feature.checkin.ScannerRoute(route.eventId,

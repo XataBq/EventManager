@@ -15,6 +15,22 @@ import kotlin.coroutines.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModelTest {
+    @Test fun repeatedUserPullsDoNotQueueAndSameRevisionKeepsRowsUntilPageReadCompletes() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val repo=Repo()
+        val replies=mutableListOf<Continuation<DashboardResult>>(); var calls=0
+        repo.refreshAction={ calls++; suspendCoroutine { replies+=it } }
+        val vm=DashboardViewModel(repo,SavedStateHandle())
+        try {
+            vm.start("event"); runCurrent()
+            val page=CompletableDeferred<AttendeesResult>(); repo.load={page.await()}
+            vm.refresh(); runCurrent(); repeat(5) {vm.refresh()}; runCurrent()
+            assertEquals(1,calls); assertEquals(listOf(row),vm.state.value.rows)
+            replies.single().resume(DashboardResult.Ready(dashboard())); runCurrent()
+            assertEquals(listOf(row),vm.state.value.rows); assertTrue(vm.state.value.refreshing)
+            page.complete(AttendeesResult.Page("revision",listOf(row),1,null)); runCurrent()
+            assertFalse(vm.state.value.refreshing); assertEquals(1,calls)
+        } finally {vm.viewModelScope.cancel();Dispatchers.resetMain()}
+    }
     private val row = Attendee("registration",TicketId("ticket"),"Alex","alex@example.com","DEMO-1",TicketStatus.ACTIVE,Instant.EPOCH,null,null)
     private fun dashboard(revision: String = "revision") = AttendanceDashboard(AttendanceHeader(EventId("event"),"Title",Instant.EPOCH,"UTC","Hall",EventLifecycle.PUBLISHED,true,false),AttendanceSummary(1,0,1,19),revision,Instant.EPOCH)
     private inner class Repo : AttendanceRepository {
@@ -22,9 +38,10 @@ class DashboardViewModelTest {
         var load: suspend (String) -> AttendeesResult = { AttendeesResult.Page("revision",listOf(row),1,null) }
         var cancel: suspend (String) -> OwnerCancelResult = { OwnerCancelResult.Cancelled }
         var refresh: DashboardResult? = null
+        val reads=mutableListOf<EventId>()
         var refreshAction: (suspend () -> DashboardResult)? = null
         override fun observeDashboard(eventId: EventId) = stream
-        override suspend fun refreshDashboard(eventId: EventId) = refreshAction?.invoke() ?: refresh ?: stream.value
+        override suspend fun refreshDashboard(eventId: EventId): DashboardResult {reads+=eventId;return refreshAction?.invoke() ?: refresh ?: stream.value}
         override suspend fun attendees(eventId: EventId, query: String, cursor: AttendanceCursor?) = load(query)
         override suspend fun cancelRegistration(eventId: EventId, registrationId: String) = cancel(registrationId)
     }
@@ -83,6 +100,7 @@ class DashboardViewModelTest {
             vm.start("one"); runCurrent(); vm.refresh(); runCurrent(); vm.refresh()
             vm.stop(); vm.start("two"); runCurrent(); vm.refresh(); runCurrent()
             assertEquals(2,pending.size)
+            assertEquals(listOf(EventId("one"),EventId("two")),repo.reads)
             pending[0].resume(DashboardResult.Ready(dashboard("old"))); runCurrent()
             assertTrue(vm.state.value.refreshing); assertEquals(2,pending.size)
             pending[1].resume(DashboardResult.Ready(dashboard())); runCurrent()

@@ -104,3 +104,7 @@ READY_FOR_HUMAN означает «кодовая часть проверена,
 | GuestTicketReceipt | Новый успешный snapshot | QR виден, User не создан, другой билет/кабинет недоступен |
 | Guest flow | Fullscreen/Back, recreation, close | Тот же snapshot до закрытия; после удаления flow новый запуск его не читает |
 | Demo | Новый seed / outbox | Воспроизводимый сценарий, имитация письма обозначена; реальная рассылка не выполняется |
+
+## Чтение видимого ресурса T09a
+
+Общий gesture/indicator/semantics находится в core:designsystem, конкретная read-команда — в VM видимой entry. Refresh не является mutation/retry команды или reset формы. Для initial/lifecycle/manual read использовать один выполняющийся job и owner/resource generation; hidden/stop не запускает чтение, поздний finally не снимает refreshing нового владельца. При чтении сохранять разрешённый контент/выбор/сегмент/query/dirty input и отдельную ошибку. Observer результат важнее устаревшего refresh; Dashboard ставит follow-up только для внутренней stale page, повторный pull не создаёт очередь. Semantic action дополняет жест; наличие semantics не доказывает TalkBack-приёмку. [Адресное обновление T09a](architecture/t09a-refresh.md).
