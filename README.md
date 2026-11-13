@@ -1,18 +1,28 @@
 # EventPass — Android
 
+**T10 — последовательная реализация разрешена, M00 REVIEW_PENDING.** [Сравнение текущего кода с новыми правилами, ADR и этапы M00–M09](docs/34-api-migration-plan.md). Между этапами — автоматические проверки, обновление контекста и android-code-review; ручная проверка одна, после завершения всего цикла. Непринятый новый UX T09a входит в итоговую проверку, прежние приёмки не меняются. Исполнение и отчёты — [35](docs/35-t10-execution.md); контракты — [migration mapping](docs/api/migration-mapping.md). M01–M09 TODO, remote-кода пока нет.
+
+**Backend 1.1.1 проверен на staging, 13 ноября.** Сегодняшние изменения `6960209` → `def6565` покрывают BK01–BK09; публичные API/OpenAPI доступны, 55 сценарных проверок + 3 cleanup прошли. Для начала T10 ручек достаточно. Осталось настроить ссылки документов согласия и обеспечить доступ к тестовой почте для полного auth smoke; `guest.phone` без значения передавать как `""`. Android App Links отложены пользователем. [Результаты и границы проверки](docs/33-backend-update-2026-11-13.md). Android-интеграция этим не реализована.
+
+**Итоговое задание backend, 13 ноября:** [32-backend-final-requirements.md](docs/32-backend-final-requirements.md). Пользователь принял серверные auth/guest/session/manual-code/routes/PDF/deletion defaults; Q10 продуктово закрыт. Нужны конкретные BK/IN расширения, Android/fake ещё предстоит адаптировать. Прежние 44 ручки/OpenAPI — историческое предложение, не обязательный текущий контракт; прежние отметки Q10 «не согласован» относятся к датам реализации.
+
 **T09a — READY_FOR_HUMAN, 7 ноября.** Обычные продуктовые кнопки «Обновить» заменены жестом сверху вниз у Tickets/list/card, MyEvents, public Event, Dashboard/Volunteers и Profile. Обновляется только видимая entry/её ресурс; сохранены выбор, query и dirty fields. 187 JVM / 26 device API 33 + 9 повторов с жестами, assemble/lint/DI/isolation успешны. [Проверки и новый ручной checklist](docs/30-t09a-refresh-validation.md), [архитектура](docs/architecture/t09a-refresh.md). Приёмка нового UX ожидается; прежняя приёмка demo 6 ноября сохраняется, Q10/T10 отдельно.
 
-**T09 — IN_PROGRESS; независимый срез READY_FOR_HUMAN, исправление code 19.** SAF pending и запись сохраняются при configuration recreation/повороте; обычный выход, hidden/resource change и logout очищают операцию. 66 app JVM / 5 device на текущем code 19, app/test APK/lint/DI/isolation успешны. [Исправление и ручная перепроверка](docs/29-t09-saf-recreation-validation.md); исходные профиль/PDF/XLSX/resend/schema 5, полный 176 JVM и H3/H4 checklist — [28](docs/28-t09-validation.md). Q10/deletion и backend/API не согласованы; T07 camera/UI/H3/H4 ждут человека.
+**Ручная приёмка demo — принята, 6 ноября.** Пользователь подтвердил: «если что все ручные проверки я закрыл и принял». T01/T03–T08 и подготовленные H1–H4 приняты; независимый срез T09 (профиль/PDF/XLSX/resend/SAF) принят. Полная T09 остаётся IN_PROGRESS из-за Q10/удаления, T10 ожидает backend. [Свидетельство и пределы](docs/validation/2026-11-06-manual-acceptance.md). Build/устройство каждого ручного прогона не уточнены; последний подготовленный APK — code 19.
 
-**Back/H2 и T06 приняты на code 13.** Подтверждено пользователем 1 ноября; условие T07 UI снято. H3/H4 ожидаются.
+**Исправление Back и T06 — приняты, 1 ноября.** 1 ноября 2026 пользователь ответил «Проверил оба, замечаний нет» на вопрос о перепроверке Back и организаторском smoke T06 на code 13 (`0.7.1-t07-foundation-demo`, коммит `555a2a0`). Устройство и версия Android не сообщены. T05/H2 и T06 приняты; условие UI-интеграции T07 снято. H3/H4 этим не закрыты; новых автоматических проверок эта запись не заявляет. [Свидетельство](docs/23-navigation-back-validation.md).
 
-**T07 — READY_FOR_HUMAN, исправление code 15.** Ошибка revoke видна в Dialog с явным retry, back-camera/autofocus не обязательны в APK. 49 app JVM + 4 адресных device tests, assemble app/test, lint/DI/isolation/aapt прошли. [Результат и ограничения](docs/25-t07-fixes-validation.md). Полная UI-интеграция code 14 — [история](docs/24-t07-ui-validation.md); camera/UI человека ожидается. Backend отсутствует, API на согласовании.
+**Контракт для backend:** [полное предложение API мобильного MVP](docs/22-backend-api-contract.md), [реестр 44 методов](docs/api/endpoints.md), [OpenAPI 3.1.1](docs/api/openapi.json), [mapping и проверки](docs/api/coverage.md). Версия 0.1.0 от 31 октября; требуется согласование backend, это не уже работающий сервер. Текущая demo-реализация не изменена.
 
-**T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются. [Отчёт](docs/20-t06-validation.md).
+**T07 и T08 — DONE, приняты пользователем 6 ноября.** Camera/UI, grant/revoke, dashboard/явка и H3 закрыты общей ручной приёмкой. Технические результаты своих сборок: [T07](docs/25-t07-fixes-validation.md), [T08](docs/27-t08-refresh-validation.md). Backend/API не согласованы.
+
+Архитектура T01–T06 UI и [независимой T07 основы](docs/architecture/t07-checkin-foundation.md): [карта чтения](docs/00-documentation-map.md) → [модули и модель](docs/02-architecture.md), [ответственность](docs/architecture/responsibilities.md), [владельцы состояния](docs/architecture/state-ownership.md), [операции](docs/architecture/operations.md), [инварианты и тесты](docs/architecture/invariants.md). [Правила сопровождения](docs/architecture/maintenance.md). Основные спецификации описывают текущее поведение; история — отдельно. При изменении только этих документов достаточно `python scripts/verify-architecture-docs.py` и `git diff --check`.
+
+**T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 приняты в общей demo-приёмке 6 ноября. [Отчёт](docs/20-t06-validation.md).
 
 **Текущий APK T09a:** [code 20](artifacts/apk/eventpass-0.9.2-t09a-demo-code20.apk), **0.9.2-t09a-demo**, **44871450 байт**, SHA-256 `a5a89fabffd084955d12b8658ae755ef30d4e3c3b3aa19efe47ebf7485f30d02`. [Точные проверки/ограничения](docs/30-t09a-refresh-validation.md). Schema 5/стек прежние; архив code 19 и более ранние APK сохранены. Новая ручная приёмка жеста ещё не пройдена.
 
-Мобильный MVP по Figma. T03–T06 приняты; T07 camera/UI, T08/H3 и H4 ждут человека. Независимая T09 готова к ручной проверке, полный T09 остаётся IN_PROGRESS до Q10/deletion и приёмок; T10 требует backend. Файлы и письма — demo defaults, не утверждённый API.
+Мобильный MVP по Figma. Все подготовленные ручные проверки реализованного demo приняты пользователем. Остаток полной T09 — Q10/удаление после согласования; T10 требует backend. Файлы и письма — demo defaults, не утверждённый API.
 
 Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
 
@@ -89,7 +99,7 @@ $adb = 'C:\Users\XataB\AppData\Local\Android\Sdk\platform-tools\adb.exe'
 
 **История T01:** assemble/lint, 7 unit и 3 device-теста API 36.1, DI/очистка ViewModel, navigation/recreation/process death; исходный hash APK в отчёте T01. **T02.1:** assemble/lint, 24 unit и isolation. **T03:** 25 unit, 5 device, assemble/lint/isolation; актуальные результаты и hash — выше и в отчёте T03.
 
-Приёмка: T01 остаётся READY_FOR_HUMAN; H1 и auth smoke T04 приняты пользователем. T04 — DONE, T05 ждёт H2 на code 8; H2–H4 не закрыты. [H2/checks](docs/19-t05-validation.md).
+Ручной smoke T01 — в [отчёте T01](docs/15-t01-validation.md); T01 остаётся **READY_FOR_HUMAN**. H1 подтверждена пользователем 29 октября, T03 — **DONE**, запись — в [отчёте T03](docs/17-t03-validation.md). Устройство и build id человеческой приёмки не указаны; новые технические device/API-прогоны этим не заявляются. H2 и T06 приняты на code 13; H3/H4 ожидаются.
 
 ## Начать здесь
 

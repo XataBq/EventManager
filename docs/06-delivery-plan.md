@@ -2,9 +2,11 @@
 
 **T09a — READY_FOR_HUMAN (7 ноября):** адресное обновление видимой поверхности жестом реализовано на code 20. 187 JVM / 26 device + 9 повторов с жестами, assemble/lint/DI/isolation прошли; [результаты и новый checklist](30-t09a-refresh-validation.md). Новый UX ждёт человека; предыдущая приёмка 6 ноября сохраняется, Q10/T10 отдельно.
 
+**Документационная задача — DONE:** по запросу пользователя актуализирована архитектура T01–T06 по `c569152`, без изменения приложения. Текущие 00/02/03/05 и карты `docs/architecture/` отделяют реализацию от T07+; прежние спецификации сохранены в истории. Результат и правила поддержки — [maintenance](architecture/maintenance.md). Структурная проверка ссылок/реестров/указателей на тесты и diff пройдена; Mermaid runtime rendering и Android tests в этой задаче не выполнялись. Эта задача не закрывает организаторский smoke T06 и не запускает T07.
+
 **Изменение 27 октября:** применять [ответы B01–B08](12-backend-answers-2026-10-27.md) с последним уточнением B02: гостю сразу показываем QR и сохраняем компактные данные в saved state текущего flow до его закрытия; аккаунт автоматически не создаём. Анкета перед входом не сохраняется; телефон optional; reset по коду, confirm → ручной вход.
 
-Актуальный статус на 2 ноября: T01 — READY_FOR_HUMAN; T02 — IN_PROGRESS; T03–T06 — DONE; **T07 и T08 — READY_FOR_HUMAN; T09 — IN_PROGRESS**. Code 19 исправляет потерю SAF pending при recreation/повороте: 66 app JVM / 5 device, [29](29-t09-saf-recreation-validation.md). Исходный независимый профиль/файлы/resend — [28](28-t09-validation.md). Back/H2/T06 приняты на code 13; T07 camera/UI/H3/H4 не приняты. Q10/deletion и backend/API ожидают согласования.
+Актуальный статус на 6 ноября: **T01 и T03–T08 — DONE; H1–H4 приняты пользователем для реализованного demo; независимый срез T09 принят.** T02 продолжается по оставшимся фичам; полная T09 — IN_PROGRESS из-за Q10/deletion, T10 ожидает backend/API. Основание — прямое «если что все ручные проверки я закрыл и принял»; [запись приёмки](validation/2026-11-06-manual-acceptance.md). Build/устройство каждого пункта не уточнены; code 19 — последний подготовленный APK, а не приписанный всем проверкам build.
 
 ## Порядок
 
@@ -71,6 +73,8 @@ flowchart LR
 
 ## T03 — UI-kit и общая оболочка
 
+Готовый запрос для нового агента: [prompts/t03-ui-kit.md](prompts/t03-ui-kit.md). Он учитывает завершённую T02.1 и существующие отчёты ревью; это задание на реализацию, не свидетельство выполнения T03.
+
 **Зависимости:** T01. **Владение:** `core/designsystem`, previews, навигационные визуальные компоненты без бизнес-логики.
 
 **Статус 27 октября: READY_FOR_HUMAN.** Токены/Inter, базовые компоненты/состояния, векторные glyph и общие панели реализованы; галерея из «Билеты → Открыть UI-кит», также поверх demo-счётчика. Текущий APK `0.3.1-t03-demo`, code 3: исправлен P2 ревью `a263c21` — перекрытие профиля боковой системной панелью. Для исправления прошли assemble/lint (0 errors / 6 version notices), 6 app unit, demo isolation и все 6 device-тестов API 33 с тремя кнопками; регрессия поворотов отдельно прошла с жестами. Исходная T03 прошла 25 unit и 5 device на API 36.1. Figma прочитана частично до нового Starter limit; точная визуальная H1/TalkBack/вся матрица размеров ещё ожидаются. Источники, команды, APK SHA-256, red/green и checklist — [17-t03-validation.md](17-t03-validation.md). Версии стека и T02-контракты не менялись; следующий этап после H1 — T04 и соответствующая часть T02.
@@ -89,6 +93,8 @@ flowchart LR
 
 **Статус 29 октября: READY_FOR_HUMAN.** После подтверждённой H1 реализованы auth Route/ViewModel/Screen, outbox UI, Login startup, Activity links и session gate с очисткой root/hidden owners, foreground/expiry и guards. APK `0.4.3-t04-demo`, code 7; 56 JVM и 13 device API 33, assemble/Hilt/lint (0 errors / 4 warnings)/isolation прошли. Ручной auth smoke ожидается, H2 не закрыта. Следующая задача — T05. [18-t04-validation.md](18-t04-validation.md). Ниже сохранён foundation-этап 28 октября.
 
+Следующая итерация: [промпт оставшейся UI-интеграции T04](prompts/t04-ui-integration.md), подготовлен после ревью `893486e` от 28 октября без новых подтверждённых дефектов в проверенном diff. Независимая foundation-часть уже выполнена. **29 октября пользователь подтвердил H1: UI-интеграцию можно начинать без повторного подтверждения.** [Исходный полный prompt](prompts/t04-auth-navigation.md) сохранён для истории. T04 остаётся IN_PROGRESS до реализации и проверок.
+
 **Зависимости:** T02, T03, Q03. **Владение:** `feature/auth`, app navigation, session coordinator.
 
 **Статус 28 октября: IN_PROGRESS.** Исправлены P2 ревью cfc0624: поздняя отмена входа и retry подтверждения. P2 ревью 055c14b также исправлен: единый coroutine Mutex приостанавливает ожидание общего fake-состояния без блокировки caller; всего 8 auth-регрессий. По условию prompt выполнены независимая T02.2 и модель auth-навигации; H1 не подтверждена. APK `0.4.2-t04-foundation-demo`, code 6 сохраняет техническую T03-оболочку/галерею. 54 unit исполнены повторно, 7 device на Pixel 7/API 33 (три кнопки), Hilt/assemble/lint (0 errors / 4 version warnings)/isolation прошли. Остаток после H1: G03–G05/confirm/reset Route–ViewModel–Screen, demo outbox UI, Login startup и подключение session gate к текущим stacks/decorators, foreground/expiry refresh, новые Activity links и auth device smoke. Полной готовности T04 нет; [18-t04-validation.md](18-t04-validation.md).
@@ -99,7 +105,11 @@ flowchart LR
 
 ## T05 — первый сквозной сценарий: мероприятие → регистрация → билет
 
+**Актуальный статус T05: DONE.** Back/H2 повторно приняты пользователем на code 13 1 ноября, ответ «Проверил оба, замечаний нет». [Свидетельство](23-navigation-back-validation.md). Устройство/Android не сообщены; H3/H4 ожидаются.
+
 **Статус 29 октября: READY_FOR_HUMAN.** P2 ревью `1e54b80` исправлен: finally отменённой заявки не снимает busy новой; RED/GREEN для guest/authenticated. Текущий APK `0.5.1-t05-demo`, code 9; 73 JVM, assemble app/test APK, lint/isolation успешны. Ранее пройденные 18 device + 6 повторов/real process proof относятся к code 8, новых runtime-прогонов нет. Общий E/форма, guest QR/saved state, Tickets/cancel и server snapshot v2 реализованы; H2 ожидается, после неё — T06. [19-t05-validation.md](19-t05-validation.md). Ниже — исходная постановка, включая статусы до выполнения.
+
+Готовый запрос: [prompts/t05-registration-tickets.md](prompts/t05-registration-tickets.md), подготовлен после ревью `646a1e2` без новых подтверждённых P0–P3 в проверенном diff. H1 подтверждена; ручной auth smoke T04 ещё ожидается. До его результата разрешена независимая domain/fake/persistence часть T05, зависимая интеграция — после приёмки auth. Подготовка промпта не закрывает T04/H2 и не означает начала реализации T05.
 
 **Зависимости:** T04. **Владение:** `feature/event`, `feature/tickets`.
 
@@ -111,9 +121,15 @@ flowchart LR
 
 **Актуальный статус T06: DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 ожидаются.
 
+**Текущий статус — DONE, 1 ноября.** Организаторский smoke принят на code 13 тем же явным ответом пользователя; [свидетельство](20-t06-validation.md). Условие продолжения UI T07 снято. Ниже — история реализации и прежних ожиданий.
+
 **30 октября — READY_FOR_HUMAN.** H2 принята по актуальной записи пользователя; MyEvents/editor/вопросы/cover/publish/link/close/finish подключены к общему store. 101 JVM и 9 device прошли, app/test APK/lint/isolation успешны. Code 11, `0.6.1-t06-demo`; ручной организаторский smoke остаётся за человеком, H3 целиком не закрыта. [Отчёт и checklist](20-t06-validation.md). Далее сохранена история foundation 29 октября.
 
+**Условие начала UI выполнено: H2 принята пользователем.** Независимая foundation-часть уже реализована в `797b24e`; следующий шаг — MyEvents/editor UI, picker/обложка, copy/share и сквозная интеграция. Не повторять domain/fake/persistence заново и не спрашивать H2 повторно. Актуальный [промпт T06](prompts/t06-event-editor.md), [остаток](20-t06-validation.md). T06 остаётся IN_PROGRESS; запись ниже описывает этап до H2.
+
 **29 октября — IN_PROGRESS.** Пользователь ответил «Ещё не проверял — выполнить независимую часть T06». H2/T05 остаются ожидающими. Выполнены контракты списка/редактора, отдельные неполные черновики, owner/session/revision guards, save/publish/update/close/finish в общем store, schema 3 с миграциями v1/v2 и тестами. 94 JVM, app/test APK, lint/isolation успешны; APK 0.6.0-t06-foundation-demo/code 10. MyEvents/editor UI, route guards, picker/durable cover adapter, clipboard/share и сквозной UI-путь не подключены. [Доказательства и точный остаток](20-t06-validation.md).
+
+Готовый запрос: [prompts/t06-event-editor.md](prompts/t06-event-editor.md), после ревью `dbbbea1` без новых подтверждённых P0–P3 в проверенном исправлении. Кодовая основа T05 готова; H2 ожидается на `0.5.1-t05-demo`, code 9. До приёмки можно выполнять независимую domain/fake/persistence часть T06, полную UI-интеграцию — после H2. Промпт не закрывает приёмки; начало независимой части зафиксировано выше.
 
 **Зависимости:** T05; Q06/Q08/Q12. **Владение:** `feature/my-events`, `feature/editor`.
 
@@ -125,7 +141,9 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 ## T07 — права волонтёра и сканер
 
-**READY_FOR_HUMAN, code 15.** Исправлены скрытая ошибка revoke (Network/Timeout/Storage → error/retry внутри confirmation) и implicit back-camera requirement. 49 app JVM, 4 device, app/test APK/lint/DI/isolation/aapt прошли. Ручная camera/UI-приёмка ожидается; [результат](25-t07-fixes-validation.md). Основная UI-интеграция/schema 4 прежние.
+**T07 — DONE, принято 6 ноября.** Пользователь закрыл все подготовленные ручные проверки, включая camera/UI; [запись приёмки](validation/2026-11-06-manual-acceptance.md). Code 15/revoke dialog/optional camera и автоматические результаты — [история реализации](25-t07-fixes-validation.md).
+
+Готовый запрос для продолжения: [prompts/t07-ui-integration.md](prompts/t07-ui-integration.md). Старый [полный промпт](prompts/t07-volunteers-checkin.md) сохраняется как история до foundation. Q11/B11 API пока предложение, demo ManualCode уже реализован. Backend не блокирует UI T07; H3 целиком — после T08.
 
 **Зависимости:** T06. **Владение:** `feature/volunteers`, `feature/checkin`, camera adapter.
 
@@ -135,7 +153,9 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 ## T08 — дашборд и соединение сценариев
 
-**READY_FOR_HUMAN, 2 ноября — независимая кодовая часть и исправление refresh.** Owner AttendanceRepository на общем store, dashboard/search/revision pages/cancel и общие counters готовы. Code 17: поздний refresh не перезаписывает новый observer result, pending reread не теряется, stop отменяет актуальный job; 58 app JVM / 3 device, app/test APK/lint/isolation, [27](27-t08-refresh-validation.md). Исходный срез code 16 (155 JVM) — [26](26-t08-validation.md). T07 camera/UI и общая H3 не закрыты; следующий T09.
+**T08 — DONE, принято 6 ноября, H3 закрыта.** Пользователь закрыл ручные проверки текущего demo; [запись приёмки](validation/2026-11-06-manual-acceptance.md). Dashboard/shared attendance/search/pages/cancel и refresh fix готовы; технические результаты своих сборок — [26](26-t08-validation.md)/[27](27-t08-refresh-validation.md).
+
+**Промпт подготовлен 2 ноября:** [prompts/t08-dashboard-attendance.md](prompts/t08-dashboard-attendance.md), после чтения ревью `6de02da` без новых подтверждённых P0–P3; обе прежние P2 исправлены. Историческая постановка была TODO; технический результат реализации приведён выше. Кодовая T07 готова, её camera/UI-приёмка code 15 остаётся ожидающей. Независимые dashboard/domain/fake/UI/отмена/поиск можно выполнять на готовых портах, не меняя неподтверждённое поведение камеры; общий H3 принимается человеком после T07+T08. Реальный backend пока не требуется, API-предложение не считается согласованным.
 
 **Зависимости:** T07. **Владение:** `feature/dashboard`, интеграция observe-потоков.
 
@@ -147,7 +167,11 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 ## T09 — завершение MVP и ручная приёмка
 
+**6 ноября — независимый срез принят, H4 для текущего demo закрыта.** [запись приёмки](validation/2026-11-06-manual-acceptance.md). Профиль/PDF/XLSX/resend/SAF приняты; полная T09 остаётся IN_PROGRESS из-за несогласованного Q10/deletion. Отсутствующая функция не становится реализованной через приёмку доступного UI. Новые согласования/проверки T10 потребуются после появления backend. Постановки ниже сохраняют контекст до приёмки.
+
 **IN_PROGRESS, независимый срез READY_FOR_HUMAN, 2 ноября.** Профиль, schema 5/v1–v4 migration, настоящие demo PDF/XLSX/SAF и resend готовы. Code 19 исправляет configuration lifetime SAF: 66 app JVM/5 device, [29](29-t09-saf-recreation-validation.md). Исходные 176 JVM/code 18 и единый checklist — [28](28-t09-validation.md). Полный T09 не DONE: Q10/deletion и ручные T07/H3/H4 остаются. API/T10 не начаты.
+
+**Промпт независимой части подготовлен 2 ноября:** [prompts/t09-profile-files.md](prompts/t09-profile-files.md). Прочитано ревью `aaca508`: новых подтверждённых P0–P3 нет, прежняя P2 позднего refresh исправлена. Можно выполнять профиль, настоящие demo PDF/XLSX, повтор писем через fake outbox и подготовку H4 на готовой кодовой T08. T07 camera/UI и T08/H3 ещё ждут человека; постановка не закрывает приёмки и не запускает реализацию. Q10/каскад удаления и окончательные серверные file/email правила не согласованы: удаление отложено до решения, файлы/письма — явно обратимые demo defaults. При постановке T09 было TODO; текущий IN_PROGRESS указан выше, полное завершение требует закрыть остаток, а не только независимый срез. Backend требуется для T10.
 
 **Зависимости:** T08; Q09/Q10/Q11 и согласованный экспорт. **Владение:** `feature/profile`, file adapters, интеграционные исправления.
 
@@ -161,13 +185,31 @@ Q08/Q12 приняты. По B05 владелец может закрыть ре
 
 **READY_FOR_HUMAN, code 20, 7 ноября.** Реализован разрешённый объём: общий EventPassRefresh, шесть Screen / семь поверхностей, scoped read-порты Profile/Volunteers, visible + RESUMED и owner/observation guards. 187 JVM / 26 device API 33 + 9 повторов с жестами, assemble/lint/DI/isolation прошли; [APK/hash/checklist](30-t09a-refresh-validation.md), [текущее поведение](architecture/t09a-refresh.md). Новая человеческая приёмка ожидается; DONE не отмечен.
 
-Поверхности: Tickets/list/card, MyEvents/сегменты, Event текущего E, Dashboard/Volunteers того же E и Profile. Без backend/schema/Q10; прежние формы/guest receipt/Scanner/editor/SAF не приобретают reload команды. READY_FOR_HUMAN после технических проверок, DONE после новой ручной приёмки жеста.
+**Зависимости:** принятый реализованный demo T09 и текущие VM/repository ports; Q10/удаление и backend не нужны. **Владение:** общий gesture/indicator в `core:designsystem`, адресное wiring и state/refresh guards продуктовых Route/ViewModel.
+
+**Сделать:** убрать все обычные продуктовые кнопки/ссылки «Обновить»; pull-to-refresh у Tickets/current/history/card, MyEvents/current segment, Event текущего eventId, Dashboard/Volunteers текущего E и безопасного чтения Profile. Gesture owner — только текущая видимая entry, с учётом nested scroll; hidden tab/parent не получает callback. Пустое/короткое/error content поддерживает жест. Оставить typed error retry и отдельные mutation retries. Editor/auth/Scanner/guest receipt/fullscreen/modals/SAF не приобретают общий reload: формы/QR/команды/разрешения не теряются и не повторяются. Сохранить сегмент, выбор, query и dirty input; observer/refresh/generation guards и один выполняющийся refresh.
+
+**Авто:** callback/repository/resource E1 vs E2, отсутствие команд скрытого экрана, настоящий swipeDown сверху и отсутствие refresh в середине списка, empty/error/повтор/завершение indicator, поздние ответы после stop/logout, сохранность форм/guest receipt/Back/SAF. Публикация общего store связанным observers допустима и не считается ошибочным refresh соседнего экрана. Доступность — semantic action без обычной видимой кнопки.
+
+**Человек:** отдельный smoke нового жеста на новой сборке: root tab, внутренние сегменты, вложенные E/Dashboard/Volunteers и Back; short/empty/error; modal/fullscreen; профиль с правками, query и состояние индикатора; доступное действие обновления. Прежняя общая приёмка 6 ноября не закрывает T09a автоматически. **Выход:** READY_FOR_HUMAN после технических проверок, DONE после подтверждения. Новый отчёт T09a, APK/hash и проверки; T09/Q10 и T10 ведутся отдельно.
 
 ## T10 — интеграция API (внешняя зависимость)
 
+**Текущая постановка, 13 ноября: IN_PROGRESS, самостоятельная реализация M00–M09 разрешена пользователем. M00 REVIEW_PENDING; M01–M09 TODO.** Полный сравнительный анализ, архитектурные ADR-T10-01–07, последовательные M00–M09, зависимости и критерии — [34-api-migration-plan.md](34-api-migration-plan.md). Повторное разрешение на каждый этап не требуется. [Журнал и формат отчётов](35-t10-execution.md), [mapping M00](api/migration-mapping.md). После каждого цельного этапа — автоматические проверки, актуализация текущей документации и отдельное android-code-review, затем исправления/повторное ревью при необходимости. Ручная приёмка только после всего цикла, включая T09a; исторические H-гейты ниже не требуют промежуточного запроса человеку. TECH_ACCEPTED этапа не означает HUMAN_ACCEPTED приложения. Эта постановка заменяет прежний общий порядок T10 ниже в части последовательности/гейтов.
+
+**13 ноября — можно начинать первый remote-срез.** [Проверка обновления](33-backend-update-2026-11-13.md): backend `def6565`, staging API 1.1.1 доступен, BK01–BK09 реализованы; 55 сценарных проверок и 3 cleanup прошли. Внешняя зависимость по наличию ручек снята для начала интеграции, T10 начат с документационного M00; remote-код ещё не написан. App Links отложены пользователем. Null URL документов согласия и доступ к staging-почте остаются условиями полной приёмки auth/consent; реальные device/network/SMTP проверки не закрыты этим API-прогоном. Пустой guest phone маппить в `""`.
+
+**Последнее уточнение пользователя:** default окончания startsAt+4 часа, явный endsAt заменяет default, manual finish остаётся. Новую ticket resend-функцию не реализуем; первоначальные письма/auth resend остаются. Backend-файл [32](32-backend-final-requirements.md) сокращён до необходимых доработок. Отдельный Android-план — remote draft + Room cache/pending offline без ложного server success, решение в 08. При адаптации убрать старый demo ticket resend UI/порт в затронутом срезе; прежняя реализация и её приёмка остаются историей.
+
+**Итоговое согласование пользователя, 13 ноября:** [32 — необходимые доработки backend](32-backend-final-requirements.md) заменяет прежнее OpenAPI-предложение по перечисленным вопросам. Принимаем server /api, autoaccount, immediate session/unverified login, reset-link, один bearer 30 дней, slug/DTO/direct PDF/EVT; backend добавляет BK/IN расширения. Q10/каскад DELETE без пароля согласован, остаётся Android-реализация и проверка. Не отмечать T09/T10 DONE по одному решению. Исторические ожидания согласования ниже не требуют повторного запроса принятых вариантов.
+
+**13 ноября — backend исследован, интеграция ещё не начата.** Пользователь предоставил `EgorDikanskiy/eventpass`; [сравнение снимка `94af06f`](31-backend-gap-analysis-2026-11-13.md) содержит таблицу всех 44 target операций, предметные конфликты и порядок согласования. Существование исходников не означает готовый согласованный staging. Сначала auth/guest/lifecycle/анкета, затем вертикальные remote adapters; Q10 и серверная приёмка остаются отдельными. Текущая Android-реализация не менялась.
+
+**Подготовка контракта, 31 октября — DONE как документационная задача:** по запросу пользователя проанализированы текущий код/порты, решения и полный объём мобильного MVP; подготовлены [API v0.1.0](22-backend-api-contract.md), OpenAPI, примеры и mapping. Статус самого T10 остаётся будущим: сервера/remote нет, backend ещё не согласовал предложения. Проверки комплекта — [coverage](api/coverage.md). Следующее действие — передать комплект backend и зафиксировать согласование §15, затем первый вертикальный срез auth → событие → регистрация → билет. Приёмки H и работа T07 этим не меняются.
+
 **Зависимости:** доступный backend и согласованные контракты; T09 не обязательно ждать для ранней сверки схемы.
 
-**Сделать:** remote adapters, auth storage, DTO mapping, App Links на принадлежащем команде домене, файлы/письма сервера, реальное обновление дашборда; заменить DI. Совместимые UI/ViewModel не переписывать без основания. Сохранить fake для demo и тестов.
+**Сделать:** remote adapters, auth storage, DTO mapping, файлы/письма сервера, реальное обновление дашборда; заменить DI. App Links отложены решением пользователя 13 ноября, не входят в текущий обязательный срез T10. Совместимые UI/ViewModel не переписывать без основания. Сохранить fake для demo и тестов.
 
 **Авто:** общие repository contract tests + transport tests + staging authorization/concurrency tests. **Человек:** H2–H4 на API, два устройства/два сканера, потеря сети после submit, реальные письма и их ссылки. Не автоматизировать рассылку на реальные адреса без отдельного разрешения.
 
@@ -236,17 +278,17 @@ Remaining defects and next task:
 | Android Code Review T01 | Существующий отчёт прочитан перед T02; блокирующих находок нет | `CODE_REVIEW.md` относится к be20799; полное повторное ревью T02 не запускалось |
 | Исследование и документация | Подготовлены | Текущий набор docs, исходный Figma snapshot |
 | H0 | Продуктовые ответы получены; детали API отложены | Q-реестр, включая дополнительные ответы Q04/Q08 |
-| T01 | READY_FOR_HUMAN, 27 октября 2026 | APK 0.1.0-t01-demo; assemble/lint/7 unit/3 device/isolation/process death прошли; `15-t01-validation.md`. Ручной smoke ожидается |
+| T01 | DONE, принято 6 ноября | Общая ручная приёмка каркаса текущего demo; `validation/2026-11-06-manual-acceptance.md`. Первоначальные технические результаты — `15-t01-validation.md` |
 | T02 | IN_PROGRESS; срезы по фичам | Общий store/schema 5, Profile/Documents и T09 UI; 176 JVM в текущем срезе; remote порты впереди. |
-| T03 | DONE; H1 подтверждена 29 октября | Принятый UI-кит используется в T04, повторная H1 не запрашивается; текущий срез — `18-t04-validation.md`, история — `17-t03-validation.md` |
+| T03 | DONE, 29 октября 2026 | UI-кит/Inter/галерея/оболочка; технические проверки и история исправлений — `17-t03-validation.md`. H1 прямо подтверждена пользователем; устройство и build id приёмки не указаны |
 | T04 | DONE, 29 октября | Auth smoke code 7 подтверждён пользователем «Проверил, замечаний нет»; устройство не указано. `18-t04-validation.md` |
 | T05 | DONE | Back/H2 приняты пользователем на code 13. |
 | T06 | DONE | Организаторский smoke принят пользователем на code 13. |
-| T07 | READY_FOR_HUMAN | Code 15: revoke dialog/optional camera, 49 app JVM / 4 device, `25-t07-fixes-validation.md`; camera/UI человека ожидается. |
-| T08 | READY_FOR_HUMAN | Code 17: refresh/observer ordering, pending reread и stop, 58 app JVM / 3 device, `27-t08-refresh-validation.md`; исходная T08 — `26-t08-validation.md`. T07 camera/UI и H3 ожидаются. |
-| T09 | IN_PROGRESS; независимый срез READY_FOR_HUMAN | Code 19: SAF recreation/rotation, 66 app JVM/5 device, `29-t09-saf-recreation-validation.md`; исходная T09/schema 5 — `28-t09-validation.md`. Q10/deletion и H3/H4 остаются. |
-| H1 | Подтверждена пользователем 29 октября | Условие UI-интеграции T04 выполнено; `18-t04-validation.md` |
-| H2 | Принята пользователем | Back/H2 приняты на code 13; H3/H4 не закрыты. |
-| H3–H4 | Ожидаются | Приёмка H2 их не закрывает |
+| T07 | DONE, принято 6 ноября | Camera/UI закрыты пользователем; `validation/2026-11-06-manual-acceptance.md` |
+| T08 | DONE, принято 6 ноября | Dashboard/явка и H3 приняты; `validation/2026-11-06-manual-acceptance.md` |
+| T09 | IN_PROGRESS; независимый срез принят | Приёмка 6 ноября сохраняется. Q10 согласован 13 ноября как server DELETE без пароля; остаётся реализация/проверка, auth/guest/API-адаптация по 32 |
 | T09a | READY_FOR_HUMAN, code 20 | Обычные refresh buttons удалены; адресный pull/semantic action, single-flight и retention, 187 JVM / 26 device; `30-t09a-refresh-validation.md`. Новый UX ждёт человека |
-| T10 | Будущий этап | API отсутствует по запросу пользователя |
+| H1 | Пройдена человеком, 29 октября 2026 | Прямое подтверждение пользователя; `17-t03-validation.md`. Условие начала UI-интеграции T04 снято |
+| H2 | Принята пользователем | Back/H2 ранее приняты на code 13; все подготовленные ручные проверки demo подтверждены 6 ноября |
+| H3–H4 | Приняты пользователем 6 ноября | Для реализованного demo, без приписывания конкретных устройств/API и будущих функций; `validation/2026-11-06-manual-acceptance.md` |
+| T10 | Ожидается backend | Пользователь отправил требования, ответ ожидается. Контракт пока предложение; demo-разработку можно продолжать |
