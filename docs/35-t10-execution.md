@@ -36,8 +36,8 @@ CODE_REVIEW.md: дата, M, base/target commit или точный манифе
 
 | Этап | Статус | Реализация / ревью | Следующее действие |
 |---|---|---|---|
-| M00 | IN_PROGRESS | Исполнитель m00_implementation; исходный HEAD 0493dbd | Актуальные правила, карта API, snapshot; затем независимое ревью |
-| M01 | TODO | Read-only readiness не является реализацией | После TECH_ACCEPTED M00 |
+| M00 | TECH_ACCEPTED | aa5050f; m00_review: NO_CONFIRMED_FINDINGS, CODE_REVIEW.md:1830 | 48 методов/12 портов/33 операции; исходники не менялись |
+| M01 | IN_PROGRESS | Ответственный исполнитель m01_readiness | Transport/session/auth и рабочий login→profile |
 | M02–M09 | TODO | Не запускались | Последовательно по плану |
 
 Все H-проверки нового remote и непроверенный новый T09a UX ожидают единой финальной приёмки. Обновление этого журнала не закрывает их автоматически.
