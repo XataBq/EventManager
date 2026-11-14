@@ -20,9 +20,9 @@ class AuthLinkHandler(private val auth: AuthRepository) {
             val result = when (val link = AuthDemoLinkParser.parse(value)) {
                 null -> AuthLinkResult.Invalid
                 is AuthDemoLink.Event -> AuthLinkResult.Event(ReturnDestination.Event(link.eventId))
-                is AuthDemoLink.Confirm -> when (val confirmation = auth.confirmEmail(link.challengeId, AuthSecret(link.token))) {
+                is AuthDemoLink.Confirm -> when (val confirmation = auth.completeEmailLink(AuthSecret(link.token))) {
                     is AuthResult.Failed -> AuthLinkResult.Failed(confirmation.error)
-                    is AuthResult.Success -> AuthLinkResult.EmailConfirmed(confirmation.value)
+                    is AuthResult.Success -> AuthLinkResult.EmailConfirmed("")
                 }
             }
             currentCoroutineContext().ensureActive()

@@ -37,8 +37,8 @@ Auth/editor/publication/Scanner/guest receipt не обёрнуты в комп�
 
 ## Проверки
 
-- [RefreshOwnersTest](../../app/src/test/kotlin/ru/eventpass/app/feature/RefreshOwnersTest.kt): port/resource, single flight, retained selection/segment/form/dirty baseline, schema change, old finally/new owner/actor, observer priority.
+- [RefreshOwnersTest](../../app/src/testDemo/kotlin/ru/eventpass/app/feature/RefreshOwnersTest.kt): port/resource, single flight, retained selection/segment/form/dirty baseline, schema change, old finally/new owner/actor, observer priority.
 - [DashboardViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/dashboard/DashboardViewModelTest.kt): прежние observer/page/follow-up регрессии, no user queue, same-revision rows до ответа страницы.
 - [RefreshReadContractsTest](../../data/fake/src/test/kotlin/ru/eventpass/data/fake/product/RefreshReadContractsTest.kt): owner/account guards, typed transient read errors, прежний store/session/disk без read-мутаций.
-- [PullRefreshComponentTest](../../app/src/androidTest/kotlin/ru/eventpass/app/PullRefreshComponentTest.kt), [RefreshRoutesTest](../../app/src/androidTest/kotlin/ru/eventpass/app/RefreshRoutesTest.kt): настоящий swipeDown, long/middle/short/error, текущая/hidden entry и конкретный initiating port, overlay/guest/Scanner, dirty profile/target.
-- [DashboardIntegrationTest](../../app/src/androidTest/kotlin/ru/eventpass/app/DashboardIntegrationTest.kt) использует жест вместо удалённого dashboard-refresh. Back/SAF и прежние tests остаются адресными регрессиями; точные завершённые запуски и пределы — в 30.
+- [PullRefreshComponentTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/PullRefreshComponentTest.kt), [RefreshRoutesTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/RefreshRoutesTest.kt): настоящий swipeDown, long/middle/short/error, текущая/hidden entry и конкретный initiating port, overlay/guest/Scanner, dirty profile/target.
+- [DashboardIntegrationTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/DashboardIntegrationTest.kt) использует жест вместо удалённого dashboard-refresh. Back/SAF и прежние tests остаются адресными регрессиями; точные завершённые запуски и пределы — в 30.

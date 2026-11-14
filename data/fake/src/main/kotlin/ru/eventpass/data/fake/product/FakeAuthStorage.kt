@@ -30,9 +30,9 @@ object VolatileAuthStorage : FakeAuthStorage {
 }
 data class FakeAuthPolicy(
     val input: AuthInputPolicy = AuthInputPolicy(),
-    val challengeLifetime: Duration = Duration.ofMinutes(15),
+    val challengeLifetime: Duration = Duration.ofHours(24),
     val resendCooldown: Duration = Duration.ofMinutes(1),
-    val sessionLifetime: Duration = Duration.ofMinutes(30),
+    val sessionLifetime: Duration = Duration.ofDays(30),
     val passwordIterations: Int = 120_000,
 ) {
     init {
@@ -88,12 +88,13 @@ internal data class AuthData(
     val nextError: ru.eventpass.core.domain.auth.AuthError? = null,
 )
 
-/** Legacy auth v1 record, also embedded in product v2. No session or raw outbox secrets. */
+/** Versioned auth record; legacy v1 verification survives but reset codes/grants are retired. */
 internal object AuthSnapshotCodec {
+    const val CURRENT_MAGIC = 0x45504132 // EPA2, distinct from product schema 1..5.
     fun encode(accounts: Map<UserId, Account>, data: AuthData): ByteArray {
         val bytes = ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
-            out.writeInt(1)
+            out.writeInt(CURRENT_MAGIC)
             out.writeInt(accounts.size)
             for ((id, account) in accounts) {
                 out.writeUTF(id.value); out.writeUTF(account.email); out.writeBoolean(account.emailVerified)
@@ -114,7 +115,8 @@ internal object AuthSnapshotCodec {
     fun decode(bytes: ByteArray): Pair<Map<UserId, Account>, AuthData> {
         require(bytes.size <= 1_048_576) { "Oversized auth snapshot" }
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            require(input.readInt() == 1) { "Unsupported auth snapshot" }
+            val version = input.readInt()
+            require(version == 1 || version == CURRENT_MAGIC) { "Unsupported auth snapshot" }
             fun count() = input.readInt().also { require(it in 0..10_000) }
             val accounts = mutableMapOf<UserId, Account>()
             val passwords = mutableMapOf<UserId, PasswordProof>()
@@ -130,13 +132,14 @@ internal object AuthSnapshotCodec {
                 }
             }
             val challenges = mutableMapOf<String, StoredChallenge>()
+            val challengeIds = mutableSetOf<String>()
             repeat(count()) {
                 val c = StoredChallenge(input.readUTF(), UserId(input.readUTF()), input.readBoolean(), input.readUTF(),
                     Instant.parse(input.readUTF()), Instant.parse(input.readUTF()),
                     input.readBoolean(), input.readUTF(), input.readBoolean())
-                require(c.id !in challenges && c.userId in accounts)
+                require(challengeIds.add(c.id) && c.userId in accounts)
                 require(Base64.getDecoder().decode(c.hash).size == 32 && (c.grantHash.isEmpty() || Base64.getDecoder().decode(c.grantHash).size == 32))
-                challenges[c.id] = c
+                if (version != 1 || !c.reset) challenges[c.id] = c
             }
             require(input.available() == 0)
             return accounts to AuthData(passwords = passwords, names = names, challenges = challenges)

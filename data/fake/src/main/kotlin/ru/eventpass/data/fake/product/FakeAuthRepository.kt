@@ -63,7 +63,7 @@ internal class FakeAuthRepository(
         else SessionSnapshot(state.value.auth.generation, SessionState.Unknown)
 
     private fun snapshot(s: FakeProductState): SessionSnapshot {
-        val session = s.auth.session?.takeIf { clock.instant() < it.expiresAt }
+        val session = s.auth.session?.takeIf { it.expiresAt?.let { end -> clock.instant() < end } != false }
         return SessionSnapshot(s.auth.generation, when {
             !s.auth.healthy -> SessionState.Unknown
             session == null -> SessionState.Guest
@@ -75,7 +75,7 @@ internal class FakeAuthRepository(
         initialize()
         withContext(Dispatchers.IO) { lock.withLock {
             val s = state.value
-            if (s.auth.session?.let { clock.instant() >= it.expiresAt } == true) {
+            if (s.auth.session?.let { it.expiresAt?.let { end -> clock.instant() >= end } == true } == true) {
                 state.value = s.copy(auth = s.auth.copy(session = null, generation = s.auth.generation + 1))
             }
         } }
@@ -121,8 +121,10 @@ internal class FakeAuthRepository(
                             try { storage.write(ProductSnapshotCodec.encode(next)) }
                             catch (_: IOException) { return@withLock CompletedCommand(AuthResult.Failed(AuthError.StorageUnavailable)) }
                             if (acceptSessionOnCaller) {
+                                // Account/proof changes are durable even if the caller cancels after disk commit.
+                                // Session adoption is delayed until the caller resumes and is still current.
+                                state.value = next.copy(auth = next.auth.copy(session = s.auth.session, generation = s.auth.generation))
                                 context.ensureActive()
-                                // A session is not durable. Do not publish it before the cancellable return hop.
                                 return@withLock CompletedCommand(result, requireNotNull(next.auth.session), s.auth.generation)
                             }
                             // Account/challenge changes have committed on disk, even if their caller cancelled.
@@ -140,7 +142,7 @@ internal class FakeAuthRepository(
             context.ensureActive()
             val current = state.value
             if (current.auth.generation != completed.generation || !current.auth.healthy ||
-                current.accounts[session.account.id] != session.account || clock.instant() >= session.expiresAt
+                current.accounts[session.account.id] != session.account || session.expiresAt?.let { clock.instant() >= it } == true
             ) AuthResult.Failed(AuthError.SessionChanged)
             else {
                 // Acceptance point: active caller, no suspension/dispatcher hop after publication.
@@ -151,10 +153,10 @@ internal class FakeAuthRepository(
     }
     private fun <T> failed(s: FakeProductState, error: AuthError): Pair<FakeProductState, AuthResult<T>> = s to AuthResult.Failed(error)
 
-    override suspend fun signUp(name: String, email: String, password: AuthSecret): AuthResult<EmailChallenge> = command("signUp") { s ->
-        val mail = email.trim()
+    override suspend fun signUp(name: String, email: String, password: AuthSecret, consentAccepted: Boolean): AuthResult<Session> = command("signUp", acceptSessionOnCaller = true) { s ->
+        val mail = email.trim().lowercase(java.util.Locale.ROOT)
         when {
-            !policy.input.validName(name) || !policy.input.validEmail(mail) || !policy.input.validPassword(password) -> failed(s, AuthError.InvalidInput)
+            !consentAccepted || !policy.input.validName(name) || !policy.input.validEmail(mail) || !policy.input.validPassword(password) -> failed(s, AuthError.InvalidInput)
             s.accounts.values.any { it.email == mail } -> failed(s, AuthError.EmailTaken)
             else -> {
                 val account = Account(UserId(secrets.id()), mail, false)
@@ -162,84 +164,70 @@ internal class FakeAuthRepository(
                     passwords = s.auth.passwords + (account.id to passwordProof(password, policy.passwordIterations)),
                     names = s.auth.names + (account.id to name.trim()),
                 ))
-                issue(next, account, false)
+                val issued = issue(next, account, false).first
+                val session = Session(secrets.id(), account, clock.instant().plus(policy.sessionLifetime))
+                issued.copy(auth = issued.auth.copy(session = session)) to AuthResult.Success(session)
             }
         }
     }
 
     override suspend fun signIn(email: String, password: AuthSecret): AuthResult<Session> = command("signIn", acceptSessionOnCaller = true) { s ->
-        val account = s.accounts.values.singleOrNull { it.email == email.trim() }
+        val account = s.accounts.values.singleOrNull { it.email == email.trim().lowercase(java.util.Locale.ROOT) }
         when {
-            account == null || s.auth.passwords[account.id]?.matches(password) != true -> failed(s, AuthError.InvalidCredentials)
-            !account.emailVerified -> failed(s, AuthError.EmailUnverified)
+            !policy.input.validLoginPassword(password) || account == null || s.auth.passwords[account.id]?.matches(password) != true -> failed(s, AuthError.InvalidCredentials)
             else -> {
                 val session = Session(secrets.id(), account, clock.instant().plus(policy.sessionLifetime))
-                s.copy(auth = s.auth.copy(session = session, generation = s.auth.generation + 1)) to AuthResult.Success(session)
+                s.copy(auth = s.auth.copy(session = session)) to AuthResult.Success(session)
             }
         }
     }
 
     override suspend fun requestVerification(email: String) = request(email, false)
-    override suspend fun requestPasswordResetCode(email: String) = request(email, true)
-    private suspend fun request(email: String, reset: Boolean): AuthResult<EmailChallenge> = command("requestChallenge") { s ->
-        val account = s.accounts.values.singleOrNull { it.email == email.trim() }
+    override suspend fun requestPasswordReset(email: String) = request(email, true)
+    private suspend fun request(email: String, reset: Boolean): AuthResult<EmailDispatch> = command("requestChallenge") { s ->
+        val mail = email.trim().lowercase(java.util.Locale.ROOT)
+        val account = s.accounts.values.singleOrNull { it.email == mail }
         val previous = s.auth.challenges.values.singleOrNull { it.userId == account?.id && it.reset == reset }
         when {
-            account == null -> failed(s, AuthError.InvalidInput)
-            !reset && account.emailVerified -> failed(s, AuthError.AlreadyVerified)
+            !policy.input.validEmail(mail) -> failed(s, AuthError.InvalidInput)
+            account == null || (!reset && account.emailVerified) -> s to AuthResult.Success(EmailDispatch())
             previous != null && clock.instant() < previous.resendAt -> failed(s, AuthError.Cooldown(previous.resendAt))
             else -> issue(s, account, reset)
         }
     }
 
-    private fun issue(s: FakeProductState, account: Account, reset: Boolean): Pair<FakeProductState, AuthResult<EmailChallenge>> {
-        val token = AuthSecret(if (reset) secrets.resetCode() else secrets.token())
+    private fun issue(s: FakeProductState, account: Account, reset: Boolean): Pair<FakeProductState, AuthResult<EmailDispatch>> {
+        val token = AuthSecret(secrets.token())
         val challenge = EmailChallenge(secrets.id(), account.email, clock.instant().plus(policy.challengeLifetime), clock.instant().plus(policy.resendCooldown))
         val stored = StoredChallenge(challenge.id, account.id, reset, digest(token), challenge.expiresAt, challenge.resendAt)
         val data = s.auth.copy(challenges = s.auth.challenges.filterValues { it.userId != account.id || it.reset != reset } + (challenge.id to stored),
             mail = s.auth.mail.takeLast(63) + FakeAuthMail(challenge, reset, token))
-        return s.copy(auth = data) to AuthResult.Success(challenge)
+        return s.copy(auth = data) to AuthResult.Success(EmailDispatch(challenge.resendAt))
     }
 
-    private fun challengeError(c: StoredChallenge?, token: AuthSecret, reset: Boolean): AuthError? = when {
-        c == null || c.reset != reset || c.hash != digest(token) -> AuthError.InvalidChallenge
-        c.consumed -> AuthError.ConsumedChallenge
-        clock.instant() >= c.expiresAt -> AuthError.ExpiredChallenge
-        else -> null
-    }
-    override suspend fun confirmEmail(challengeId: String, token: AuthSecret): AuthResult<String> = command("confirmEmail") { s ->
-        val c = s.auth.challenges[challengeId]
-        val error = challengeError(c, token, false)
-        if (error != null) failed(s, error) else {
-            val challenge = requireNotNull(c)
-            val account = s.accounts.getValue(challenge.userId)
-            s.copy(accounts = s.accounts + (account.id to account.copy(emailVerified = true)), auth = s.auth.copy(
-                challenges = s.auth.challenges + (challenge.id to challenge.copy(consumed = true)),
-            )) to AuthResult.Success(account.email)
-        }
-    }
-
-    override suspend fun verifyResetCode(challengeId: String, code: AuthSecret): AuthResult<AuthSecret> = command("verifyResetCode") { s ->
-        val c = s.auth.challenges[challengeId]
-        val error = challengeError(c, code, true)
-        if (error != null) failed(s, error) else {
-            val challenge = requireNotNull(c)
-            val grant = AuthSecret(secrets.token())
-            s.copy(auth = s.auth.copy(challenges = s.auth.challenges +
-                (challenge.id to challenge.copy(consumed = true, grantHash = digest(grant))))) to AuthResult.Success(grant)
-        }
-    }
-    override suspend fun resetPassword(grant: AuthSecret, password: AuthSecret): AuthResult<Unit> = command("resetPassword") { s ->
-        val c = s.auth.challenges.values.singleOrNull { it.reset && it.grantHash == digest(grant) }
+    override suspend fun completeEmailLink(token: AuthSecret, password: AuthSecret?): AuthResult<Unit> = command("completeEmailLink") { s ->
+        val c = s.auth.challenges.values.singleOrNull { it.hash == digest(token) }
         when {
             c == null -> failed(s, AuthError.InvalidChallenge)
-            c.resetUsed -> failed(s, AuthError.ConsumedChallenge)
+            c.consumed || c.resetUsed -> failed(s, AuthError.ConsumedChallenge)
             clock.instant() >= c.expiresAt -> failed(s, AuthError.ExpiredChallenge)
-            !policy.input.validPassword(password) -> failed(s, AuthError.InvalidInput)
-            else -> s.copy(auth = s.auth.copy(passwords = s.auth.passwords + (c.userId to passwordProof(password, policy.passwordIterations)),
-                challenges = s.auth.challenges + (c.id to c.copy(resetUsed = true)),
-                session = null, generation = s.auth.generation + 1)) to AuthResult.Success(Unit)
+            c.reset && (password == null || !policy.input.validPassword(password)) -> failed(s, AuthError.InvalidInput)
+            else -> {
+                val account = s.accounts.getValue(c.userId)
+                val challenges = s.auth.challenges.mapValues { (_, other) ->
+                    if (other.userId == c.userId && (c.reset || !other.reset)) other.copy(consumed = true) else other
+                }
+                val data = s.auth.copy(challenges = challenges,
+                    passwords = if (c.reset) s.auth.passwords + (c.userId to passwordProof(requireNotNull(password), policy.passwordIterations)) else s.auth.passwords,
+                    session = if (c.reset && s.auth.session?.account?.id == c.userId) null else s.auth.session,
+                    generation = s.auth.generation + if (c.reset) 1 else 0)
+                s.copy(accounts = s.accounts + (account.id to account.copy(emailVerified = true)), auth = data) to AuthResult.Success(Unit)
+            }
         }
+    }
+
+    override suspend fun consentDocuments(): AuthResult<ConsentDocuments> = command("consentDocuments") { s ->
+        s to AuthResult.Success(ConsentDocuments(ConsentDocument(null, null), ConsentDocument(null, null)))
     }
 
     suspend fun reset(seed: FakeProductState) = withContext(Dispatchers.IO) {

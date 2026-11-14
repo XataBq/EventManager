@@ -36,10 +36,10 @@ class TicketPersistenceTest {
         assertEquals(SessionState.Guest, restarted.auth.observeSession().first().state)
         assertTrue(restarted.scenarios.outbox().isEmpty())
         assertEquals(GuestRegistrationOutcome.ExistingRegistration("guest@example.com"), restarted.registrations.submitGuest(guest()))
-        val challenge = (restarted.auth.signUp("李", "guest@example.com", AuthSecret("GuestPass123!")) as AuthResult.Success).value
+        val challenge = (restarted.auth.signUp("李", "guest@example.com", AuthSecret("GuestPass123!"), true) as AuthResult.Success).value
         val mail = restarted.scenarios.authOutbox().last()
-        assertTrue(restarted.auth.confirmEmail(challenge.id, mail.secret) is AuthResult.Success)
-        assertEquals(SessionState.Guest, restarted.auth.currentSession().state)
+        assertTrue(restarted.auth.completeEmailLink(mail.secret) is AuthResult.Success)
+        assertTrue(restarted.auth.currentSession().state is SessionState.Authenticated)
         login(restarted, "guest@example.com", "GuestPass123!")
         assertEquals(listOf(receipt.ticket), (restarted.tickets.observeMyTickets().first() as MyTicketsResult.Ready).tickets.map { it.snapshot })
         restarted.auth.signOut()
@@ -99,12 +99,12 @@ class TicketPersistenceTest {
         val token = AuthSecret("legacy-token")
         val challenge = StoredChallenge("legacy-challenge", FakeFixtures.ALEX, false, digest(token), clock.instant().plusSeconds(900), clock.instant())
         val auth = AuthData(passwords = initial.accounts.mapValues { passwordProof(AuthSecret("LegacyPass123!"), 1000) }, challenges = mapOf(challenge.id to challenge))
-        storage.bytes = AuthSnapshotCodec.encode(initial.accounts, auth)
+        storage.bytes = LegacyAuthV1Fixture.encode(initial.accounts, auth)
         val e = backend(storage)
         e.registrations.submitGuest(guest())
         assertEquals(5, java.io.DataInputStream(java.io.ByteArrayInputStream(storage.bytes!!)).readInt())
         val restarted = backend(storage); login(restarted, password = "LegacyPass123!")
-        assertTrue(restarted.auth.confirmEmail(challenge.id, token) is AuthResult.Success)
+        assertTrue(restarted.auth.completeEmailLink(token) is AuthResult.Success)
         assertEquals(GuestRegistrationOutcome.ExistingRegistration("guest@example.com"), restarted.registrations.submitGuest(guest()))
     }
 

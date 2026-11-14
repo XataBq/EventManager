@@ -27,7 +27,7 @@ internal class FakeProfileDocumentsOperations(private val state: MutableStateFlo
     private val beforeOperation: suspend (String) -> Unit) : ProfileRepository, DocumentsRepository {
     private fun profile(s: FakeProductState): ProfileResult {
         if (!s.auth.healthy) return ProfileResult.Failed(ProfileError.STORAGE_UNAVAILABLE)
-        val actor = s.activeAccount(authClock.instant())?.takeIf { it.emailVerified }
+        val actor = s.activeAccount(authClock.instant())
             ?: return ProfileResult.Failed(ProfileError.AUTHENTICATION_REQUIRED)
         return ProfileResult.Ready(Profile(actor, s.profileFields(actor.id)))
     }
@@ -65,7 +65,7 @@ internal class FakeProfileDocumentsOperations(private val state: MutableStateFlo
     }
     private fun access(s: FakeProductState, request: DocumentRequest): DocumentError? {
         if (!s.auth.healthy) return DocumentError.STORAGE_UNAVAILABLE
-        val actor = s.activeAccount(authClock.instant())?.takeIf { it.emailVerified } ?: return DocumentError.AUTHENTICATION_REQUIRED
+        val actor = s.activeAccount(authClock.instant()) ?: return DocumentError.AUTHENTICATION_REQUIRED
         return when (request) {
             is DocumentRequest.TicketPdf -> {
                 val t = s.tickets.singleOrNull { it.snapshot.ticketId == request.ticketId } ?: return DocumentError.NOT_FOUND

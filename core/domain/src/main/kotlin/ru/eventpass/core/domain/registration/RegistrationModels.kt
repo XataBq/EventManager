@@ -62,6 +62,7 @@ enum class FieldIssue { REQUIRED, INVALID_NAME, INVALID_EMAIL, INVALID_PHONE, IN
 data class FieldError(val field: RegistrationField, val issue: FieldIssue)
 
 sealed interface RegistrationError {
+    data object FeatureUnavailable : RegistrationError
     data class Validation(val fields: List<FieldError>) : RegistrationError
     data class Unavailable(val reason: RegistrationClosureReason) : RegistrationError
     data object NotFound : RegistrationError
@@ -135,7 +136,7 @@ sealed interface OwnTicketResult {
     data object NotFound : OwnTicketResult
     data class Failed(val error: ProductReadError) : OwnTicketResult
 }
-enum class TicketError { AUTHENTICATION_REQUIRED, NOT_FOUND, USED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, SESSION_CHANGED }
+enum class TicketError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, NOT_FOUND, USED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, SESSION_CHANGED }
 sealed interface CancelTicketOutcome {
     data class Cancelled(val ticket: Ticket) : CancelTicketOutcome
     data class Failed(val error: TicketError) : CancelTicketOutcome

@@ -1,12 +1,12 @@
 # T07: Volunteers и общий Scanner — Android wiring
 
-Текущая UI-интеграция использует существующую [foundation](t07-checkin-foundation.md), без новой state machine/store/migration. Schema 4, ManualCodePolicy и demo auth/credential semantics прежние. Backend/API-предложение не согласованы. T06/Back приняты на code 13; T07 camera/UI ожидает человека. Build/evidence — [24](../24-t07-ui-validation.md).
+Текущая UI-интеграция использует существующую [foundation](t07-checkin-foundation.md), без новой state machine/store/migration. Schema 4, ManualCodePolicy и demo auth/credential semantics прежние. Backend/API-предложение не согласованы. T06/Back приняты на code 13; T07 camera/UI принят пользователем 6 ноября; [свидетельство](../validation/2026-11-06-manual-acceptance.md). Build/evidence — [24](../24-t07-ui-validation.md).
 
 ## Ответственность
 
 | Владелец | Ответственность |
 |---|---|
-| [PrivateShell](../../app/src/main/kotlin/ru/eventpass/app/navigation/EventPassApp.kt) | ScannerKey/VolunteersKey с eventId/UUID, исходный таб/стек; current visible flag; top/system Back; denied → MyEvents + сообщение |
+| [PrivateShell](../../app/src/demo/kotlin/ru/eventpass/app/navigation/EventPassApp.kt) | ScannerKey/VolunteersKey с eventId/UUID, исходный таб/стек; current visible flag; top/system Back; denied → MyEvents + сообщение |
 | [ScannerViewModel](../../app/src/main/kotlin/ru/eventpass/app/feature/checkin/ScannerViewModel.kt) | Создаёт ровно один прежний ScannerController с viewModelScope; transient manual input/camera failure; onCleared → close |
 | [ScannerRoute](../../app/src/main/kotlin/ru/eventpass/app/feature/checkin/ScannerScreen.kt) | Lifecycle RESUMED + current entry, runtime CAMERA, launcher/settings, camera preview только при current access/permission/scanning |
 | [VolunteersViewModel](../../app/src/main/kotlin/ru/eventpass/app/feature/volunteers/VolunteersViewModel.kt) | Owner list/grant/revoke через прежний порт; transient input/confirmation/busy, generation и ensureActive после suspend |

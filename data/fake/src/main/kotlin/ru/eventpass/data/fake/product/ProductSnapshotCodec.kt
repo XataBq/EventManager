@@ -90,7 +90,7 @@ internal object ProductSnapshotCodec {
         require(bytes.size <= 8_388_608)
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
             val version = input.readInt()
-            if (version == 1) {
+            if (version == 1 || version == AuthSnapshotCodec.CURRENT_MAGIC) {
                 val (accounts, auth) = AuthSnapshotCodec.decode(bytes)
                 return seed.copy(accounts = accounts, auth = auth)
             }

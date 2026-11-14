@@ -145,6 +145,7 @@ fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit
 }
 
 fun scanErrorResource(error: CheckInError): Int = when (error) {
+    CheckInError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
     CheckInError.NETWORK -> R.string.auth_network
     CheckInError.TIMEOUT -> R.string.auth_timeout
     CheckInError.STORAGE_UNAVAILABLE -> R.string.auth_storage

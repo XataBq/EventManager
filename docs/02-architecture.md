@@ -1,126 +1,102 @@
-# Модель прав и архитектура
+# Фактическая архитектура EventPass Android
 
-Статус: целевая архитектура. T01 — пять минимальных модулей и demo-срез Route/Screen/ViewModel/repository/DI. В T02.1 добавлены модели/access/validation и общий fake для event/guest submit/tickets по email. Остальные операции, persistence и продуктовые экраны ещё не реализованы. Отчёты: [T01](15-t01-validation.md), [T02.1](16-t02-domain-fake.md).
+M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
 
-## Архитектурный стиль
+Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
 
-**T02.2, 28 октября:** перед H1 добавлены AuthRepository/результаты, auth-only snapshot того же общего fake и тестируемые SessionCoordinator/ReturnDestination/scope guards. Auth backend и event/ticket repositories используют общие accounts/session, без global role. Продуктовый UI/Activity wiring T04 ожидает H1; наличие модели не означает включённую защиту текущей технической T03-оболочки. Границы и проверки — [18-t04-validation.md](18-t04-validation.md).
+Текущий срез — T01–T09 demo: общий store/schema 5, профиль без изменения identity, свои PDF/current Active, owner XLSX и demo outbox resend. T07 camera/UI и H3/H4 ждут человека, Q10/deletion и T10 remote отсутствуют. [T09 ownership/операции](architecture/t09-profile-files.md), [attendance](architecture/t08-attendance.md), статусы — [06](06-delivery-plan.md).
 
-**MVVM:** Compose View → ViewModel с неизменяемым UiState/StateFlow → repository/use case → доменные данные. Обновлённый UiState возвращается в View. Практические соглашения по Route/Screen, событиям, ошибкам и coroutine lifecycle — в [правилах реализации](14-engineering-rules.md). Это один общий шаблон, без обязательного BaseViewModel и use case на каждый метод.
-
-## Модель предметной области
-
-```mermaid
-erDiagram
-    User ||--o{ Event : owns
-    User o|--o{ Registration : associated
-    Event ||--o{ Registration : receives
-    Registration ||--|| Ticket : issues
-    User ||--o{ VolunteerGrant : receives
-    Event ||--o{ VolunteerGrant : scopes
-    Ticket ||--o| CheckIn : admits
-    User ||--o{ CheckIn : records
-    Event ||--o{ FormVersion : defines
-    FormVersion ||--o{ Question : contains
-    FormVersion ||--o{ Registration : validates
-    Registration ||--o{ Answer : stores
-    Question ||--o{ Answer : answers
-```
-
-Это логическая модель, не обещание структуры backend-таблиц. По B02 от 27 октября гостевая регистрация содержит email и может не иметь userId; она не создаёт User. После самостоятельной регистрации аккаунта backend выдаёт ему билеты на этот email. Клиент использует ответ observeMyTickets и не выполняет привязку по произвольной строке самостоятельно.
-
-| Сущность | Минимально необходимые поля и ограничения |
-|---|---|
-| User | userId, displayName, email, emailVerified, phone?, organization?, notificationPreference; без global role |
-| Session | Anonymous / Authenticated(userId); pending verification отдельно от полной сессии |
-| Event | eventId, ownerId, title, description?, cover?, startsAt, endsAt?, zoneId, venue, capacity, lifecycle, registrationOpen, formVersionId, publicSlug |
-| EventLifecycle | Draft / Published / Finished / Cancelled; Finished по действию владельца либо endsAt; после startsAt новые регистрации закрыты |
-| Registration | registrationId, eventId, userId?, attendeeEmail, formVersionId, answers, consent, status; билет может предшествовать аккаунту; уникальность действующего участия обеспечивает backend |
-| Ticket | ticketId, registrationId, displayNumber, opaqueToken, Active/Used/Cancelled |
-| VolunteerGrant | eventId, userId, grantedBy, grantedAt, revokedAt?; один активный grant на пару |
-| CheckIn | checkInId, ticketId, eventId, checkedBy, checkedAt, checkpoint?; один успешный проход на билет |
-| FormVersion / Question / Answer | стабильные ID вопросов и вариантов; типизированные значения; версия не теряет старые ответы |
-| GuestTicketSnapshot | компактные данные билета и QR из успешного submit; только в saved state гостевого flow, без постоянного guest cache или доступа к списку билетов |
-
-`displayNumber` и `opaqueToken` различаются. Ручной ввод displayNumber допускается только как явно согласованный контракт Q11. `endsAt` завершает событие, если задан; без него требуется действие владельца. Timezone и формат времени уточняются при интеграции. PendingRegistration исключён по B04; гостю доступен только временный GuestTicketSnapshot из результата заявки, не произвольное чтение билетов.
-
-Не смешивать `capacity` (общий лимит) и `remainingPlaces` (оставшиеся места). Для domain различать Unlimited и Limited(nonNegativeCount); Limited(0) — мест нет. Отсутствующий/не загруженный ответ API означает Unknown/Loading, а не безлимит и не разрешение регистрации. Маппинг серверного null/0 фиксируется при интеграции, клиент сам остаток не распределяет.
-
-## Доступ: совокупность независимых возможностей
-
-`EventAccess` вычисляется по текущему пользователю и конкретному мероприятию. Например: `canRegister`, `canViewOwnTicket`, `canManage`, `canScan`, `canViewAttendees`, `canExport`, `canManageVolunteers`. UI не выбирает одну «самую высокую» роль.
-
-| Действие | Гость | Вошёл без связей | Участник E | Волонтёр E | Владелец E |
-|---|---|---|---|---|---|
-| Читать опубликованную страницу E | Да | Да | Да | Да | Да |
-| Зарегистрироваться на E | Гостевой путь | Да | Открыть имеющийся билет | Как обычный пользователь | Как обычный пользователь, без автоматической выдачи билета (временное Q02) |
-| Свой билет E в приложении | QR из результата заявки, пока сохранён гостевой flow; после закрытия — письмо/вход | Если билет есть на email аккаунта | Да | Только при своей регистрации | Только при своей регистрации |
-| Создать своё мероприятие | После входа | Да | Да | Да | Да |
-| Сканировать E | Нет | Нет | Нет | Да | Да |
-| Дашборд, участники, экспорт E | Нет | Нет | Нет | Нет | Да |
-| Редактировать E, выдавать/отзывать права E | Нет | Нет | Нет | Нет | Да |
-
-Колонки обозначают отдельные связи. При наличии и билета, и grant возможности объединяются. Отзыв grant не отменяет билет. Отмена билета не отзывает grant. Все операции над закрытыми данными проверяются в репозитории/fake backend и затем на настоящем сервере, даже при прямом вызове в обход UI.
-
-### Обязательный демонстрационный сценарий
-
-Один пользователь `u-alex` владеет E-A, имеет grant на E-B, билет на E-C и одновременно билет + grant на E-D. Для E-A доступны управление и сканирование; E-B — сканирование; E-C — только свой билет; E-D — оба независимых действия. Отзыв grant E-D оставляет билет E-D и все связи A/B/C. Другая сессия не получает кэш предыдущего пользователя.
-
-## Слои и зависимости
+## Модули и зависимости исходников
 
 ```mermaid
 flowchart LR
-    app["app: DI, navigation, lifecycle"] --> features["Фичи: Compose и ViewModel"]
-    features --> design["core:designsystem"]
-    features --> domain["core:domain: модели, порты, политики"]
-    fake["data:fake: общее состояние и сценарии"] --> domain
-    remote["data:remote: будущий API и DTO mapping"] --> domain
-    app --> fake
-    app --> remote
-    platform["core:platform: камера, файлы, ссылки"] --> domain
-    app --> platform
+    appMain["app main: Activity, host, feature пакеты"] --> domain["core:domain"]
+    appMain --> design["core:designsystem"]
+    appMain --> platform["core:platform"]
+    platform --> domain
+    demo["app demo: DI, tools, Android snapshot adapter"] --> appMain
+    demo --> fake["data:fake"]
+    fake --> domain
+    demo --> platform
+    remoteApp["app remote: DI/host"] --> appMain
+    remoteApp --> remote["data:remote auth/profile"]
+    remote --> domain
+    remoteApp --> platform
 ```
 
-Стрелки — зависимости исходного кода. `data:remote` создаётся при интеграции API, а не как пустой набор HTTP endpoints сейчас. `app` выбирает ровно одну data-реализацию на вариант сборки.
+`app main`/`app demo` — source sets **одного** Gradle-модуля, не два модуля. Прямая зависимость `app → data:fake` объявлена только demoImplementation. Точные declarations — [app](../app/build.gradle.kts), [platform](../core/platform/build.gradle.kts), [fake](../data/fake/build.gradle.kts), [domain](../core/domain/build.gradle.kts), [designsystem](../core/designsystem/build.gradle.kts).
 
-Начальная структура — **5 Gradle-модулей**, без модуля на каждый экран:
+- MVVM: Route → ViewModel → repository/domain → UiState → Screen. Use case только при сложной/повторной координации; BaseViewModel отсутствует и не требуется.
+- Hilt выбирает реализации в [DemoModule](../app/src/demo/kotlin/ru/eventpass/app/di/DemoModule.kt). UI не знает concrete fake/DTO/storage.
+- Domain и fake — Kotlin/JVM; platform/designsystem/app — Android. Domain не зависит от Android/Hilt/Compose.
+- M01: demoDebug и remoteDebug, release отключён. Remote auth/profile работает через data:remote; остальные product ports — FeatureUnavailable. Fake/tools/gallery отсутствуют в remote runtime/APK. [Точные владельцы и acceptance](architecture/t10-session-transport.md).
+- Фичи auth/event/tickets/myevents/editor/checkin/volunteers/dashboard/profile/documents и demo/gallery — пакеты app. Profile и документные действия подключены; deletion/Q10 отложен. Core platform даёт links/QR/cover/PDF/XLSX/ContentResolver streams и CameraX preview/analyzer, без repository/решения о проходе.
 
-| Модуль | Владение |
+Контракты/state/persistence T07 — [независимая основа T07](architecture/t07-checkin-foundation.md). Реестр значимых классов, их ограничения и точки изменения — [responsibilities](architecture/responsibilities.md).
+
+## Предметные связи реализованного среза
+
+```mermaid
+erDiagram
+    Account ||--o{ Event : owns
+    Account ||--o{ EventDraft : owns
+    Account o|--o{ Registration : optionalUserId
+    Event ||--o{ Registration : receives
+    Registration ||--|| Ticket : issues
+    Account ||--o{ ScanGrant : receives
+    Event ||--o{ ScanGrant : scopes
+    EventDraft o|--o| Event : publicationReceipt
+```
+
+Это связи локальной domain-модели, не структура backend tables. Account — id/email/emailVerified; имя/proof/challenges fake хранит отдельно в AuthData. У guest Registration userId может отсутствовать. Собственные tickets выдаются repository по email подтверждённой текущей сессии, не клиентской привязкой произвольного email. Повторные регистрации после cancel возможны, но действующий билет один.
+
+Вопросы встроены в Event, `formVersion` — scalar версия схемы, а Registration содержит typed answers и версию. Отдельной persisted FormVersion нет; первые CheckInRecord входят в общий snapshot. ScanGrant содержит eventId/userId/active и меняется owner-only VolunteerRepository. CheckInRepository переводит Active → Used и сохраняет первый CheckInRecord; ScannerViewModel связывает прежний ScannerController с Route и platform камерой.
+
+| Модель | Ответственность / инвариант |
 |---|---|
-| `:app` | Activity, Application, DI bindings, navigation; пакеты `feature/auth`, `event`, `tickets`, `my-events`, `editor`, `checkin`, `dashboard`, `volunteers`, `profile` |
-| `:core:domain` | Чистый Kotlin: ID, модели, интерфейсы репозиториев, EventAccessPolicy, сложные use cases |
-| `:core:designsystem` | Theme, токены, общие визуальные компоненты и previews; не знает репозитории |
-| `:core:platform` | Android-адаптеры камеры, файлов, буфера и ссылок; реализации портов |
-| `:data:fake` | Stateful fake, fixtures, управление временем/ошибками, demo storage |
+| Event | Валидная опубликованная модель; title/time/zone/venue, capacity, lifecycle/registrationOpen, questions/formVersion, metadata/cover/revision |
+| EventFields / EventDraft | Неполные редактируемые данные; owner/revision и publication receipt отдельно от валидного Event |
+| Registration | Email/optional userId, contact/answers/consent/time/formVersion; история сохраняет факт первого участника |
+| Ticket / GuestTicketSnapshot | Server билет/status и компактный snapshot выдачи; guest UI lifetime отдельно от server persistence |
+| ScanGrant | Независимая связь на E, не глобальная роль; owner grant/revoke в общем store |
+| CheckInRecord / QrToken / ManualCode | Первый проход и отдельные typed credentials; legacy Used без record не получает выдуманную историю |
+| EventCover | Opaque managed asset descriptor, не path/Bitmap/bytes |
+| Profile / DocumentSnapshot | Изменяемые поля отдельно от Account; Авторизованный immutable export snapshot, transient session generation |
+| Session / SessionSnapshot | Auth + generation; remote bearer persist только за TokenStore, не в Session/route; fake session transient |
 
-Переход к отдельным feature-модулям — только при реальной необходимости независимой разработки/времени сборки. Пакеты сразу разделены по функциям, поэтому такой переход не потребует смены доменной модели. Не создавать абстрактный BaseViewModel или use case для каждого простого getter.
+Источники: [EventModels](../core/domain/src/main/kotlin/ru/eventpass/core/domain/event/EventModels.kt), [EventEditing](../core/domain/src/main/kotlin/ru/eventpass/core/domain/event/EventEditing.kt), [registration](../core/domain/src/main/kotlin/ru/eventpass/core/domain/registration/RegistrationModels.kt), [auth](../core/domain/src/main/kotlin/ru/eventpass/core/domain/auth/AuthRepository.kt).
 
-## Состояние и события
+## Права и бизнес-границы
 
-- Compose получает неизменяемый `UiState` и callbacks. ViewModel управляет `StateFlow`; сбор состояния учитывает lifecycle.
-- Репозиторий — единственный источник билетов, прав и счётчиков. Изменение данных возвращается всем подписчикам через Flow, а не вручную через несколько ViewModel.
-- Сложные сценарии (`ResolveEventAccess`, `SubmitCheckIn`) могут иметь use case в domain. Простое чтение списка — напрямую через интерфейс репозитория. CompletePendingRegistration не реализуем.
-- `SavedStateHandle`/сохранённый back stack — для ID выбранного билета, вкладки, поискового запроса и черновика редактора события. Ответы регистрационной анкеты перед входом не сохраняем; не помещать большие объекты или токены в route.
-- Исключение для уже выданного гостевого билета: GuestTicketSnapshot с текстовыми данными/QR payload в SavedStateHandle владельца гостевого flow, связанном с saved instance state Activity. Не сохранять Bitmap/полный JSON API, не писать snapshot в постоянный клиентский cache. Пока flow в стеке, возврат восстанавливает QR; закрытие/удаление flow очищает его. Пересоздание Activity и восстановление той же Android-задачи не являются явным закрытием. Новый запуск после закрытия задачи не открывает гостевой билет.
-- Пароли не сохранять в дисковые drafts, SavedState или логах. При восстановлении после смерти процесса пароль вводится снова.
-- Snackbar может быть кратковременным effect. Значимые результаты (создан билет, разрешён проход) сохраняются как состояние/ID результата, чтобы не пропасть при смене lifecycle.
-- Выход: очистить приватный back stack, пользовательский кэш и pending actions; отменить подписки и pending запросы. Ответ старой сессии не должен попасть в новую.
+- Один аккаунт, независимые ownership/grant/ticket. Capabilities вычисляются EventAccessPolicy для eventId; не выбирать одну «самую сильную роль».
+- Public EventDetails доступен по ссылке после публикации. Draft/editor защищены owner guard в read и mutation; UI-кнопка не является защитой.
+- canScan исполняется CheckInRepository и scanner UI; owner AttendanceRepository читает список/summary и отменяет registration; owner export выполняет DocumentsRepository, перед передачей файла повторяет доступ.
+- После startsAt нельзя регистрироваться, но Event не становится Finished автоматически без endsAt. Закрытие регистрации не аннулирует выданные билеты/публичное описание.
+- capacity — общий лимит, remaining — производное; null policy capacity означает Unlimited, ошибка чтения не Unlimited. Места распределит сервер; Android не моделирует его гонку.
+- Вопросы фиксируются после первого успешного guest/auth submit даже после cancel всех. Revision защищает lost update, formVersion — схему ответов.
 
-## Ошибки и конкурентность
+Продукт — [01](01-product.md)/[12](12-backend-answers-2026-10-27.md), доступ/проверки — [invariants](architecture/invariants.md). Сроки жизни не следуют из ER-связей: см. [state ownership](architecture/state-ownership.md).
 
-Типизированные ошибки: Validation(fieldErrors), Unauthenticated, EmailUnverified, Forbidden, NotFound, CapacityReached, RegistrationClosed, AlreadyRegistered, StaleForm, Conflict, RateLimited(retryAfter), Network, Timeout, Unknown. Бизнес-ответы сканирования не смешивать с transport failure.
+## Что существует, что остаётся планом
 
-Места распределяет сервер. Android блокирует повторное нажатие во время запроса и показывает его результат, включая CapacityReached; реализацию и конкурентные тесты серверной регистрации в Android не включаем. Fake достаточно последовательно выдавать настроенные исходы. Для сканера сохраняем запрет повторного зачёта Used; детали requestId и повторов сетевого запроса подключаются только по реальному API-контракту.
+| Область | Текущая реализация | Будущее |
+|---|---|---|
+| Данные | Один FakeProductState, StateFlow/Mutex, полный schema 5 snapshot, AtomicFile adapter | data:remote и реальная server auth/observe интеграция T10 |
+| UI | Auth, common E/форма/guest QR/manual, Tickets, MyEvents/editor/cover/publish, Volunteers/Scanner/Dashboard, Profile и SAF documents | Q10/deletion после согласования, H3/H4 |
+| Связность | Внутри одного процесса/сохранённых demo-данных | Синхронизация между телефонами требует backend |
+| Offline | Управляемый локальный fake; Network/Timeout как отдельные сценарии | Проверенный production cache/remote recovery не реализованы |
 
-Локальная политика доступа управляет интерфейсом, но не является защитой сервера. Для неизвестного/другого eventId не возвращать чужие данные билета. Серверный Forbidden всегда сильнее локального grant.
+Перенос на backend меняет adapters/DI/DTO mapping и session protocol; совместимость ports/UI нужно проверять по реальному контракту, а не обещать замену одной строки URL. Текущие demo passwords/token generation/storage не production solution.
 
-## Хранение и границы офлайна
+## Поддерживающие карты
 
-Для первых unit tests достаточно памяти. До ручной приёмки T02 fake получает сохраняемый локальный snapshot и Reset demo, чтобы сценарии переживали перезапуск. Все пользователи fake существуют только локально: второй телефон не увидит изменения первого.
+- [Ответственность](architecture/responsibilities.md): кто владеет чем и куда вносить изменение.
+- [Lifecycle](architecture/state-ownership.md): память, saved state, disk, logout/flow close.
+- [Операции](architecture/operations.md): guest submit, login/logout, save/publish и commit.
+- [Инварианты](architecture/invariants.md): правила → реализация → test, с границами доказательств.
+- [03](03-navigation.md) и [05](05-data-contracts.md): фактические маршруты и контракты хранения.
 
-DataStore — настройки и demo snapshot через адаптер; Room не вводить до требований к большому кэшу/пагинации. Production session storage — отдельный порт, решение после auth-контракта; не переносить demo-пароли/токены в реальную реализацию.
-
-Офлайн разрешено показать ранее сохранённый собственный билет с отметкой актуальности. Разрешать проход или выдавать новый билет при отсутствии backend-связи нельзя. Стабы работают локально по определению, но сценарий Offline должен имитировать эти ограничения. Оптимистичное изменение статуса на Used до подтверждения запрещено.
+Прежняя целевая спецификация сохранена [в истории](history/2026-10-30-architecture/README.md); новые изменения вносятся в актуальное описание, а не добавляют над ним ещё одну датированную версию.
 
 ## Обновление видимого экрана T09a
 

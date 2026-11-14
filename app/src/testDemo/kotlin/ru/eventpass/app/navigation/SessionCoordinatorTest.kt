@@ -84,7 +84,7 @@ class SessionCoordinatorTest {
             override fun getZone(): ZoneId = ZoneOffset.UTC
             override fun withZone(zone: ZoneId): Clock = this
         }
-        val e = FakeEventPassEnvironment(time, authPolicy = FakeAuthPolicy(passwordIterations = 1_000))
+        val e = FakeEventPassEnvironment(time, authPolicy = FakeAuthPolicy(passwordIterations = 1_000, sessionLifetime = java.time.Duration.ofMinutes(30)))
         e.auth.observeSession().first()
         var clears = 0
         val c = SessionCoordinator(e.auth, backgroundScope, { clears++ })
@@ -108,11 +108,12 @@ class SessionCoordinatorTest {
 
     @Test fun confirmationLinkIsOneTimeAndNeverCreatesSession() = runTest {
         val e = environment()
-        val created = e.auth.signUp("李", "new@example.com", AuthSecret("FreshPass123!")) as AuthResult.Success
+        val created = e.auth.signUp("李", "new@example.com", AuthSecret("FreshPass123!"), true) as AuthResult.Success
         val mail = e.scenarios.authOutbox().last()
+        e.auth.signOut()
         val handler = AuthLinkHandler(e.auth)
-        val uri = "eventpass-demo://demo/confirm/${created.value.id}?token=${mail.secret.value}"
-        assertEquals(AuthLinkResult.EmailConfirmed("new@example.com"), handler.handle("cold-request", uri))
+        val uri = "eventpass-demo://demo/confirm/${mail.challenge.id}?token=${mail.secret.value}"
+        assertEquals(AuthLinkResult.EmailConfirmed(""), handler.handle("cold-request", uri))
         assertEquals(SessionState.Guest, e.auth.currentSession().state)
         assertEquals(AuthLinkResult.Duplicate, handler.handle("cold-request", uri))
         assertEquals(AuthLinkResult.Failed(AuthError.ConsumedChallenge), handler.handle("warm-request", uri))

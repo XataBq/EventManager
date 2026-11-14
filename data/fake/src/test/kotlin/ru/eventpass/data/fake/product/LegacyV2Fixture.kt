@@ -13,7 +13,7 @@ internal object LegacyV2Fixture {
     fun encode(state: FakeProductState): ByteArray = ByteArrayOutputStream().also { bytes ->
         DataOutputStream(bytes).use { out ->
             out.writeInt(2)
-            val auth = AuthSnapshotCodec.encode(state.accounts, state.auth)
+            val auth = LegacyAuthV1Fixture.encode(state.accounts, state.auth)
             out.writeInt(auth.size); out.write(auth)
             out.writeLong(state.nextId); out.writeUTF(state.policy.phone.name)
             out.writeInt(state.events.size)

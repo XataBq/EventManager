@@ -37,9 +37,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun receiveLink(intent: Intent) {
-        session.receiveLink(intent.dataString)
+        if (acceptVariantLink(intent.dataString)) session.receiveLink(intent.dataString)
         // Delivery now belongs to the retained ViewModel. Never let Activity save a secret URI.
         intent.data = null
         intent.action = Intent.ACTION_MAIN
+        // Retain only a fresh, sanitized launch intent, including after onNewIntent.
+        setIntent(Intent(Intent.ACTION_MAIN).setComponent(componentName))
     }
 }

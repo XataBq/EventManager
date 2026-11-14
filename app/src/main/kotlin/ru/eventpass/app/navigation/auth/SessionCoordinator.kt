@@ -19,6 +19,7 @@ data class PrivateScope(val sessionId: String, val userId: String)
 sealed interface SessionGate {
     data object Loading : SessionGate
     data object Login : SessionGate
+    data class Recovery(val error: AuthError) : SessionGate
     data class Shell(val scope: PrivateScope, val destination: ReturnDestination) : SessionGate
 }
 enum class AccessOutcome { Allowed, Unauthenticated, Forbidden }
@@ -35,7 +36,7 @@ object AuthNavigationPolicy {
     }
     fun canRestorePrivate(snapshot: SessionSnapshot, saved: PrivateScope): Boolean =
         (snapshot.state as? SessionState.Authenticated)?.session?.let {
-            it.id == saved.sessionId && it.account.id.value == saved.userId && it.account.emailVerified
+            it.id == saved.sessionId && it.account.id.value == saved.userId
         } == true
 }
 
@@ -62,12 +63,13 @@ class SessionCoordinator(
         if (snapshot != auth.currentSession() || snapshot == accepted) return
         val oldScope = (mutableGate.value as? SessionGate.Shell)?.scope
         val session = (snapshot.state as? SessionState.Authenticated)?.session
-            ?.takeIf { it.account.emailVerified }
+
         val newScope = session?.let { PrivateScope(it.id, it.account.id.value) }
         if (oldScope != newScope || accepted?.generation != snapshot.generation) clearPrivateState()
         accepted = snapshot
         mutableGate.value = when {
             snapshot.state == SessionState.Unknown -> SessionGate.Loading
+            snapshot.state is SessionState.Recovery -> SessionGate.Recovery((snapshot.state as SessionState.Recovery).error)
             session == null -> SessionGate.Login
             else -> SessionGate.Shell(requireNotNull(newScope), pendingDestination
                 ?: ReturnDestination.Root(ru.eventpass.app.navigation.RootTab.Tickets)).also { pendingDestination = null }

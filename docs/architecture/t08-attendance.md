@@ -1,6 +1,6 @@
 # T08: owner dashboard и общая явка
 
-Текущая demo-реализация поверх T07. Backend/API-предложение ещё не согласованы; remote cursor/polling/security protocol не утверждены. T07 camera/UI и общая H3 ожидают человека. Результаты исходного среза — [26](../26-t08-validation.md), исправления refresh — [27](../27-t08-refresh-validation.md).
+Текущая demo-реализация поверх T07. Backend/API-предложение ещё не согласованы; remote cursor/polling/security protocol не утверждены. T07 camera/UI и H3 приняты пользователем 6 ноября; [свидетельство](../validation/2026-11-06-manual-acceptance.md). Результаты исходного среза — [26](../26-t08-validation.md), исправления refresh — [27](../27-t08-refresh-validation.md).
 
 ## Ответственность и данные
 
@@ -44,7 +44,7 @@ Owner XLSX подключён через DocumentsRepository/DocumentFiles T09, 
 
 - [AttendanceTest](../../data/fake/src/test/kotlin/ru/eventpass/data/fake/product/AttendanceTest.kt): права и forged IDs/pages, guest/auth totals, Used/legacy/counter, cancel/self/race/storage/restart/schema lock, stable pages/search/revision, queued cancel/session, startsAt/end/expiry.
 - [DashboardViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/dashboard/DashboardViewModelTest.kt): old query/finally, hidden/late cancel/new owner, denial/PII cleanup, refresh snapshot/freshness, revision reset/totals; delayed refresh A после observer B, ошибка observer vs старый refresh, follow-up чтение страницы, изоляция очереди нового owner и stop после немедленного ответа с запуском отложенного job.
-- [DashboardIntegrationTest](../../app/src/androidTest/kotlin/ru/eventpass/app/DashboardIntegrationTest.kt): owner→scanner/manual→Back/явка→Volunteers→Back, query/recreation/modal errors/cancel/refresh/hidden/logout и forged volunteer route. Реальные результаты/ограничения — в отчёте, наличие теста не означает его запуск.
+- [DashboardIntegrationTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/DashboardIntegrationTest.kt): owner→scanner/manual→Back/явка→Volunteers→Back, query/recreation/modal errors/cancel/refresh/hidden/logout и forged volunteer route. Реальные результаты/ограничения — в отчёте, наличие теста не означает его запуск.
 
 Физическая камера/QR с бумаги/слабый свет и полная ручная H3 не доказаны автоматизацией T08. API 28/37, landscape/gestures/accessibility и новый OS process-kill не объявляются проверенными по API 33 recreation. Следующий срез T09, backend integration T10.
 

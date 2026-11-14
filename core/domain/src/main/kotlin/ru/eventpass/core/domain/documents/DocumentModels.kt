@@ -4,7 +4,7 @@ import java.time.Instant
 import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.*
 
-enum class DocumentError { AUTHENTICATION_REQUIRED, SESSION_CHANGED, FORBIDDEN, NOT_FOUND, NOT_CURRENT,
+enum class DocumentError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, SESSION_CHANGED, FORBIDDEN, NOT_FOUND, NOT_CURRENT,
     NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, PROVIDER_UNAVAILABLE, WRITE_FAILED }
 sealed interface DocumentRequest {
     data class TicketPdf(val ticketId: TicketId) : DocumentRequest

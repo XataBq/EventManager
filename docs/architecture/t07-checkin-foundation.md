@@ -1,6 +1,6 @@
-# T07: текущая независимая основа grants/check-in
+# T07: текущие grants/check-in и UI
 
-T06 ещё ожидает организаторского smoke; пользователь прямо выбрал независимую часть T07. Здесь описаны реализованные domain/fake/persistence и чистая модель состояния. Scanner/Volunteers routes, Hilt ViewModel/Screen, системное разрешение CAMERA, CameraX/analyzer и полный UI-путь ещё не подключены. Приёмки и числа проверок — в [отчёте](../21-t07-validation.md).
+T06 и исправление Back приняты пользователем 1 ноября на code 13; UI-интеграция T07 разрешена. Здесь описаны уже реализованные domain/fake/persistence и чистая модель состояния. Scanner/Volunteers routes, Hilt VM/Screen и CameraX/ZXing подключены к этим же портам; [Android wiring](t07-ui-lifecycle.md). Приёмки и проверки — в [отчёте](../21-t07-validation.md), остаток — в [промпте продолжения](../prompts/t07-ui-integration.md).
 
 ## Ответственность и зависимости
 
@@ -11,9 +11,9 @@ T06 ещё ожидает организаторского smoke; пользов
 | [FakeCheckInOperations](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeCheckInOperations.kt) | Guarded owner grant/revoke/list; access/checkIn в том же state/Mutex/IO/storage, что auth/tickets/editor |
 | [FakeEventPassEnvironment](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeEventPassEnvironment.kt) | Composition root новых портов, общие grants/checkIns и управляемые typed failures; никакого второго backend |
 | [ProductSnapshotCodec](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/ProductSnapshotCodec.kt) | Schema 4, чтение v1/v2/v3, manual credentials/first records; прежние writers сохраняют новые данные |
-| [DemoModule](../../app/src/demo/kotlin/ru/eventpass/app/di/DemoModule.kt) | Bindings новых портов; обычные UI/ViewModels их пока не вызывают |
+| [DemoModule](../../app/src/demo/kotlin/ru/eventpass/app/di/DemoModule.kt) | Bindings новых портов; Scanner/Volunteers VM используют те же singleton ports |
 
-Пять модулей сохранены. Domain runtime уже использовал coroutines; добавлен только test dependency на ту же зафиксированную coroutines-test, которая была в app/fake. Platform dependencies и manifest CAMERA не менялись. Decoder ещё не выбран/не подключён: его решение остаётся Android T07 после gate.
+Пять модулей сохранены. Domain runtime уже использовал coroutines; добавлен только test dependency на ту же зафиксированную coroutines-test, которая была в app/fake. Platform добавил CameraX 1.6.2, сохранив ZXing Core 3.5.4; CAMERA optional feature/runtime permission, без media/storage permissions.
 
 ## Права и операция
 
@@ -31,13 +31,13 @@ ManualCode — 12 символов алфавита `23456789ABCDEFGHJKLMNPQRSTU
 
 V4 сохраняет старый v3 product payload и добавляет проверяемый ticketId/manualCode mapping + first records. Reader валидирует уникальность codes/records, ссылки на существующий Used ticket/checker/event. V1/v2/v3 не меняют QR/ID/статус/answers/auth: manual code выводится из того же opaque payload, mapping/records сохранены и в текущей schema 5; [единые migration/writers](../05-data-contracts.md). Нельзя восстановить неизвестные checker/time для старого debug/legacy Used: AlreadyUsed.first = null, без выдуманного прохода. Текущие writers auth/editor/ticket/grants/check-in используют один codec и сохраняют соседние поля. Corrupt/truncated/unsupported snapshot не затирается seed-ом. Обратной миграции v4 → v3 нет.
 
-GuestReceiptState format не менялся. Старый saved guest receipt конструирует новый compact snapshot с тем же детерминированным code из имеющегося payload; никаких lookup по ticketId/email. Manual code ещё не показан на билетах UI — это часть интеграции после T06, не объявленная готовой поверхность.
+GuestReceiptState format не менялся. Старый saved guest receipt конструирует новый compact snapshot с тем же детерминированным code из имеющегося payload; никаких lookup по ticketId/email. Manual code показан на текущем собственном билете и guest receipt; history не показывает QR/code.
 
 ## Владение чистой моделью scanner
 
-ScannerController создаётся будущим владельцем entry и получает port + CoroutineScope; явный close удаляет observer/operation/result. State не сериализуется, credentials только в локальном параметре suspend call. После нового процесса начинается новый scan; прошлый Admitted не восстанавливается по bool. Изменение event/session scope и revoke удаляют result/PII, отменяют pending call и увеличивают generation.
+ScannerController создаётся ScannerViewModel своей entry и получает port + CoroutineScope; явный close удаляет observer/operation/result. State не сериализуется, credentials только в локальном параметре suspend call. После нового процесса начинается новый scan; прошлый Admitted не восстанавливается по bool. Изменение event/session scope и revoke удаляют result/PII, отменяют pending call и увеличивают generation.
 
-Состояния: access loading/denied, ready, permission required, scanning, submitting, result, error. Permission и foreground — явные inputs, а не системные вызовы. Manual доступен после отказа камеры. CameraActive — производное от foreground/current access/granted/scanning. Background/hidden tab в будущей Route обязан вызвать foreground(false), stop binding — close; Android use cases пока отсутствуют, их освобождение этим кодом не доказано.
+Состояния: access loading/denied, ready, permission required, scanning, submitting, result, error. Permission и foreground — явные inputs, а не системные вызовы. Manual доступен после отказа камеры. CameraActive — производное от foreground/current access/granted/scanning. Route передаёт foreground(false) при background/hidden/dispose; preview dispose освобождает свои CameraX use cases. Чистая модель сама не доказывает Android binding — device evidence отдельно.
 
 Пустой/non-decoded кадр ничего не делает; при нескольких строках одна лексикографически первая за цикл. camera generation и submitting блокируют повтор/старые callbacks. Result останавливает анализ до next; result Back → ready, не новая result entry. Network/Timeout/Storage не Invalid/успех, retry только явным новым вводом. После suspend проверяются cancellation/generation и свежий access; поздний finally не меняет новую отправку. Утрата доступа от command также останавливает scanner, даже если observer ещё не обновился.
 
@@ -48,4 +48,4 @@ ScannerController создаётся будущим владельцем entry �
 - [GuestManualCompatibilityTest](../../app/src/test/kotlin/ru/eventpass/app/feature/event/GuestManualCompatibilityTest.kt): старый JSON receipt, тот же credential без repo lookup и нового saved-state формата.
 - [LegacyV3Fixture](../../data/fake/src/test/kotlin/ru/eventpass/data/fake/product/LegacyV3Fixture.kt): замороженный writer прежнего формата, не текущий encoder.
 
-Это JVM/contract доказательства, не проверка CameraX/ImageProxy, фокуса/экспозиции, Android permission lifecycle, real QR с бумаги или полного owner→grant→scanner UI. Эти шаги разрешены после организаторского smoke T06 и перечислены в отчёте T07. H3/H4 не закрыты.
+Это JVM/contract доказательства, не проверка CameraX/ImageProxy, фокуса/экспозиции, Android permission lifecycle, real QR с бумаги или полного owner→grant→scanner UI. Android wiring выполнен после принятия T06; device evidence и ручной остаток — [24](../24-t07-ui-validation.md). H3/H4 не закрыты.

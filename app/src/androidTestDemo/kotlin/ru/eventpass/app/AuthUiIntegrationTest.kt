@@ -83,7 +83,7 @@ class AuthUiIntegrationTest {
         val email = "ui-${System.nanoTime()}@example.com"
         runBlocking {
             e.auth.signOut()
-            e.auth.signUp("Проверка", email, ru.eventpass.core.domain.auth.AuthSecret("NewDemoPass123!"))
+            e.auth.signUp("Проверка", email, ru.eventpass.core.domain.auth.AuthSecret("NewDemoPass123!"), true)
         }
         val mail = e.scenarios.authOutbox().last()
         runBlocking { e.scenarios.failNextAuth(ru.eventpass.core.domain.auth.AuthError.Network) }

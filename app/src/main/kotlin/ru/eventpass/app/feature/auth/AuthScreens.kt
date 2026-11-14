@@ -37,6 +37,11 @@ fun authErrorResource(error: AuthError): Int = when (error) {
     AuthError.StorageUnavailable -> R.string.auth_storage
     AuthError.SessionChanged -> R.string.auth_session_changed
     AuthError.Busy -> R.string.auth_busy
+    AuthError.Unauthorized -> R.string.auth_invalid_credentials
+    AuthError.Forbidden -> R.string.auth_forbidden
+    AuthError.Protocol -> R.string.remote_protocol
+    AuthError.ServerUnavailable -> R.string.remote_server_unavailable
+    AuthError.FeatureUnavailable -> R.string.feature_unavailable
 }
 
 @Composable
@@ -51,19 +56,19 @@ fun AuthColumn(modifier: Modifier = Modifier, content: @Composable ColumnScope.(
 }
 
 @Composable
-fun LoginRoute(session: AppSessionViewModel, onSignUp: () -> Unit, onReset: () -> Unit, onVerification: () -> Unit, onDemo: () -> Unit) {
+fun LoginRoute(session: AppSessionViewModel, onSignUp: () -> Unit, onReset: () -> Unit, onVerification: () -> Unit, onDemo: () -> Unit, showDemo: Boolean = true) {
     val vm: LoginViewModel = hiltViewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     val prefill by session.loginEmail.collectAsStateWithLifecycle()
     LaunchedEffect(prefill) { if (prefill.isNotEmpty()) vm.email(prefill) }
     LoginScreen(state, session.coordinator.pendingForSavedState() != null, vm::email, vm::password,
         { vm.submit(session::signIn) }, onSignUp, { session.prefill(state.email); onReset() },
-        { session.prefill(state.email); onVerification() }, onDemo)
+        { session.prefill(state.email); onVerification() }, onDemo, showDemo)
 }
 
 @Composable
 fun LoginScreen(state: LoginUiState, returning: Boolean, onEmail: (String) -> Unit, onPassword: (String) -> Unit,
-    onSubmit: () -> Unit, onSignUp: () -> Unit, onReset: () -> Unit, onVerification: () -> Unit, onDemo: () -> Unit) {
+    onSubmit: () -> Unit, onSignUp: () -> Unit, onReset: () -> Unit, onVerification: () -> Unit, onDemo: () -> Unit, showDemo: Boolean = true) {
     AuthColumn {
         Text(stringResource(R.string.auth_login), style = EventPassTypography.heading, modifier = Modifier.testTag("login-screen"))
         Text(stringResource(if (returning) R.string.auth_return_hint else R.string.auth_login_hint))
@@ -76,12 +81,12 @@ fun LoginScreen(state: LoginUiState, returning: Boolean, onEmail: (String) -> Un
         if (state.error == AuthError.EmailUnverified) TextAction(stringResource(R.string.auth_request_verification), onVerification)
         TextAction(stringResource(R.string.auth_signup), onSignUp, enabled = !state.busy)
         Text(stringResource(R.string.auth_event_hint), style = EventPassTypography.hint)
-        TextAction(stringResource(R.string.auth_demo_tools), onDemo)
+        if(showDemo) TextAction(stringResource(R.string.auth_demo_tools), onDemo)
     }
 }
 
 @Composable
-fun AccountFlowRoute(reset: Boolean, session: AppSessionViewModel, onLogin: () -> Unit, onOutbox: () -> Unit, verification: Boolean = false) {
+fun AccountFlowRoute(reset: Boolean, session: AppSessionViewModel, onLogin: () -> Unit, onOutbox: () -> Unit, verification: Boolean = false, showTools: Boolean = true) {
     val vm: AccountFlowViewModel = hiltViewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     var now by remember { mutableStateOf(vm.now()) }
@@ -100,14 +105,19 @@ fun AccountFlowRoute(reset: Boolean, session: AppSessionViewModel, onLogin: () -
         state.resendAt?.let { ((Duration.between(now, it).toMillis() + 999) / 1000).coerceAtLeast(0) } ?: 0,
         { vm.edit(email = it) }, { vm.edit(name = it) }, { vm.edit(password = it) }, { vm.edit(code = it) },
         { vm.edit(consent = it) }, { vm.submit(reset) }, { vm.resendReset() },
-        { session.prefill(state.email); onLogin() }, onOutbox)
+        { session.prefill(state.email); onLogin() }, onOutbox, showTools)
 }
 
 @Composable
 fun AccountFlowScreen(s: AccountUiState, reset: Boolean, cooldown: Long,
     onEmail: (String) -> Unit, onName: (String) -> Unit, onPassword: (String) -> Unit,
     onCode: (String) -> Unit, onConsent: (Boolean) -> Unit, onSubmit: () -> Unit,
-    onResend: () -> Unit, onLogin: () -> Unit, onOutbox: () -> Unit) {
+    onResend: () -> Unit, onLogin: () -> Unit, onOutbox: () -> Unit, showTools: Boolean = true) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    fun openDocument(url: String?) {
+        val uri = url?.let(android.net.Uri::parse) ?: return
+        if(uri.scheme == "https" && !uri.host.isNullOrBlank()) try { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri)) } catch(_: android.content.ActivityNotFoundException) { /* Browser may be unavailable. */ }
+    }
     AuthColumn {
         Text(stringResource(if (reset) R.string.auth_reset else R.string.auth_signup), style = EventPassTypography.heading)
         when (s.step) {
@@ -118,25 +128,19 @@ fun AccountFlowScreen(s: AccountUiState, reset: Boolean, cooldown: Long,
                 if (!reset) {
                     PasswordField(s.password, onPassword, stringResource(R.string.auth_password), Modifier.testTag("auth-password"), enabled = !s.busy,
                         supportingText = stringResource(R.string.auth_password_hint))
+                    s.documents?.terms?.url?.let { TextAction(stringResource(R.string.auth_terms_link), { openDocument(it) }) }
+                    s.documents?.privacy?.url?.let { TextAction(stringResource(R.string.auth_privacy_link), { openDocument(it) }) }
+                    if(s.documents != null && (s.documents.terms.url == null || s.documents.privacy.url == null)) Text(stringResource(R.string.auth_documents_unavailable))
+                    AuthErrorText(s.documentsError)
                     ConsentCheckbox(s.consent, onConsent, stringResource(R.string.auth_consent), Modifier.testTag("auth-consent"), enabled = !s.busy)
                 }
-                EventPassButton(stringResource(if (reset) R.string.auth_send_code else R.string.auth_signup), onSubmit,
+                EventPassButton(stringResource(if (reset) R.string.auth_send_link else R.string.auth_signup), onSubmit,
                     Modifier.fillMaxWidth().testTag("auth-submit"), loading = s.busy)
             }
             AccountStep.Verification -> {
-                Text(stringResource(if (s.sent) R.string.auth_verification_sent else R.string.auth_verification_pending, s.email))
+                Text(stringResource(if (s.sent) R.string.auth_mail_link_sent else R.string.auth_verification_pending, s.email))
                 EventPassButton(stringResource(R.string.auth_resend), onSubmit, enabled = cooldown == 0L, loading = s.busy)
                 TextAction(stringResource(R.string.auth_login), onLogin)
-            }
-            AccountStep.Code -> {
-                Text(stringResource(R.string.auth_code_sent, s.email))
-                PasswordField(s.code, onCode, stringResource(R.string.auth_code), Modifier.testTag("auth-code"), enabled = !s.busy)
-                EventPassButton(stringResource(R.string.auth_verify_code), onSubmit, Modifier.testTag("auth-submit"), loading = s.busy)
-                TextAction(stringResource(R.string.auth_resend), onResend, enabled = cooldown == 0L && !s.busy)
-            }
-            AccountStep.Password -> {
-                PasswordField(s.password, onPassword, stringResource(R.string.auth_new_password), Modifier.testTag("auth-password"), enabled = !s.busy)
-                EventPassButton(stringResource(R.string.auth_save_password), onSubmit, Modifier.testTag("auth-submit"), loading = s.busy)
             }
             AccountStep.Done -> {
                 Text(stringResource(R.string.auth_reset_done))
@@ -144,7 +148,7 @@ fun AccountFlowScreen(s: AccountUiState, reset: Boolean, cooldown: Long,
             }
         }
         AuthErrorText(s.error)
-        if (cooldown > 0 && s.step in listOf(AccountStep.Verification, AccountStep.Code)) Text(stringResource(R.string.auth_retry_seconds, cooldown))
-        TextAction(stringResource(R.string.auth_outbox), onOutbox)
+        if (cooldown > 0 && s.step in listOf(AccountStep.Verification)) Text(stringResource(R.string.auth_retry_seconds, cooldown))
+        if(showTools) TextAction(stringResource(R.string.auth_outbox), onOutbox)
     }
 }

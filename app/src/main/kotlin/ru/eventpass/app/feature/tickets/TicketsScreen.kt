@@ -81,7 +81,8 @@ fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Bo
                 if (selected.status == TicketStatus.ACTIVE) EventPassButton(stringResource(R.string.ticket_cancel), onCancel, Modifier.testTag("cancel-ticket"), style = ActionStyle.Danger, loading = s.cancelling)
                 s.cancelError?.let { InlineError(stringResource(when (it) {
                     TicketError.USED -> R.string.ticket_used_no_cancel
-                    TicketError.NETWORK -> R.string.auth_network
+                    TicketError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
+    TicketError.NETWORK -> R.string.auth_network
                     TicketError.TIMEOUT -> R.string.auth_timeout
                     TicketError.STORAGE_UNAVAILABLE -> R.string.auth_storage
                     TicketError.AUTHENTICATION_REQUIRED, TicketError.SESSION_CHANGED -> R.string.auth_session_changed

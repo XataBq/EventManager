@@ -13,12 +13,17 @@ android {
         applicationId = "ru.eventpass.android"
         minSdk = 28
         targetSdk = 37
-        versionCode = 20
-        versionName = "0.9.2-t09a"
+        versionCode = 21
+        versionName = "0.10.1-m01"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     flavorDimensions += "backend"
     productFlavors {
+        create("remote") {
+            dimension = "backend"
+            applicationIdSuffix = ".remote"
+            versionNameSuffix = "-remote"
+        }
         create("demo") {
             dimension = "backend"
             applicationIdSuffix = ".demo"
@@ -43,11 +48,19 @@ androidComponents.onVariants { enabledVariants += it.name }
 tasks.register("verifyDemoIsolation") {
     group = "verification"
     doLast {
-        check(enabledVariants == setOf("demoDebug")) { "Unexpected application variants: $enabledVariants" }
+        check(enabledVariants == setOf("demoDebug", "remoteDebug")) { "Unexpected application variants: $enabledVariants" }
         check(configurations.getByName("implementation").dependencies.none {
             it is ProjectDependency && it.path == ":data:fake"
         }) { "Fake must be wired only by demoImplementation" }
-        println("Only demoDebug is enabled; fake is absent from main implementation.")
+        check(configurations.getByName("remoteDebugRuntimeClasspath").incoming.resolutionResult.allComponents.none {
+            it.id.displayName.contains("project :data:fake")
+        }) { "Remote runtime must not contain fake" }
+        check(file("src/main/kotlin").walkTopDown().filter { it.extension == "kt" }.none {
+            it.readText().contains("import ru.eventpass.app.feature.tools.") ||
+                it.readText().contains("import ru.eventpass.app.feature.gallery.") ||
+                it.readText().contains("import ru.eventpass.data.fake.")
+        }) { "Main must not import demo tools, gallery or fake" }
+        println("demoDebug/remoteDebug enabled; fake absent from main and remote runtime.")
     }
 }
 kotlin { compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
@@ -57,6 +70,8 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:platform"))
     "demoImplementation"(project(":data:fake"))
+    "testDemoImplementation"(project(":data:fake"))
+    "remoteImplementation"(project(":data:remote"))
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)

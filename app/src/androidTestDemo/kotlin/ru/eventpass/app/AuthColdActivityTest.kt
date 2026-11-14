@@ -23,7 +23,7 @@ class AuthColdActivityTest {
         val email = "cold-${System.nanoTime()}@example.com"
         runBlocking {
             backend.auth().signOut()
-            backend.auth().signUp("Проверка", email, AuthSecret("ColdPass123!"))
+            backend.auth().signUp("Проверка", email, AuthSecret("ColdPass123!"), true)
         }
         val mail = backend.environment().scenarios.authOutbox().last()
         val activity = instrumentation.startActivitySync(Intent(Intent.ACTION_VIEW,

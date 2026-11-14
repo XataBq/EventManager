@@ -131,18 +131,18 @@ class CheckInTest {
         assertEquals(1, records.size)
         assertTrue(results.filterIsInstance<CheckInOutcome.AlreadyUsed>().all { it.first == records.single() })
     }
-    @Test fun expiryAndUnverifiedAccountCannotScanOrIssueGrants() = runBlocking {
+    @Test fun expiryRejectsButUnverifiedAccountCanUseEventGrant() = runBlocking {
         val authTime = Time(); val e = backend(authClock = authTime); val t = ticket(e)
-        authTime.now = authTime.now.plusSeconds(1800); e.checkIns.refreshAccess(FakeFixtures.MIXED)
+        authTime.now = authTime.now.plusSeconds(30L * 86400); e.checkIns.refreshAccess(FakeFixtures.MIXED)
         assertEquals(ScannerAccess.Denied(CheckInError.AUTHENTICATION_REQUIRED), e.checkIns.observeAccess(FakeFixtures.MIXED).first())
         assertEquals(CheckInOutcome.Failed(CheckInError.AUTHENTICATION_REQUIRED), e.checkIns.checkIn(FakeFixtures.MIXED, qr(t)))
         e.scenarios.putAccount(Account(FakeFixtures.ALEX, "alex@example.com", false)); e.scenarios.signInAs(FakeFixtures.ALEX)
-        assertEquals(CheckInOutcome.Failed(CheckInError.AUTHENTICATION_REQUIRED), e.checkIns.checkIn(FakeFixtures.MIXED, qr(t)))
+        assertTrue(e.checkIns.checkIn(FakeFixtures.MIXED, qr(t)) is CheckInOutcome.Admitted)
     }
     @Test fun v3MigrationPreservesAllFieldsAndCreatesStableManualCodesWithoutRotatingQr() = runBlocking {
         val storage = Storage(); val e = backend(storage); val t = ticket(e)
         e.events.saveDraft(DraftId("migration"), null, EventFields(title = "Неполный"))
-        e.auth.signUp("New", "new@example.com", AuthSecret("NewPass123!"))
+        e.auth.signUp("New", "new@example.com", AuthSecret("NewPass123!"), true)
         val before = ProductSnapshotCodec.restore(storage.bytes!!, seed())
         storage.bytes = LegacyV3Fixture.encode(before)
         val next = backend(storage); next.scenarios.signInAs(FakeFixtures.ALEX)
@@ -159,7 +159,7 @@ class CheckInTest {
         val storage = Storage(); val e = backend(storage); val t = ticket(e); e.scenarios.signInAs(FakeFixtures.HOST)
         e.volunteers.grant(FakeFixtures.OPEN, "alex")
         val first = e.checkIns.checkIn(FakeFixtures.MIXED, qr(t)) as CheckInOutcome.Admitted
-        e.auth.signUp("New", "new@example.com", AuthSecret("NewPass123!"))
+        e.auth.signUp("New", "new@example.com", AuthSecret("NewPass123!"), true)
         e.scenarios.signInAs(FakeFixtures.HOST)
         e.events.saveDraft(DraftId("other"), null, EventFields())
         e.registrations.submitGuest(GuestRegistrationCommand(FakeFixtures.OPEN, 1, "Guest", "guest@example.com", consentAccepted = true))

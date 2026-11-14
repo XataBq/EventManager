@@ -1,54 +1,79 @@
-# Экраны, переходы и связи
+# Текущая навигация и mobile-frame
 
-**T06 UI, 30 октября — READY_FOR_HUMAN:** Events root теперь один MyEvents (Organizing/Volunteer/Drafts). EditorKey содержит draftId либо eventId/create/entryId; guarded editor read проверяет owner до показа полей. Publish result — состояние того же entry; repeat/restart не создаёт второй E. Back shell/system/reselect Events учитывает dirty editor, private entry owners и очистка session scope сохранены. E открывается существующим EventKey/public parser; copy/share — реальные platform actions. [Проверки и smoke](20-t06-validation.md). Ниже сохранена история прежних этапов.
+M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
 
-**T06 foundation, 29 октября:** маршруты приложения не изменены. Корневые «Мероприятия» пока временные; MyEvents/Editor/Published и их route guards не подключены до H2, которую пользователь ещё не проверил. Добавлены только repository-контракты и проверки доступа к данным. Draft/event передаются будущему маршруту по ID; full draft/cover bytes туда не попадут. [Реализованный объём](20-t06-validation.md).
+**Целевые auth/guest links после решения 13 ноября:** применять [32](32-backend-final-requirements.md): server slug/web links, immediate signup session и setup/reset по ссылке. Ниже — фактически реализованная demo-навигация; она ещё не адаптирована. Прежние обязательные VerifyEmail/code-reset маршруты не являются требованием к новому backend.
 
-**T05, 29 октября — READY_FOR_HUMAN.** Общий EventRoute/EventScreen для public/private E заменяет EventReceiver. EventKey(eventId, flowId) владеет EventViewModel/GuestReceiptState; fullscreen — состояние того же owner, без payload в route. EventAuthKey хранит только flowId/screen/entryId и оставляет receipt под auth для Back. Повтор E-ссылки возвращает к существующему flow. Tickets root показывает свои билеты/выбор/историю/отмену и fullscreen без табов. Unknown → Guest сохраняет публичный registry, private stacks остаются под session gate. T04 auth smoke принят человеком, H2 ожидается. [Сборка и H2](19-t05-validation.md).
+База UI — `c569152` (T01–T06); текущие правила Back уточнены в [исправлении code 13](23-navigation-back-validation.md). Источники: [NavigationState](../app/src/main/kotlin/ru/eventpass/app/navigation/NavigationState.kt), [AppHost](../app/src/demo/kotlin/ru/eventpass/app/navigation/AppHost.kt), [PrivateShell](../app/src/demo/kotlin/ru/eventpass/app/navigation/EventPassApp.kt). Состояние/owners — [отдельная карта](architecture/state-ownership.md).
 
-Актуализировано по [ответам от 27 октября](12-backend-answers-2026-10-27.md). Исходные frame ID сохраняют трассировку к Figma, но гостевой сценарий изменён пользователем.
+## Реализованные routes и host
 
-**История T04 до ручной приёмки 29 октября (теперь DONE):** H1 подтверждена человеком; Login/SignUp/verification/reset, живой session gate и Activity links подключены. До определения сессии — Loading; Guest — Login без табов; после Login — Tickets либо разрешённое E. Profile показывает email/выход. Три private стека, saveable state и parent ViewModelStore каждого таба отделены PrivateScope; logout/expiry/смена личности уничтожают прежних owners. EventKey — минимальный приёмник ID без анкеты, остальные продуктовые поверхности — T05+. Команды, проверки и auth smoke — [18-t04-validation.md](18-t04-validation.md).
+| Ключ / состояние | Размещение и назначение |
+|---|---|
+| LoginKey / SignUpKey / VerificationKey / ResetKey | Public stack; auth flow VM, без нижних табов |
+| RootTab Tickets/Events/Profile | PrivateScope shell, отдельный stack/parent owner на таб; Profile: read/edit/save/notification preference/copy ID/logout; dirty Back/tab leave |
+| EventKey(eventId, flowId) | Public/private common EventRoute; отдельный UUID flow на новый визит |
+| EventAuthKey(flowId, screen, entryId) | Public auth поверх E/receipt; связывает возврат с flow, не несёт secret/анкеты |
+| EditorKey(draftId/eventId/create/entryId) | Private Events stack, owner read/commands; create нормализуется host к draft ID |
+| DashboardKey(eventId,entryId) | Owner-only private entry в исходном табе; query saveable, PII/страницы/confirmation только память |
+| ScannerKey / VolunteersKey | Private entry owner; current-tab открытие из общего MyEvents, доступ перепроверяет repository |
+| GalleryKey / DemoDetails / DemoToolsKey / OutboxKey | Технические demo routes; gallery/tools/outbox implementation в src/demo |
+| GuestReceipt / fullscreen / publication result | **UiState внутри владельца**, не отдельные сериализованные NavKey |
+| selected issued ticket | Shell передаёт ID в Tickets VM, выбор меняется на одном экране; системный Back снимает выбор и возвращает список текущего сегмента |
 
-Activity принимает cold/warm `eventpass-demo://demo/e/<eventId>` и `/confirm/<challengeId>?token=<secret>`. Handler сохраняет inFlight/handled: отказ/отмена допускают явный retry с прежним requestId, успех не исполняется повторно. Transient доставка принадлежит Activity ViewModel, URI очищается из Intent и не сохраняется; поворот обработку не теряет. После подтверждения — Login с email и ручным паролем. Legacy `/demo` открывает технический счётчик также у гостя, без доступа к shell. Реальные домен/App Links и reset-ссылка не добавлены.
-
-## Общая навигация
-
-После обычного входа — «Мои билеты». Авторизованная оболочка: **Билеты · Мероприятия · Профиль**. В «Мероприятиях»: Организую / Волонтёр / Черновики. Отдельного пункта сканера нет. Оболочка гостя без нижних табов; старт без внешней ссылки — Вход с возможностью регистрации и подсказкой открыть ссылку организатора (принято Q14).
+ScannerKey(eventId, entryId) и VolunteersKey(eventId, entryId) находятся в исходном private табе. Result — состояние того же ScannerViewModel, без отдельного result key. Permission/credential/PII/Admitted не сериализуются. DashboardKey подключён: MyEvents owner → Dashboard → те же Scanner/Volunteers → Back в Dashboard с тем же E/query. PDF/XLSX используют SAF ActivityResult из прежних Tickets/Dashboard owners; новых NavKey нет; [lifecycle T07](architecture/t07-ui-lifecycle.md).
 
 ```mermaid
-flowchart LR
-    link["Ссылка на мероприятие"] --> event["Общая страница мероприятия"]
-    event --> form["Регистрация с consent"]
-    form --> guest["Новый email: временный QR и письмо"]
-    guest --> signup["Создать аккаунт самостоятельно"]
-    signup --> verify["Подтвердить почту"]
-    verify --> ordinary["Войти вручную"]
-    form --> login["Существующий email: вход без сохранения анкеты"]
-    login --> event
-    ordinary --> tickets["Билеты на email аккаунта"]
-    form --> tickets
-    tickets --- shell["Билеты / Мероприятия / Профиль"]
-    shell --> events["Мои мероприятия"]
-    events --> owner["Организую"]
-    events --> volunteer["Волонтёр"]
-    events --> drafts["Черновики"]
-    owner --> dash["Дашборд E"]
-    owner --> scan["Общий сканер E"]
-    volunteer --> scan
-    dash --> scan
-    dash --> grants["Волонтёры E"]
-    drafts --> editor["Общий редактор E"]
-    owner --> editor
-    events --> editor
-    editor --> published["Опубликовано: ссылка"]
-    scan --> result["Результат проверки"]
-    result --> scan
+flowchart TD
+    launch["Старт или ссылка"] --> gate["Loading: проверка session"]
+    gate --> public["Guest: public stack без табов"]
+    gate --> private["Authenticated: PrivateScope shell"]
+    public --> login["Login и account flows"]
+    public --> event["EventKey: общий EventDetails"]
+    event --> receipt["Guest receipt и fullscreen в той же entry"]
+    receipt --> overlay["EventAuthKey поверх flow"]
+    login --> private
+    overlay --> private
+    private --> tickets["Tickets"]
+    private --> events["MyEvents"]
+    private --> profile["Profile: форма и настройки"]
+    events --> editor["EditorKey: draft или published E"]
+    editor --> event
+    private --> event
 ```
 
-Граф укрупнённый: `form → tickets` относится к авторизованному пользователю, `form → guest` — к новому гостевому email. Развилка определяется результатом отправки, а не отдельной клиентской проверкой существования email.
+## Back, вкладки и возврат
 
-## Реестр 18 mobile-frame
+- У guest первый запуск без ссылки — Login/SignUp и подсказка открыть E. Public E и demo tools доступны без private tab shell.
+- Обычный успешный Login → Tickets; ReturnDestination.Event/Root возвращает к допустимому назначению один раз на PrivateScope. Анкета/CompleteRegistration отсутствуют. RequiresLogin очищает ответы до перехода; после входа форму заполняют заново.
+- Back из auth overlay до смены session scope возвращает к сохранённому guest receipt. Успешный Login переключает host, кабинет получает билеты из repository.
+- Receipt/fullscreen принадлежат одной EventKey. Back сначала выходит из fullscreen; явное закрытие удаляет receipt/flow. Новая entry не наследует snapshot удалённой.
+- Карточка своего билета — состояние root Tickets, не отдельная NavEntry. TicketsRoute обрабатывает системный Back через `select(null)`, очищая сохранённый ticket ID и сохраняя current/history. Fullscreen QR и диалог отмены обрабатывают Back своим окном: сначала закрывается окно, затем карточка. На списке корневой Tickets обработчик выключен, действует системный выход.
+- `NavigationState.openEvent` для внутренних действий добавляет EventKey в текущий стек без смены вкладки и удаления родителя. MyEvents → E → Back возвращает тот же список/сегмент; editor → E → Back — тот же editor/result; ticket → E → Back — выбранный билет. Повтор одинакового верхнего E не добавляет entry.
+- Внешняя ссылка и ReturnDestination.Event после входа используют `openLinkedEvent`: отдельный вход через Tickets, с прежними dedup/reset правилами. Другие стеки при этом остаются; внешний вход не подменяет контекст внутренних кнопок.
+- Три private стека декорируются и при скрытых табах. Повтор текущего таба возвращает к root, но editor перехватывает Back/reselect с dirty save/discard/stay. Обычное переключение табов сохраняет editor entry.
+- Editor сохраняет черновик явно; публикация/result/copy/share не создают новый stack на каждую композицию. Все поля чужого editor закрыты repository read guard.
+- Logout/expiry/смена сессии очищают root/hidden ViewModel stores и private saveable state. Старый saved route не доказывает права. Начальное Unknown → Guest не должно удалять публичный registry с восстановленным receipt.
+- Forbidden — сообщение и удаление недоступной текущей поверхности по host policy, не бесконечный Login. Unauthenticated — Login с безопасным назначением; repository самостоятельно защищает данные.
+
+Profile root перехватывает системный Back, выбор таба, logout/demo tools при dirty: Save/Discard, dismiss возвращает редактирование. Несохранённые поля только в памяти, hidden/background их очищает. Documents picker хранит безопасный launch ID, transient request остаётся в VM; после нового процесса late result игнорируется. Подробности — [T09 lifecycle](architecture/t09-profile-files.md).
+
+## Ссылки и доставка
+
+| Allowlist | Обработка |
+|---|---|
+| `eventpass-demo://demo/e/{eventId}` | AuthDemoLinkParser → OpenLink → public/private общий E; отсутствующий E показывает NotFound |
+| `eventpass-demo://demo/confirm/{challengeId}?token=...` | Только demo: AuthLinkHandler → completeEmailLink → сообщение; verify сохраняет существующую session |
+| `eventpass-demo://demo/{recordId}` | Legacy DemoLinkParser → технический счётчик, не продуктовый ticket lookup |
+
+Cold ACTION_VIEW и onNewIntent идут через Activity VM; URI/token не сериализуются в route/SavedStateHandle. Поворот сохраняет временную очередь в Activity VM; process death не обещает восстановление секрета доставки. RequestId различает текущую доставку/retry; inFlight/handled защищают параллельную/успешную повторную обработку, failure можно повторить явно. Успешное повторное открытие E не создаёт дубль одинакового верхнего flow; public host также умеет вернуться к уже существующему flow.
+
+Remote M01 игнорирует ACTION_VIEW и очищает secret URI. App Links отложены; setup/reset/verify выполняются browser; при возвращении /me перечитывается, смена пароля требует login. Demo verify только в demo flavor; code/grant шаги удалены. Произвольный returnUrl/host/role не является разрешённым маршрутом. Точные ограничения parser — в [AuthDemoLinkParser](../core/platform/src/main/kotlin/ru/eventpass/core/platform/AuthDemoLinkParser.kt) и [DemoLinkParser](../core/platform/src/main/kotlin/ru/eventpass/core/platform/DemoLinkParser.kt).
+
+## Реестр 18 mobile-frame — продуктовый ориентир
+
+G01–G05/P01/P02 и O01/V01/O02/O03 представлены текущим срезом с изменениями B02/B04. P03 — профиль с dirty/save/discard и настройкой напоминаний; deletion/Q10 недоступен. V02–V05/O05 подключены в T07, O04 подключён в T08; обе camera/UI и общая H3 ждут человека. Упомянутый будущий route в таблице не означает наличие реализации.
+
 
 Все ссылки ведут в один файл. «Состояние» означает переиспользование одного экрана, а не отдельную фичу.
 
@@ -70,72 +95,15 @@ flowchart LR
 | O01 | [Свои мероприятия, 29:558](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=29-558) | Тот же MyEvents(tab=Owned) → O02/O04/V02 |
 | O02 | [Создание, 17:9426](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=17-9426) | EventEditor(eventId?) → Drafts / O03; тот же экран редактирует |
 | O03 | [Опубликовано, 29:664](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=29-664) | PublicationResult(eventId) → O04/O05 |
-| O04 | [Дашборд, 29:950](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=29-950) | Dashboard(eventId) → экспорт/O05/V02 |
+| O04 | [Дашборд, 29:950](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=29-950) | DashboardKey(eventId,entryId) → существующие O05/V02; экспорт скрыт до T09 |
 | O05 | [Волонтёры, 29:833](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=29-833) | Volunteers(eventId), grant/revoke |
 
-## Типизированные маршруты
 
-Проектируем AppRoute с сериализуемыми ключами. Реализация библиотеки — ADR-03. В аргументах только ID и безопасные enum:
+## Не переносить устаревшее из макетов
 
-```text
-Login(returnDestination?) / SignUp(returnDestination?)
-VerifyEmail(flowId) / ResetPasswordRequest / ResetPasswordCode(flowId) / NewPassword(flowId)
-EventDetails(eventIdOrSlug)
-GuestTicketReceipt(flowId) / FullscreenQr(ticketRef)
-Tickets(selectedTicketId?, tab=Upcoming)
-MyEvents(tab=Owned) / Profile(returnEventId?)
-EventEditor(eventId?) / PublicationResult(eventId)
-Dashboard(eventId) / Volunteers(eventId)
-Scanner(eventId) / ScanResult(eventId, resultId)
-```
+Нет автосоздания аккаунта, сохранённой анкеты перед Login, кнопки «войти и завершить регистрацию», каталога/оплаты/Wallet/MAX/архива. G02 сохраняет немедленный QR и сообщение о письме, но постоянного guest кабинета нет. Android не показывает «открыть в приложении» и браузерные инструкции разрешения камеры.
 
-`flowId` и `ticketRef` — локальные ссылки, не секреты в route. GuestTicketReceipt и гостевой FullscreenQr читают snapshot из saved state того же flow, полученный при успешном submit. Пока flow сохранён, можно уйти на соседний экран и вернуться к QR. При явном закрытии/удалении flow очищаем snapshot; повторное открытие по одному flowId не загружает билет с сервера без разрешения. После закрытия задачи и нового запуска доступны письмо/кабинет. Подробно о восстановлении Android-задачи — B02 в `12-backend-answers-2026-10-27.md`. Коды auth не сохраняем в route. Гостевой PDF этим уточнением не задан.
-
-## Возврат после входа
-
-Сохраняем только безопасное назначение OpenDestination(route), например EventDetails(eventId). По B04 ответы не переносим через вход, CompleteRegistration/PendingRegistration отсутствуют. После входа на E заполняют форму и нажимают отправку заново. Обычный вход без назначения открывает Tickets. Произвольный returnUrl не является доверенным маршрутом: разбираем допустимые значения и повторно проверяем доступ.
-
-```mermaid
-sequenceDiagram
-    actor user as Пользователь
-    participant ui as Анкета
-    participant repo as RegistrationRepository
-    participant auth as AuthRepository
-    user->>ui: Отправить заполненную анкету
-    ui->>repo: submitGuest(answers)
-    repo-->>ui: RequiresLogin(email)
-    ui->>auth: signIn(email, password)
-    auth-->>ui: Подтверждённая сессия
-    ui-->>user: Страница E, пустая анкета
-    user->>ui: Заново заполнить и отправить
-    ui->>repo: registerAuthenticated(answers)
-    repo-->>ui: Created(ticketId) или ошибка
-    ui-->>user: Билеты с выбранным ticketId
-```
-
-Уточнение B02/B04: гостю сразу показываем QR из результата заявки и сохраняем его в состоянии flow; после закрытия flow — письмо либо кабинет, без автосоздания аккаунта. После входа не завершаем заявку автоматически. После самостоятельного создания аккаунта и входа Tickets показывает все билеты на его email. Подтверждение email возвращает на ручной вход; сброс пароля по коду из письма.
-
-## Back, вкладки и восстановление
-
-- Каждая корневая вкладка сохраняет своё состояние. Повторное нажатие текущего таба возвращает к его корню (предложение, H2).
-- Переходы между табами не создают бесконечный стек одинаковых экранов.
-- Сканер → результат через замену/единый scan flow; «Сканировать следующий» очищает результат и запускает камеру. Back из результата возвращает к камере; Back из камеры — в исходный список/дашборд. Прямой deep link синтезирует безопасный родитель MyEvents.
-- Нижняя навигация остаётся на вложенных экранах, как в mobile-макетах. Полноэкранный QR и auth без нижнего бара. Уход со сканера на другой таб останавливает камеру.
-- Черновик редактора мероприятия сохраняется и восстанавливается по draftId. Регистрационная анкета не сохраняется при переходе во вход, уходе с экрана или смерти процесса; не предлагать сохранить её как черновик.
-- Forbidden → MyEvents + понятное сообщение, удалить недоступный экран из стека; Unauthenticated → вход с pending destination. При загрузке прав не показывать временно закрытые данные.
-- Если root MyEvents сам потребовал вход, успешный вход возвращает туда; стандартный вход без pending → Tickets.
-
-## Android App Links
-
-Публичный путь `/e/{slug}` известен из примера Figma; домен `eventpass.ru` — демонстрационный, контроль домена не подтверждён. Production host, `assetlinks.json`, applicationId и подписи согласовать с backend; до этого debug-ссылки на тестовой схеме и direct launch для ручной приёмки.
-
-Типы ссылок: мероприятие, подтверждение email; ссылка на конкретный билет — только если будет в API, с проверкой входа. Сброс пароля сейчас через код из письма; маршрут сброса по ссылке не добавлять без контракта. Обрабатывать cold start и onNewIntent, истёкшую/повторную ссылку, неверный host, отсутствующее мероприятие и отсутствие прав.
-
-## Недорисованные поверхности
-
-Auth: ожидание письма, повтор отправки с cooldown, задание/сброс пароля. Tickets: история, пустое состояние, отмена, fullscreen QR. MyEvents: пустые вкладки, черновики, прошедшие. Editor: вопрос/варианты/ошибки/несохранённое. Scanner: ручной ввод, permission denied, загрузка, сеть. Dashboard: отмена участника, экспорт/ошибка. Profile: подтверждение выхода/удаления и повторная аутентификация.
-
-Фильтр-иконка на «Мои билеты» и часть служебных значков не имеют поведения в заметках: по принятому Q13 скрыть, не добавлять случайные функции. Внутри Android убрать «Открыть в приложении» и браузерную формулировку разрешения камеры.
+Scanner Result Back → ready, затем Back → прежний родитель. Top bar и system Back согласованы. Hidden tab/background/logout/revoke останавливают анализ и удаляют result; denied возвращает MyEvents с сообщением. Физическая camera/UI приёмка ожидается; текущие инварианты — [карта тестов](architecture/invariants.md). История прежнего route-проекта — [архив](history/2026-10-30-architecture/README.md).
 
 ## Обновление видимого экрана T09a
 

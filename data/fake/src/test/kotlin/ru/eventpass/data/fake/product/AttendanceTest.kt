@@ -64,7 +64,8 @@ class AttendanceTest {
         val cursor = AttendanceCursor(FakeFixtures.ATTENDING,dashboard(e).revision,"",0)
         assertEquals(AttendeesResult.Failed(AttendanceError.STALE_PAGE),e.attendance.attendees(FakeFixtures.MIXED,"",cursor))
         e.scenarios.putAccount(Account(FakeFixtures.HOST,"host@example.com",false))
-        assertEquals(DashboardResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED),e.attendance.observeDashboard(FakeFixtures.MIXED).first())
+        assertTrue(e.attendance.observeDashboard(FakeFixtures.MIXED).first() is DashboardResult.Ready)
+        assertTrue(e.attendance.attendees(FakeFixtures.MIXED, "") is AttendeesResult.Page)
     }
     @Test fun guestAndAuthenticatedRegistrationShareTotalsAndUnlimitedZeroPercent() = runTest {
         val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
@@ -181,7 +182,7 @@ class AttendanceTest {
         val event=FakeFixtures.events().single { it.id==FakeFixtures.MIXED }
         events.now=event.startsAt.plusSeconds(1); assertFalse(dashboard(e).header.finished)
         events.now=event.endsAt!!; assertTrue(dashboard(e).header.finished)
-        auth.now=auth.now.plusSeconds(1801)
+        auth.now=auth.now.plusSeconds(30L * 86400)
         assertEquals(DashboardResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED),e.attendance.observeDashboard(event.id).first())
         assertEquals(DashboardResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED),e.attendance.refreshDashboard(event.id))
         assertEquals(AttendeesResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED),e.attendance.attendees(event.id,""))

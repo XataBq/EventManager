@@ -62,6 +62,7 @@ sealed interface EventEditResult<out T> {
     data class Failed(val error: EventEditError) : EventEditResult<Nothing>
 }
 sealed interface EventEditError {
+    data object FeatureUnavailable : EventEditError
     data class Validation(val fields: Set<String>) : EventEditError
     data object Conflict : EventEditError
     data object StaleForm : EventEditError

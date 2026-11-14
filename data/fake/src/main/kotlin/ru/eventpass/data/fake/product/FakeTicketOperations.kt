@@ -36,12 +36,12 @@ internal class FakeTicketOperations(
             when {
                 !s.auth.healthy -> PublicEventResult.Failed(ProductReadError.STORAGE_UNAVAILABLE)
                 eventId in s.eventErrors -> PublicEventResult.Failed(s.eventErrors.getValue(eventId))
-                event == null || (event.lifecycle == EventLifecycle.DRAFT && !(account?.emailVerified == true && account.id == event.ownerId)) -> PublicEventResult.NotFound
+                event == null || (event.lifecycle == EventLifecycle.DRAFT && !(account != null && account.id == event.ownerId)) -> PublicEventResult.NotFound
                 else -> {
                     val availability = event.registrationAvailability(clock.instant(), count(s, eventId))
                     PublicEventResult.Found(event, availability, EventAccessPolicy.resolve(event, account,
                         account != null && own(s, account).any { it.snapshot.eventId == eventId && it.status != TicketStatus.CANCELLED }, s.grants, availability),
-                        s.policy, account?.takeIf { it.emailVerified }?.let { RegistrationContact(it.email, s.profileFields(it.id).name, s.profileFields(it.id).phone) })
+                        s.policy, account?.let { RegistrationContact(it.email, s.profileFields(it.id).name, s.profileFields(it.id).phone) })
                 }
             }
         }.distinctUntilChanged()
@@ -65,7 +65,7 @@ internal class FakeTicketOperations(
             auth.initialize(); val generation = state.value.auth.generation
             return transaction<AuthenticatedRegistrationOutcome>(AuthenticatedRegistrationOutcome.Failed(RegistrationError.StorageUnavailable)) { s ->
                 if (generation != s.auth.generation) return@transaction s to AuthenticatedRegistrationOutcome.Failed(RegistrationError.SessionChanged)
-                val account = s.activeAccount(authClock.instant())?.takeIf { it.emailVerified }
+                val account = s.activeAccount(authClock.instant())
                     ?: return@transaction s to AuthenticatedRegistrationOutcome.Failed(RegistrationError.AuthenticationRequired)
                 existing(s, command.eventId, account.email)?.let { return@transaction s to AuthenticatedRegistrationOutcome.Registered(it.snapshot.ticketId, true) }
                 s.nextSubmissionError?.let { return@transaction s.copy(nextSubmissionError = null) to AuthenticatedRegistrationOutcome.Failed(it) }
@@ -82,7 +82,6 @@ internal class FakeTicketOperations(
             when {
                 !s.auth.healthy -> MyTicketsResult.Failed(ProductReadError.STORAGE_UNAVAILABLE)
                 account == null -> MyTicketsResult.AuthenticationRequired
-                !account.emailVerified -> MyTicketsResult.EmailVerificationRequired
                 s.ticketReadError != null -> MyTicketsResult.Failed(s.ticketReadError)
                 else -> {
                     val mine = own(s, account)
@@ -101,7 +100,7 @@ internal class FakeTicketOperations(
             auth.initialize(); val generation = state.value.auth.generation
             return transaction<CancelTicketOutcome>(CancelTicketOutcome.Failed(TicketError.STORAGE_UNAVAILABLE)) { s ->
                 if (generation != s.auth.generation) return@transaction s to CancelTicketOutcome.Failed(TicketError.SESSION_CHANGED)
-                val account = s.activeAccount(authClock.instant())?.takeIf { it.emailVerified }
+                val account = s.activeAccount(authClock.instant())
                     ?: return@transaction s to CancelTicketOutcome.Failed(TicketError.AUTHENTICATION_REQUIRED)
                 val ticket = own(s, account).singleOrNull { it.snapshot.ticketId == ticketId } ?: return@transaction s to CancelTicketOutcome.Failed(TicketError.NOT_FOUND)
                 if (ticket.status == TicketStatus.USED) return@transaction s to CancelTicketOutcome.Failed(TicketError.USED)

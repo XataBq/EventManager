@@ -16,7 +16,7 @@ internal class FakeAttendanceOperations(private val state: MutableStateFlow<Fake
     private val clock: Clock, private val authClock: Clock, private val storage: FakeAuthStorage, private val auth: FakeAuthRepository) : AttendanceRepository {
     private fun guard(s: FakeProductState, id: EventId): AttendanceError? {
         if (!s.auth.healthy) return AttendanceError.STORAGE_UNAVAILABLE
-        val account = s.activeAccount(authClock.instant())?.takeIf { it.emailVerified } ?: return AttendanceError.AUTHENTICATION_REQUIRED
+        val account = s.activeAccount(authClock.instant()) ?: return AttendanceError.AUTHENTICATION_REQUIRED
         val event = s.events[id] ?: return AttendanceError.NOT_FOUND
         return if (EventAccessPolicy.resolve(event, account, false, s.grants, event.registrationAvailability(clock.instant(), 0)).canViewAttendees)
             null else AttendanceError.FORBIDDEN

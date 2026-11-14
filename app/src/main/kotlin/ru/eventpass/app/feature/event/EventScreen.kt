@@ -43,6 +43,7 @@ fun closureText(reason: RegistrationClosureReason): String = stringResource(when
 })
 @Composable
 fun readErrorText(error: ProductReadError) = stringResource(when (error) {
+    ProductReadError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
     ProductReadError.NETWORK -> R.string.auth_network
     ProductReadError.TIMEOUT -> R.string.auth_timeout
     ProductReadError.STORAGE_UNAVAILABLE -> R.string.auth_storage
@@ -52,7 +53,8 @@ fun registrationErrorText(error: RegistrationError): String = when (error) {
     is RegistrationError.Unavailable -> closureText(error.reason)
     is RegistrationError.Validation -> stringResource(R.string.event_validation)
     else -> stringResource(when (error) {
-        RegistrationError.NotFound -> R.string.event_not_found
+        RegistrationError.FeatureUnavailable -> R.string.feature_unavailable
+    RegistrationError.NotFound -> R.string.event_not_found
         RegistrationError.StaleForm -> R.string.event_stale
         RegistrationError.Network -> R.string.auth_network
         RegistrationError.Timeout -> R.string.auth_timeout

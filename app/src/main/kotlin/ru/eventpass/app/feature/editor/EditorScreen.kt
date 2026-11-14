@@ -37,6 +37,7 @@ import ru.eventpass.core.domain.registration.RegistrationQuestion
 import java.util.UUID
 
 fun editErrorResource(error: EventEditError): Int = when (error) {
+    EventEditError.FeatureUnavailable -> R.string.feature_unavailable
     is EventEditError.Validation -> R.string.editor_invalid
     EventEditError.Conflict, EventEditError.StaleForm -> R.string.editor_conflict
     EventEditError.QuestionsLocked -> R.string.editor_locked

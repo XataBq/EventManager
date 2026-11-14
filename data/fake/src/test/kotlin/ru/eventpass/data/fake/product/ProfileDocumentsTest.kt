@@ -72,16 +72,16 @@ class ProfileDocumentsTest {
     }
     @Test fun migrationV1ThroughV4PreservesNamesAndAllExistingDataThenAllWritersKeepProfile() = runTest {
         val storage=Storage(); val e=env(storage); e.scenarios.signInAs(FakeFixtures.HOST)
-        e.auth.signUp("Signup имя","new@example.com",AuthSecret("NewPass123!")); e.scenarios.signInAs(FakeFixtures.HOST)
+        e.auth.signUp("Signup имя","new@example.com",AuthSecret("NewPass123!"), true); e.scenarios.signInAs(FakeFixtures.HOST)
         e.events.saveDraft(DraftId("retained"),null,EventFields(title="Черновик"))
         e.checkIns.checkIn(FakeFixtures.MIXED,TicketCredential.Qr(QrToken("demo-token-alex-mixed")))
         val before=ProductSnapshotCodec.restore(storage.bytes!!,seed())
-        val versions=listOf(AuthSnapshotCodec.encode(before.accounts,before.auth),LegacyV2Fixture.encode(before),LegacyV3Fixture.encode(before),LegacyV4Fixture.encode(before))
+        val versions=listOf(LegacyAuthV1Fixture.encode(before.accounts,before.auth),LegacyV2Fixture.encode(before),LegacyV3Fixture.encode(before),LegacyV4Fixture.encode(before))
         for((index,bytes) in versions.withIndex()) {
             storage.bytes=bytes; val migrated=env(storage); migrated.scenarios.signInAs(FakeFixtures.HOST)
             val expected=ProductSnapshotCodec.restore(bytes,seed()); assertEquals(ProfileFields(),fields(migrated))
             assertTrue(migrated.profiles.saveProfile(changed) is ProfileResult.Ready)
-            migrated.auth.signUp("Other","writer@example.com",AuthSecret("Pass12345!")); migrated.scenarios.signInAs(FakeFixtures.HOST)
+            migrated.auth.signUp("Other","writer@example.com",AuthSecret("Pass12345!"), true); migrated.scenarios.signInAs(FakeFixtures.HOST)
             migrated.events.saveDraft(DraftId("writer"),null,EventFields())
             migrated.registrations.submitGuest(GuestRegistrationCommand(FakeFixtures.OPEN,1,"Guest","guest@example.com",consentAccepted=true))
             migrated.volunteers.grant(FakeFixtures.OPEN,"alex")
@@ -119,7 +119,7 @@ class ProfileDocumentsTest {
         e.scenarios.signInAs(FakeFixtures.HOST); assertEquals(DocumentResult.Failed(DocumentError.FORBIDDEN),e.documents.prepare(request))
         assertEquals(DocumentError.SESSION_CHANGED,e.documents.validate(pdf))
         e.auth.signOut(); assertEquals(DocumentResult.Failed(DocumentError.AUTHENTICATION_REQUIRED),e.documents.prepare(request))
-        e.scenarios.signInAs(FakeFixtures.ALEX); time.now=time.now.plusSeconds(1801)
+        e.scenarios.signInAs(FakeFixtures.ALEX); time.now=time.now.plusSeconds(30L * 86400)
         assertEquals(DocumentResult.Failed(DocumentError.AUTHENTICATION_REQUIRED),e.documents.prepare(request))
     }
     @Test fun exportIsOneFullOwnerSnapshotWithAnswersAllStatusesAndNoSearchOrFakeHistory() = runTest {

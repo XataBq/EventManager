@@ -88,7 +88,8 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         if (ticket != null) mutable.value = mutable.value.copy(action = EventAction.Ticket(ticket.snapshot.ticketId.value))
         else mutable.value = mutable.value.copy(error = when (result) {
             is MyTicketsResult.Failed -> when (result.error) {
-                ProductReadError.NETWORK -> RegistrationError.Network
+                ProductReadError.FEATURE_UNAVAILABLE -> RegistrationError.FeatureUnavailable
+    ProductReadError.NETWORK -> RegistrationError.Network
                 ProductReadError.TIMEOUT -> RegistrationError.Timeout
                 ProductReadError.STORAGE_UNAVAILABLE -> RegistrationError.StorageUnavailable
             }

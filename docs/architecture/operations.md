@@ -1,0 +1,134 @@
+# Сквозные операции и точки фиксации
+
+M01 auth/session: [актуальная карта](t10-session-transport.md); продуктовые editor/check-in/files вне M01 пока demo.
+
+UI T01–T06 сверено по `c569152`; добавлены независимые T07 server operations. Это последовательности текущего приложения/fake, а не HTTP-контракт. Полные сигнатуры — в [портах](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/ProductRepositories.kt), хранение — [05](../05-data-contracts.md). Последовательности не заменяют проверки отмены и сессии в исходниках.
+
+## Гостевая заявка
+
+```mermaid
+sequenceDiagram
+    actor person as Пользователь
+    participant vm as EventViewModel
+    participant repo as RegistrationRepository
+    participant fake as FakeTicketOperations
+    participant disk as FakeAuthStorage
+    participant saved as GuestReceiptState
+    person->>vm: Заполнить форму и submit
+    vm->>vm: Validation и submitting с захватом поколения
+    vm->>repo: submitGuest
+    repo->>fake: Общий backend и актуальные правила E
+    fake->>fake: Initialize, IO, Mutex, validation
+    alt Новая допустимая заявка
+        fake->>disk: Записать полный ProductSnapshot
+        disk-->>fake: Запись завершена
+        fake->>fake: Опубликовать StateFlow и demo outbox
+        fake-->>vm: Issued со snapshot
+        vm->>vm: Проверить поколение формы
+        vm->>saved: Записать компактный receipt
+        vm-->>person: Показать receipt и настоящий QR
+    else Email аккаунта, повтор или отказ
+        fake-->>vm: RequiresLogin, ExistingRegistration или Failed
+        vm-->>person: Различимое состояние без старого QR
+    end
+```
+
+Новый guest submit не создаёт Account. `RequiresLogin` очищает ответы, сохраняет только email/назначение E через auth host. Успешный Login не вызывает submit автоматически. ExistingRegistration гостю не даёт ticketId/повторный payload. Аккаунт позже читает билеты по своей подтверждённой сессии/email из repository.
+
+Значимый порядок: **disk commit → общий StateFlow → результат → проверка поколения UI → SavedStateHandle → receipt UI**. При уходе формы `leaveForm` увеличивает поколение до отмены job. И результат, и finally старой операции должны уважать это поколение. Отсутствие видимого успеха при отмене после commit не означает, что записи на fake-сервере нет; автоматического retry мутации нет.
+
+## Вход, подтверждение и выход
+
+```mermaid
+sequenceDiagram
+    actor person as Пользователь
+    participant ui as LoginViewModel
+    participant app as AppSessionViewModel
+    participant coord as SessionCoordinator
+    participant auth as AuthRepository
+    participant shell as AppHost
+    person->>ui: Ввести email и пароль
+    ui->>app: signIn
+    app->>coord: signIn
+    coord->>auth: Проверить вход
+    auth->>auth: Proof на IO, отменяемый возврат и Mutex acceptance на caller
+    auth-->>coord: Результат и SessionSnapshot
+    coord->>coord: Проверить generation и current session
+    coord-->>shell: Shell с новым PrivateScope
+    shell->>app: Потребить destination один раз
+    shell-->>person: Tickets либо разрешённое E
+    person->>app: Logout
+    app->>coord: signOut
+    coord->>app: Очистить private owners
+    coord->>auth: Очистить session
+    coord-->>shell: Login без прежних private данных
+```
+
+M01 signup принимает session сразу; unverified signIn разрешён; verify сохраняет существующую session, reset по mail link подтверждает email и требует последующего login. Confirmation link идёт MainActivity → retained delivery → AuthLinkHandler → completeEmailLink → сообщение; remote mail links выполняются browser. При failure/cancellation inFlight снимается, явный retry возможен; handled предотвращает повтор **успешной доставки с тем же requestId**, не является server idempotency protocol.
+
+Auth acceptance отдельно защищена: подготовленная transient session не публикуется до отменяемого возврата на caller. Ожидание занятого общего Mutex приостанавливает корутину, не блокирует поток caller. После публикации session до возврата нет дополнительного suspend/dispatcher hop. Durable account/challenge изменения, напротив, уже могут быть записаны при отмене caller.
+
+## Сохранение и публикация мероприятия
+
+```mermaid
+sequenceDiagram
+    actor owner as Владелец
+    participant vm as EditorViewModel
+    participant repo as EventRepository
+    participant edit as FakeEventEditingOperations
+    participant disk as FakeAuthStorage
+    participant read as Общие observe потоки
+    owner->>vm: Сохранить draft или publish
+    vm->>vm: Raw input, zone parsing, busy и generation
+    vm->>repo: Команда с ID и expected revision
+    repo->>edit: Initialize и актуальная сессия
+    edit->>edit: IO и Mutex, owner, revision, validation, form lock
+    edit->>disk: Записать полный snapshot
+    disk-->>edit: Commit завершён
+    edit->>read: Опубликовать новое общее состояние
+    edit-->>vm: Saved либо typed failure
+    vm->>vm: Проверить актуальность entry и поколения
+    vm-->>owner: Сохранённый draft либо результат публикации
+```
+
+Неполный draft допустим; `publishDraft` требует валидных полей. `EventDraft.publishedEventId` — сохранённый receipt публикации: повтор publish одного draft не создаёт второй E. Публикация не равна Clipboard/Share: эти platform actions используют уже созданную ссылку, отмена Sharesheet не откатывает E.
+
+Editor держит raw строки даты/лимита отдельно от domain EventFields. Парсинг использует выбранную zone; неоднозначные/несуществующие DST local times отклоняются. Dirty/busy input не заменяется новым наблюдаемым document автоматически; stale revision даёт Conflict с сохранением ввода.
+
+После первой успешной Registration вопросы/варианты фиксируются по **истории registrations**, а не числу текущих Active tickets. Cancel всех не разрешает правку. Metadata update не меняет formVersion без изменения схемы. Server TicketSnapshot получает актуальные title/date/venue/zone при update E без смены QR/status; ранее выданный guest receipt остаётся снимком выдачи.
+
+## Platform-ветка обложки
+
+OpenDocument → временный content URI → CoverImporter → AndroidEventCoverStore: ограниченное чтение, проверка MIME/dimensions/decode → managed file → EventCover descriptor → явное сохранение draft/E. Preview/EXIF отдельно через EventCoverPreview и entry VM. Bitmap/bytes не попадают в route или snapshot.
+
+GC запускается перед первым import процесса через demo binding; retained IDs берутся из всех сохранённых E/drafts общего store. При unhealthy snapshot очистка пропускается. Новый несохранённый asset может жить в текущем процессе до последующей очистки; после process death несохранённая форма не обещает его восстановление. Managed file copy и snapshot — разные записи, не единая файловая транзакция.
+
+## Как расширять операцию
+
+- Отметить границу actor/access и expected revision/formVersion до мутации.
+- Определить persisted часть, точку commit и публикуемый Flow; все writers общего snapshot обязаны сохранить данные соседних фич.
+- Обозначить состояние pending/result/error и жизнь результата при Back/logout/recreation.
+- Для отмены отдельно проверить queued, до commit, после commit и поздний UI finally. Не обещать rollback только на основании cancel job.
+- Добавить сценарий в [реестр инвариантов](invariants.md), сослаться на test и актуальный отчёт.
+
+## Независимые grants/check-in T07
+
+Owner list/grant/revoke и checkIn используют initialize → captured session generation → общий IO/Mutex → текущие verification/expiry/EventAccessPolicy → полный schema 4 write → общий StateFlow → typed outcome. Grant/revoke не меняют registrations/tickets/history. Active check-in меняет тот же ticket на Used и добавляет первый record; повтор возвращает его без записи второго. Ошибка записи не публикует успех. ScannerController повторно сверяет access/generation после suspend и не показывает PII позднего ответа новой сессии. [Подробная операция и proof pointers](t07-checkin-foundation.md).
+
+Scanner Route/entry VM → прежний ScannerController → CheckInRepository. CameraX Y plane → stride/crop copy → ZXing QR candidates → main dispatcher/generation gate. Result/submitting удаляет preview, каждый ImageProxy закрывается в finally. Volunteers Route/VM → прежний VolunteerRepository; hidden/background отменяет observation/command и очищает transient input/confirmation. [Точное wiring](t07-ui-lifecycle.md). AttendanceRepository подключён на том же state; [операции T08](t08-attendance.md).
+
+## Owner attendance T08
+
+Observe/page/refresh: initialize → current authenticated owner guard → один immutable state → totals/header + bounded rows без credentials. Sorted consentAcceptedAt DESC/ID, token event/revision/query/offset. VM принимает refresh reply только при прежнем owner/observation generation; более новый observer результат имеет приоритет, pending page reread объединяется в один follow-up, stop очищает очередь. Relevant revision меняет список: VM сбрасывает к первой странице; поиск не влияет на totals. Volunteer.checkedInCount — реальные first records, а не попытки/legacy Used.
+
+Owner cancel: captured generation → IO/общий Mutex → current owner/event/registration/ticket/status → общий TicketCancellation с self path → полный schema 4 write → StateFlow. Used запрещён, Cancelled idempotent; registration history/questions lock/checkIns сохраняются. Failure не публикует ложный результат. Modal error и retry привязаны к той же registration; hidden/late finally защищены owner token. [Точный контракт](t08-attendance.md).
+
+## Profile/save, document transfer и resend T09
+
+Save: current generation → authenticated actor guard под общим Mutex/IO → полный schema 5 disk commit → StateFlow, без изменения Account/Session; имя только AuthData.names. Новые формы получают name/phone, история не меняется. Export: CreateDocument → проверка прежней сессии → prepare одного snapshot → private temp → повторный доступ до/после open и chunks → flush/close → validate → UI success. Cancel/close failure не успех; частичный внешний файл отозвать не обещаем. Resend добавляет FakeTicketEmail в прежний outbox, cooldown/retryAt от auth Clock, явный retry без новых tickets. [Подробная операция](t09-profile-files.md).
+
+Configuration dispose SAF не завершает entry operation: Route передаёт Activity.isChangingConfigurations, VM сохраняет pending/launched/session/writer; bind того же resource не сбрасывает. Обычный dispose/hidden/resource/session change очищает. [Регрессия и результаты](../29-t09-saf-recreation-validation.md).
+
+## Адресный pull-to-refresh T09a
+
+Жест сверху/semantic action → callback видимого Screen → entry VM single-flight/captured owner/resource → read ровно своего repository → guarded observer/result → прежний контент + refreshing/read error. Profile/Volunteers имеют scoped read-порты без записи/мутаций. Dashboard stale page допускает один внутренний follow-up, пользовательские дубли игнорируются. Dirty profile обновляет baseline/сообщает конфликт без замены fields, новая formVersion public E очищает старые answers с StaleForm. Stop/hidden/смена ресурса/сессии инвалидируют поздний result/finally. [T09a](t09a-refresh.md).

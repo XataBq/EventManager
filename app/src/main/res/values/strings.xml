@@ -18,4 +18,17 @@
     <string name="demo_not_found">Р”РµРјРѕРЅСЃС‚СЂР°С†РёРѕРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ РЅРµ РЅР°Р№РґРµРЅС‹.</string>
     <string name="invalid_link">РќРµРїРѕРґРґРµСЂР¶РёРІР°РµРјР°СЏ РґРµРјРѕРЅСЃС‚СЂР°С†РёРѕРЅРЅР°СЏ СЃСЃС‹Р»РєР°.</string>
     <string name="dismiss">РџРѕРЅСЏС‚РЅРѕ</string>
+    <string name="feature_unavailable">Эта функция ещё не подключена</string>
+    <string name="remote_protocol">Не удалось прочитать ответ сервера. Повторите позже.</string>
+    <string name="remote_server_unavailable">Сервер временно недоступен</string>
+    <string name="auth_send_link">Отправить ссылку</string>
+    <string name="auth_mail_link_sent">Если аккаунт существует, на %1$s придёт письмо со ссылкой. Откройте её в браузере.</string>
+    <string name="remote_retry_session">Проверить подключение</string>
+    <string name="remote_profile_readonly">Профиль. Остальные функции будут подключены последовательно.</string>
+    <string name="auth_logout_action">Выйти</string>
+    <string name="auth_email_verified_status">Email подтверждён</string>
+    <string name="auth_email_unverified_status">Email не подтверждён</string>
+    <string name="auth_terms_link">Условия использования</string>
+    <string name="auth_privacy_link">Политика конфиденциальности</string>
+    <string name="auth_documents_unavailable">Ссылки на документы пока не предоставлены сервером.</string>
 </resources>

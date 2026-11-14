@@ -94,7 +94,7 @@ object EventAccessPolicy {
         grants: List<ScanGrant>,
         availability: RegistrationAvailability,
     ): EventAccess {
-        val verified = account?.takeIf { it.emailVerified }
+        val verified = account
         val owner = verified?.id == event.ownerId
         val scanner = verified != null && grants.any {
             it.active && it.eventId == event.id && it.userId == verified.id
@@ -124,4 +124,4 @@ sealed interface PublicEventResult {
 }
 
 data class RegistrationContact(val email: String, val name: String, val phone: String? = null)
-enum class ProductReadError { NETWORK, TIMEOUT, STORAGE_UNAVAILABLE }
+enum class ProductReadError { FEATURE_UNAVAILABLE, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE }

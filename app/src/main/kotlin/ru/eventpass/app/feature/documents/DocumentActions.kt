@@ -46,6 +46,7 @@ fun DocumentActions(request: DocumentRequest, visible: Boolean = true, enabled: 
     s.retryAt?.let { Text(stringResource(R.string.document_retry_at,it.toString()),Modifier.testTag("mail-retry-at")) }
 }
 fun documentErrorResource(error: DocumentError): Int=when(error) {
+    DocumentError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
     DocumentError.NETWORK -> R.string.auth_network
     DocumentError.TIMEOUT -> R.string.auth_timeout
     DocumentError.STORAGE_UNAVAILABLE -> R.string.auth_storage

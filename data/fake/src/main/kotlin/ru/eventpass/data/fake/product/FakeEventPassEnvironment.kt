@@ -86,7 +86,7 @@ class FakeEventPassEnvironment(
         suspend fun signInAs(userId: UserId) = mutate {
             require(userId in it.accounts) { "Unknown demo account" }
             it.copy(auth = it.auth.copy(session = ru.eventpass.core.domain.auth.Session(
-                java.util.UUID.randomUUID().toString(), it.accounts.getValue(userId), authClock.instant().plusSeconds(1800)),
+                java.util.UUID.randomUUID().toString(), it.accounts.getValue(userId), authClock.instant().plusSeconds(30L * 86400)),
                 generation = it.auth.generation + 1))
         }
         suspend fun signOut() = mutate { it.copy(auth = it.auth.copy(session = null, generation = it.auth.generation + 1)) }
@@ -179,4 +179,4 @@ internal data class FakeProductState(
 )
 
 internal fun FakeProductState.activeAccount(now: java.time.Instant): Account? = auth.session
-    ?.takeIf { auth.healthy && now < it.expiresAt }?.let { accounts[it.account.id] }
+    ?.takeIf { auth.healthy && (it.expiresAt?.let { end -> now < end } != false) }?.let { accounts[it.account.id] }

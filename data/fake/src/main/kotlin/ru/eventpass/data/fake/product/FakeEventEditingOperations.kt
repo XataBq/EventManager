@@ -22,7 +22,7 @@ internal class FakeEventEditingOperations(
     private fun initialized(): Flow<FakeProductState> = flow { auth.initialize(); emitAll(state) }
     private fun readError(s: FakeProductState, account: Account?): EventEditError? = when {
         !s.auth.healthy -> EventEditError.StorageUnavailable
-        account?.emailVerified != true -> EventEditError.AuthenticationRequired
+        account == null -> EventEditError.AuthenticationRequired
         s.managementReadError != null -> s.managementReadError.toEditError()
         else -> null
     }
@@ -149,7 +149,7 @@ internal class FakeEventEditingOperations(
             val s = state.value
             if (!s.auth.healthy) return@withLock EventEditResult.Failed(EventEditError.StorageUnavailable)
             if (s.auth.generation != generation) return@withLock EventEditResult.Failed(EventEditError.SessionChanged)
-            val actor = s.activeAccount(authClock.instant())?.takeIf { it.emailVerified }?.id
+            val actor = s.activeAccount(authClock.instant())?.id
                 ?: return@withLock EventEditResult.Failed(EventEditError.AuthenticationRequired)
             s.nextEventEditError?.let {
                 state.value = s.copy(nextEventEditError = null)
@@ -169,6 +169,7 @@ internal class FakeEventEditingOperations(
 
 private fun EventFields.detached() = copy(questions = questions.map { it.copy(options = it.options.toList()) }, sections = sections.toList())
 private fun ProductReadError.toEditError(): EventEditError = when (this) {
+    ProductReadError.FEATURE_UNAVAILABLE -> EventEditError.FeatureUnavailable
     ProductReadError.NETWORK -> EventEditError.Network
     ProductReadError.TIMEOUT -> EventEditError.Timeout
     ProductReadError.STORAGE_UNAVAILABLE -> EventEditError.StorageUnavailable

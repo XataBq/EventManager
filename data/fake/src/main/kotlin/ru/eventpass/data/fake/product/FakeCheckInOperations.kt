@@ -21,7 +21,7 @@ internal class FakeCheckInOperations(private val state: MutableStateFlow<FakePro
     private fun initialized() = flow { auth.initialize(); emitAll(state) }
     private fun access(s: FakeProductState, id: EventId, manage: Boolean = false, now: java.time.Instant = authClock.instant()): CheckInError? {
         if (!s.auth.healthy) return CheckInError.STORAGE_UNAVAILABLE
-        val account = s.activeAccount(now)?.takeIf { it.emailVerified } ?: return CheckInError.AUTHENTICATION_REQUIRED
+        val account = s.activeAccount(now) ?: return CheckInError.AUTHENTICATION_REQUIRED
         val event = s.events[id] ?: return CheckInError.NOT_FOUND
         val capabilities = EventAccessPolicy.resolve(event, account, false, s.grants, event.registrationAvailability(clock.instant(), 0))
         return if (event.lifecycle == EventLifecycle.DRAFT || !(if (manage) capabilities.canManageVolunteers else capabilities.canScan)) CheckInError.FORBIDDEN else null

@@ -74,7 +74,7 @@ class EventEditingTest {
         assertEquals(eventId, saved(third.events.publishDraft(id, complete.revision)))
     }
 
-    @Test fun privateDraftsAndManagementRequireCurrentVerifiedOwner() = runTest {
+    @Test fun privateDraftsAndManagementRequireCurrentOwnerIncludingUnverified() = runTest {
         val e = backend()
         assertEquals(failed(EventEditError.AuthenticationRequired), e.events.saveDraft(id, null, fields()))
         e.scenarios.signInAs(FakeFixtures.HOST); saved(e.events.saveDraft(id, null, fields()))
@@ -89,7 +89,9 @@ class EventEditingTest {
         assertEquals(failed(EventEditError.Forbidden), e.events.finishEvent(volunteer.id, 1))
         assertTrue((e.events.observeMyEvents().first() as MyEventsResult.Ready).drafts.isEmpty())
         e.scenarios.putAccount(Account(UserId("unverified"), "new@example.com", false)); e.scenarios.signInAs(UserId("unverified"))
-        assertEquals(failed(EventEditError.AuthenticationRequired), e.events.saveDraft(DraftId("another"), null, fields()))
+        val unverifiedDraft = saved(e.events.saveDraft(DraftId("another"), null, fields()))
+        assertEquals(UserId("unverified"), unverifiedDraft.ownerId)
+        assertEquals(EventEditorResult.Failed(EventEditError.Forbidden), e.events.observeEditor(EventEditorTarget.Draft(id)).first())
     }
 
     @Test fun relationshipsOverlapAndRevocationLeavesOwnTicket() = runTest {
@@ -224,7 +226,7 @@ class EventEditingTest {
         e.scenarios.failNextRead(ProductReadError.NETWORK); e.events.refreshMyEvents()
         assertEquals(MyEventsResult.Failed(EventEditError.Network), e.events.observeMyEvents().first())
         e.events.refreshMyEvents(); assertTrue(e.events.observeMyEvents().first() is MyEventsResult.Ready)
-        time.now = time.now.plusSeconds(1800)
+        time.now = time.now.plusSeconds(30L * 86400)
         assertEquals(MyEventsResult.Failed(EventEditError.AuthenticationRequired), e.events.observeMyEvents().first())
         assertEquals(failed(EventEditError.AuthenticationRequired), e.events.saveDraft(id, null, fields()))
     }
@@ -233,7 +235,7 @@ class EventEditingTest {
         val storage = Storage(); val e = backend(storage); e.scenarios.signInAs(FakeFixtures.ALEX)
         val eventId = create(e)
         saved(e.events.saveDraft(DraftId("other"), null, EventFields(title = "Неполное")))
-        e.auth.signUp("Другой", "other@example.com", AuthSecret("OtherPass123!"))
+        e.auth.signUp("Другой", "other@example.com", AuthSecret("OtherPass123!"), true)
         e.registrations.submitGuest(GuestRegistrationCommand(FakeFixtures.OPEN, 1, "Guest", "guest@example.com", consentAccepted = true))
         val restarted = backend(storage); restarted.scenarios.signInAs(FakeFixtures.ALEX)
         val lists = restarted.events.observeMyEvents().first() as MyEventsResult.Ready
@@ -271,7 +273,7 @@ class EventEditingTest {
         val storage = Storage(); val e = backend(storage)
         val receipt = e.registrations.submitGuest(GuestRegistrationCommand(FakeFixtures.OPEN, 1, "Guest", "guest@example.com",
             answers = mapOf("organization" to Answer.Text("Сохранить ответ")), consentAccepted = true)) as GuestRegistrationOutcome.Issued
-        val challenge = (e.auth.signUp("Новый", "pending@example.com", AuthSecret("Pending123!")) as AuthResult.Success).value
+        val challenge = (e.auth.signUp("Новый", "pending@example.com", AuthSecret("Pending123!"), true) as AuthResult.Success).value
         val secret = e.scenarios.authOutbox().last().secret
         val state = ProductSnapshotCodec.restore(storage.bytes!!, seed())
         storage.bytes = LegacyV2Fixture.encode(state)
@@ -283,7 +285,7 @@ class EventEditingTest {
         assertEquals(state.policy, decodedV2.policy); assertEquals(state.nextId, decodedV2.nextId)
         val restarted = backend(storage)
         assertEquals(SessionState.Guest, restarted.auth.observeSession().first().state)
-        assertTrue(restarted.auth.confirmEmail(challenge.id, secret) is AuthResult.Success)
+        assertTrue(restarted.auth.completeEmailLink(secret) is AuthResult.Success)
         assertTrue(restarted.auth.signIn("pending@example.com", AuthSecret("Pending123!")) is AuthResult.Success)
         saved(restarted.events.saveDraft(id, null, EventFields()))
         val migrated = ProductSnapshotCodec.restore(storage.bytes!!, seed())
@@ -297,11 +299,11 @@ class EventEditingTest {
 
     @Test fun v1MigrationKeepsAuthAndCorruptSnapshotNeverOverwritesData() = runTest {
         val storage = Storage(); val e = backend(storage)
-        val challenge = (e.auth.signUp("Новый", "pending@example.com", AuthSecret("Pending123!")) as AuthResult.Success).value
+        val challenge = (e.auth.signUp("Новый", "pending@example.com", AuthSecret("Pending123!"), true) as AuthResult.Success).value
         val secret = e.scenarios.authOutbox().last().secret
         val old = ProductSnapshotCodec.restore(storage.bytes!!, seed())
-        storage.bytes = AuthSnapshotCodec.encode(old.accounts, old.auth)
-        val restored = backend(storage); assertTrue(restored.auth.confirmEmail(challenge.id, secret) is AuthResult.Success)
+        storage.bytes = LegacyAuthV1Fixture.encode(old.accounts, old.auth)
+        val restored = backend(storage); assertTrue(restored.auth.completeEmailLink(secret) is AuthResult.Success)
         assertTrue(restored.auth.signIn("pending@example.com", AuthSecret("Pending123!")) is AuthResult.Success)
         saved(restored.events.saveDraft(id, null, EventFields()))
         val migrated = ProductSnapshotCodec.restore(storage.bytes!!, seed())

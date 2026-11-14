@@ -67,6 +67,7 @@ fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> 
 fun volunteerErrorResource(error: VolunteerError): Int = when (error) {
     VolunteerError.ACCOUNT_NOT_FOUND -> R.string.volunteer_unknown
     VolunteerError.INVALID_TARGET -> R.string.volunteer_invalid
+    VolunteerError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
     VolunteerError.NETWORK -> R.string.auth_network
     VolunteerError.TIMEOUT -> R.string.auth_timeout
     VolunteerError.STORAGE_UNAVAILABLE -> R.string.auth_storage

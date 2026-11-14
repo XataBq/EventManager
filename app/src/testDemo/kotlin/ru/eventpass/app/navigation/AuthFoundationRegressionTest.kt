@@ -98,7 +98,7 @@ class AuthFoundationRegressionTest {
     @Test fun cancellationDuringDurableSignupKeepsMemoryAndSnapshotConsistent() = runTest {
         val disk = BlockingStorage(); val e = environment(disk)
         e.auth.observeSession().first(); disk.blockNext = true
-        val signup = async { e.auth.signUp("Name", "cancelled@example.com", AuthSecret("NewDemoPass123!")) }
+        val signup = async { e.auth.signUp("Name", "cancelled@example.com", AuthSecret("NewDemoPass123!"), true) }
         try { disk.entered.await(); signup.cancel() }
         finally { disk.release.countDown() }
         signup.join()
@@ -107,7 +107,7 @@ class AuthFoundationRegressionTest {
         assertTrue(e.scenarios.accounts().any { it.email == "cancelled@example.com" })
         assertEquals(1, e.scenarios.authOutbox().size)
         val cold = environment(disk)
-        assertEquals(AuthResult.Failed(AuthError.EmailUnverified), cold.auth.signIn("cancelled@example.com", AuthSecret("NewDemoPass123!")))
+        assertTrue(cold.auth.signIn("cancelled@example.com", AuthSecret("NewDemoPass123!")) is AuthResult.Success)
     }
 
     @Test fun sessionAcceptanceDoesNotBlockCallerQueueBehindSnapshotWrite() = runTest {
@@ -130,7 +130,7 @@ class AuthFoundationRegressionTest {
         val releaseLoginWrite = CountDownLatch(1)
         disk.beforeWrite = { loginWriteEntered.countDown(); check(releaseLoginWrite.await(10, TimeUnit.SECONDS)) }
         val login = caller.async { e.auth.signIn("alex@example.com", AuthSecret("DemoPass123!")) }
-        var writer: kotlinx.coroutines.Deferred<AuthResult<EmailChallenge>>? = null
+        var writer: kotlinx.coroutines.Deferred<AuthResult<EmailDispatch>>? = null
         try {
             dispatcher.next().run()
             // Ensure the IO return suspends before releasing it; a cached/fast reply can complete inline.
@@ -138,7 +138,7 @@ class AuthFoundationRegressionTest {
             disk.beforeWrite = {}; releaseLoginWrite.countDown()
             val resumeLogin = dispatcher.next() // Login IO is complete; acceptance has not run.
             disk.blockNext = true
-            writer = async { e.auth.signUp("Other", "contender@example.com", AuthSecret("NewDemoPass123!")) }
+            writer = async { e.auth.requestPasswordReset("host@example.com") }
             disk.entered.await() // A different auth operation holds the shared lock in write.
             val marker = CountDownLatch(1)
             ui.execute(resumeLogin)
@@ -160,7 +160,7 @@ class AuthFoundationRegressionTest {
                 assertTrue(login.await() is AuthResult.Success)
             }
             runCurrent()
-            assertTrue(e.scenarios.accounts().any { it.email == "contender@example.com" })
+            assertTrue(e.scenarios.authOutbox().any { it.challenge.email == "host@example.com" && it.reset })
             if (cancelLogin) {
                 assertEquals(SessionState.Guest, e.auth.currentSession().state)
                 assertEquals(SessionGate.Login, c.gate.value)
@@ -197,15 +197,16 @@ class AuthFoundationRegressionTest {
     @Test fun temporaryConfirmationFailuresAllowSameDeliveryRetryAndSuccessIsDeduplicated() = runTest {
         for (error in listOf(AuthError.Network, AuthError.Timeout, AuthError.StorageUnavailable)) {
             var attempts = 0
-            val e = environment(hook = { if (it == "confirmEmail") attempts++ })
-            e.auth.signUp("Name", "retry@example.com", AuthSecret("NewDemoPass123!"))
+            val e = environment(hook = { if (it == "completeEmailLink") attempts++ })
+            e.auth.signUp("Name", "retry@example.com", AuthSecret("NewDemoPass123!"), true)
             val mail = e.scenarios.authOutbox().last()
+            e.auth.signOut()
             val uri = "eventpass-demo://demo/confirm/${mail.challenge.id}?token=${mail.secret.value}"
             val handler = AuthLinkHandler(e.auth)
             e.scenarios.failNextAuth(error)
             assertEquals(AuthLinkResult.Failed(error), handler.handle("delivery-1", uri))
             assertEquals(1, attempts) // No automatic retry.
-            assertEquals(AuthLinkResult.EmailConfirmed("retry@example.com"), handler.handle("delivery-1", uri))
+            assertEquals(AuthLinkResult.EmailConfirmed(""), handler.handle("delivery-1", uri))
             assertEquals(AuthLinkResult.Duplicate, handler.handle("delivery-1", uri))
             assertEquals(2, attempts)
             assertEquals(SessionState.Guest, e.auth.currentSession().state)
@@ -215,12 +216,13 @@ class AuthFoundationRegressionTest {
     @Test fun inFlightDuplicateDoesNotMutateAndCancelledDeliveryCanBeRetried() = runTest {
         val entered = CompletableDeferred<Unit>()
         var first = true; var attempts = 0
-        val e = environment(hook = { if (it == "confirmEmail") {
+        val e = environment(hook = { if (it == "completeEmailLink") {
             attempts++
             if (first) { first = false; entered.complete(Unit); awaitCancellation() }
         } })
-        e.auth.signUp("Name", "retry@example.com", AuthSecret("NewDemoPass123!"))
+        e.auth.signUp("Name", "retry@example.com", AuthSecret("NewDemoPass123!"), true)
         val mail = e.scenarios.authOutbox().last()
+            e.auth.signOut()
         val uri = "eventpass-demo://demo/confirm/${mail.challenge.id}?token=${mail.secret.value}"
         val handler = AuthLinkHandler(e.auth)
         val request = async { handler.handle("delivery-1", uri) }
@@ -228,7 +230,7 @@ class AuthFoundationRegressionTest {
         assertEquals(AuthLinkResult.Duplicate, handler.handle("delivery-1", uri))
         assertEquals(1, attempts)
         request.cancelAndJoin()
-        assertEquals(AuthLinkResult.EmailConfirmed("retry@example.com"), handler.handle("delivery-1", uri))
+        assertEquals(AuthLinkResult.EmailConfirmed(""), handler.handle("delivery-1", uri))
         assertEquals(AuthLinkResult.Duplicate, handler.handle("delivery-1", uri))
         assertEquals(2, attempts)
     }

@@ -53,14 +53,14 @@ class FakeEventPassEnvironmentTest {
         assertEquals(RegistrationAvailability.Open(AvailablePlaces.Limited(19)), event.availability)
     }
 
-    @Test fun separateAccountOnSameEmailSeesEarlierTicketsOnlyAfterVerifiedSignIn() = runTest {
+    @Test fun separateAccountOnSameEmailSeesEarlierTicketsWithUnverifiedSession() = runTest {
         val environment = FakeEventPassEnvironment()
         val issued = environment.registrations.submitGuest(command()) as GuestRegistrationOutcome.Issued
         val newAccount = Account(UserId("new-account"), "new@example.com", false)
         environment.scenarios.putAccount(newAccount)
         assertEquals(MyTicketsResult.AuthenticationRequired, environment.tickets.observeMyTickets().first())
         environment.scenarios.signInAs(newAccount.id)
-        assertEquals(MyTicketsResult.EmailVerificationRequired, environment.tickets.observeMyTickets().first())
+        assertTrue(environment.tickets.observeMyTickets().first() is MyTicketsResult.Ready)
         environment.scenarios.signOut()
         environment.scenarios.putAccount(newAccount.copy(emailVerified = true))
         // Confirmation changes the account, but it does not authenticate the client.

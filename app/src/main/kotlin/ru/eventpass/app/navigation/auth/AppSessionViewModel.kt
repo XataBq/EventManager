@@ -128,7 +128,8 @@ class AppSessionViewModel @Inject constructor(
     /** Called only while the Activity is STARTED; one deadline, no polling/background service. */
     suspend fun awaitExpiry() {
         val session = (auth.currentSession().state as? SessionState.Authenticated)?.session ?: return
-        delay(Duration.between(clock.instant(), session.expiresAt).toMillis().coerceAtLeast(1))
+        val deadline = session.expiresAt ?: return
+        delay(Duration.between(clock.instant(), deadline).toMillis().coerceAtLeast(1))
         coordinator.refreshSession()
     }
     override fun onCleared() { clearOwners(); publicOwner.viewModelStore.clear(); queuedLinks.clear(); retryDelivery = null }
