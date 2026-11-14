@@ -38,8 +38,9 @@ CODE_REVIEW.md: дата, M, base/target commit или точный манифе
 | Этап | Статус | Реализация / ревью | Следующее действие |
 |---|---|---|---|
 | M00 | TECH_ACCEPTED | aa5050f; m00_review: NO_CONFIRMED_FINDINGS, CODE_REVIEW.md:1830 | 48 методов/12 портов/33 операции; исходники не менялись |
-| M01 | CHANGES_REQUIRED → исправление | 918f78e; m00_review CODE_REVIEW.md:1870: одна P2 legacy mixed-case email; исполнитель fix m02_readiness | Исправление login/recovery/uniqueness без слияния IDs, regression tests, повторное ревью |
-| M02–M09 | TODO | Не запускались | Последовательно по плану |
+| M01 | TECH_ACCEPTED | 918f78e + fix4091c97; повторное m00_review CODE_REVIEW.md:1912: NO_CONFIRMED_FINDINGS | Legacy email P2 закрыта; текущий demo APK hash в fix report, remote hash прежний; human не закрыт |
+| M02 | IN_PROGRESS | Ответственный исполнитель m02_readiness | Public event/slug, lifecycle, typed forms и совместимость models/codec/UI |
+| M03–M09 | TODO | Не запускались | Последовательно по плану |
 
 Все H-проверки нового remote и непроверенный новый T09a UX ожидают единой финальной приёмки. Обновление этого журнала не закрывает их автоматически.
 

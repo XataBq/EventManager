@@ -1907,3 +1907,34 @@ HTTPS/no redirect/no retry/bearer origin boundary, bounded response decode и ca
 Новые полные assemble/lint/app unit/fake/device suites и live staging smoke ревьюером не выполнялись; изучены соответствующие исходники и сохранённое evidence. Реальные письма setup/reset/verify, legal URLs, полный старый demo device suite, OS process kill/restart remote UI, TalkBack/IME/fontScale/Figma/два физических устройства остаются не проверенными в этом ревью. Ручная приёмка только после M09 и не отмечалась пройденной. Будущие adapters/release/signing/Room не признаны готовыми через M01.
 
 Source/статусы/документы не исправлялись, commit/push не выполнялись. Предыдущие байты CODE_REVIEW.md сохранены полностью; до append SHA-256 `4c6e021c9aebac78a003fef89f823eb8a5105e386202102ec61a374179cb2f0a`.
+
+
+## 2026-11-14 — T10 M01: повторное ревью legacy email fix (4091c97)
+
+**VERDICT: NO_CONFIRMED_FINDINGS.** Прежняя P2 mixed-case legacy email из ревью `918f78e` устранена в проверенном исправлении. Новых подтверждённых P0–P3 в этом узком scope не обнаружено. Это повторное техническое ревью исправления, не новая полная приёмка M01/remote.
+
+### Scope
+
+Коммит `4091c97bce9dab6b8139a77b592d1bed12db80fc`, база `8ab1708`, исходный M01 source `918f78e`. Проверены только FakeAuthRepository.kt, новая FakeLegacyEmailRecoveryTest.kt и docs/validation/t10-m01-fix-email.md. Исходники заморожены, app/domain/remote/platform/Gradle не менялись. Поздние продуктовые правила AGENTS/08/34 и правила read-only android-code-review сохраняются. Ревьюер меняет только этот отчёт.
+
+### Закрытие P2
+
+`FakeAuthRepository.kt:156–162` вводит единый normalizedEmail/matchingAccounts; signup uniqueness использует тот же normalized match, login и verify/reset ищут через этот же helper. Уникальный legacy Account возвращается со старым id/email/proof: данные при сравнении не переписываются. Поэтому mixed-case, lowercase и uppercase ввод находят один и тот же исходный аккаунт, а duplicate signup отклоняется.
+
+При двух legacy Account.id с одинаковым normalized email `singleOrNull()` не выбирает первый аккаунт и не выбирает его по одному из паролей. Login безопасно возвращает InvalidCredentials; verify/reset принимают запрос без dispatch, signup возвращает EmailTaken. Это осознанное ограничение неоднозначных старых данных, явно описанное в отчёте; автоматического merge/подмены proofs/удаления связей нет. Обработка относится только к конфликтующему адресу и не блокирует независимые login/signup.
+
+Три независимые регрессии используют handwritten legacy auth v1 и product v2 writers: unique mixed-case login/recovery/duplicate signup/cold restart; сохранение accounts/proofs/names/tickets/registrations/grants; collision с обоими разными password proofs, всеми case-вариантами, отсутствием mail и побайтным неизменением snapshot; независимый Alex login и signup нового адреса. Это поведенческие проверки прежнего дефекта, а не только тест helper normalization.
+
+### Проверки, независимо сверенные
+
+- `git diff 4091c97^ 4091c97 --check` — exit 0. `git diff 4091c97 --name-only -- app core data settings.gradle.kts gradle/libs.versions.toml` — exit 0, вывод пустой: source после freeze не изменён.
+- Python сверка двух SHA-256 из `.gradle/m01-fix-email-evidence/scope-sha256.json` — exit 0; источник/тест соответствуют evidence. Сохранённый FakeAuthRepository.before.kt совпадает с `git show 918f78e:.../FakeAuthRepository.kt` с учётом CRLF.
+- Immutable `red-xml`: 3 tests / 3 failures / 0 errors/skips. Старый источник воспроизводит прежнюю регрессию уникального email и небезопасный выбор lowercase Account при collision.
+- Immutable `green-xml`: **95/95 fake**, failures/errors/skips=0; это прежние 92 и три новые проверки. Immutable `app-xml`: **72/72 demo unit**, failures/errors/skips=0. XML изучены заново, Gradle ревьюером не перезапускался: свежие полные доказательства уже сохранены исполнителем/root, их outputs не перезаписывались filtered прогоном.
+- Demo APK code21 независимо сверён: SHA-256 `0565370c3490f65e62cda51ea5bac754f1b87a5d93594b597a0429407ff24a81`. Это новый demo artifact после fix, первоначальный hash M01 относится к предыдущей сборке. Remote APK остаётся `cc216ec04a5e0fa8a0f062ebb32da4d7ed987e839d38d61f02400c1ed6e20f13`.
+
+### NOT_RUN / ограничения
+
+Новый Gradle/device/staging/build/lint прогон ревьюером не выполнялся. Root/исполнитель выполнили адресный fake+demo unit/build, их результаты проверены по сохранённому evidence; они не выданы за новый полный прогон 232 invocations/5 device. OS-kill remote UI, реальные письма/legal, полноценная ручная/Figma/IME/TalkBack приёмка остаются ожидающими после M09. Для доступа к неоднозначным legacy demo identities потребуется отдельное явное разрешение конфликта/сброс demo; текущее исправление не обещает угадать правильный аккаунт.
+
+Код/статусы/документы не исправлялись, commit/push не выполнялись. Решение TECH_ACCEPTED и запуск M02 принимает главный агент. Все предыдущие байты CODE_REVIEW.md сохранены; SHA-256 до append `56513dffb507123ea9d1da4b63557d6561f716459240648b0f0c55a941dd91fb`.
