@@ -1865,3 +1865,45 @@ git diff --check c75ce56^ c75ce56
 - `.gradle/verify-m00-mapping.py` и baseline служебные и не входят в коммит; их проверки выполнены в текущем workspace. Будущие этапы должны закреплять значимые повторяемые контрактные тесты в репозитории.
 - Android assemble/lint/JVM/device tests и серверные mutation/browser tests в этом ревью не запускались: нет изменения кода. Инкрементальный baseline root (1 выполненная Gradle-задача/82 up-to-date) не представлен как свежий прогон unit-тестов. Mermaid rendering не выполнялся.
 - Ручная приёмка нового T09a/remote остаётся финальной после M09. Решение TECH_ACCEPTED/переход к M01 принимает главный агент, статусы ревьюером не менялись.
+
+
+## 2026-11-14 — T10 M01: session/auth/transport (918f78e)
+
+**VERDICT: CHANGES_REQUIRED.** Подтверждена одна P2-регрессия восстановления legacy demo-аккаунтов. Подтверждённых P0/P1/P3 в проверенной области не найдено; отсутствие других находок не означает полное покрытие или готовность production.
+
+### Scope и состояние
+
+Ревью commit `918f78eb705018d04381a754b9ab112f83dee575`, base `bd6c29567d355c7eb0de2dabef194d40b02edb51`. Проверены новые AuthHttp/RemoteAuthRepository, TokenStore, auth UI/VM/coordinator/remote host, DI/variant/source-set границы, fake auth guards/codec и связанные тесты/документация. Другая исходная dirty документация не включалась в findings. Source scope app/core/data/settings/version catalog заморожен; `git diff 918f78e --name-only` по этим путям пуст. Некоторые canonical docs коммита сохраняют ранее dirty basis, собственный scope определён исполнителем baseline/manifest. Последнее изменение root journal35 не является изменением продукта и не рассматривалось как часть source diff.
+
+Применён android-code-review; один read-only helper проверил platform crypto и fake auth/миграцию, не писал файлы и не запускал Gradle. Основной ревьюер независимо подтвердил находку. Поздние принятые правила unverified signup/login имеют приоритет над устаревшим текстом скилла. Guest autoaccount, Room, public event и остальные будущие M не требовались от M01; явные FeatureUnavailable не названы дефектом.
+
+### P2 — восстановленные mixed-case email теряют доступ к аккаунту
+
+**Файл:** `data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeAuthRepository.kt:175` (lookup login); связанные строки 157–160 (signup uniqueness) и 188–189 (lookup verify/reset).
+
+**Условие:** аккаунт создан старой версией с допустимым email в смешанном регистре, например `Alex@Example.com`, и восстановлен из auth EPA1/product snapshot с сохранённым password proof. В base `bd6c295` signup сохранял `email.trim()` без lowercasing; старая валидация такой адрес допускала. Новая миграция `FakeAuthStorage.kt:125–127` читает исходный email и сохраняет его без изменения. Новый login сравнивает сохранённое значение точно с `email.trim().lowercase(ROOT)`.
+
+**Последствие:** ввод как `Alex@Example.com`, так и `alex@example.com` превращается в lowercase и не совпадает с сохранённым адресом. Login выдаёт InvalidCredentials несмотря на сохранённый правильный proof; verify/reset тихо не находят аккаунт. Signup lowercase-варианта проходит новую exact uniqueness проверку и может создать второй Account.id для той же нормализованной почты. Обещание сохранить доступ к существующим accounts/proofs при EPA2 migration нарушено.
+
+**Доказательство:** сопоставлены старые signUp/signIn из `git show bd6c295:.../FakeAuthRepository.kt`, новый codec и все три новых lookup. Контрпример однозначно следует из строк: сохранённое `Alex@Example.com` != lower(`Alex@Example.com`) == `alex@example.com`; для signup exact check также false. Существующий независимый LegacyAuthV1Fixture умеет сохранять исходный адрес, но mixed-case regression в проверенных тестах отсутствует. Отдельный исполняемый mixed-case тест в ходе read-only ревью не добавлялся.
+
+**Направление исправления:** согласовать lookup/uniqueness и обработку legacy identity без потери существующих IDs/proofs/ticket/grant связей. Нельзя нормализовать только login и оставить recovery/uniqueness несовместимыми. Нельзя молча слить разные старые Account.id, если старый snapshot содержит case-collision. Нужны независимые legacy fixtures для mixed-case и collision, проверки входа правильным паролем, восстановления/verify и отказа duplicate signup либо явно документированная безопасная обработка неоднозначности.
+
+### Независимые проверки
+
+- `JAVA_HOME=...Android Studio1\jbr; ./gradlew.bat :data:remote:testDebugUnitTest --tests '*RemoteAuthRepositoryTest' --offline --console=plain` — exit 1 до тестов: отсутствовал cached tracing-1.0.0.aar. Это ограничение среды/кеша, не новая находка приложения.
+- После чтения точечного init-workaround: `./gradlew.bat -I .gradle/m01-verified-google.init.gradle :data:remote:testDebugUnitTest --tests '*RemoteAuthRepositoryTest' --offline --console=plain` — exit 0, BUILD SUCCESSFUL/4s, 17 задач, 1 executed/16 up-to-date; **12 локальных transport/session тестов заново выполнены, failures/errors/skipped=0**. Staging mutations ревьюером не запускались. Init ограничен одним exact tracing version, TLS/trust не ослаблены.
+- Повторный filtered запуск заменил текущий remote XML набор на 12 local tests. Прежнее утверждение исполнителя «232 JVM invocations, включая live staging» относится к его полному прогону; его сохранённые logs и проверка root отличены от этого независимого rerun. Текущие XML после rerun: domain20/fake92/platform12/remote12/app-demo72/app-remote23 = 231 invocation, все 0 failures/errors/skips. Остальные JVM suites ревьюер заново не запускал.
+- Сохранённые device XML изучены: platform **4/4**, remote Activity **1/1**, failures/errors/skips=0. Это ранее выполненные device tests, не новый device запуск ревьюера. Они доказывают Keystore/AtomicFile cases и реальную Intent boundary, но не OS-kill remote authenticated UI restore.
+- Хеш текущего remote APK независимо сверён: `cc216ec04a5e0fa8a0f062ebb32da4d7ed987e839d38d61f02400c1ed6e20f13` совпадает с отчётом; DEX isolation root evidence учитывается как отдельная проверка, не повторный DEX анализ ревьюера.
+- `python scripts/verify-architecture-docs.py` — exit 0, 16 pages/330 links/9 Mermaid blocks/18 mobile IDs/S01–S14. `git diff --check` — exit 0. Структурные проверки не доказывают Kotlin-семантику и Mermaid rendering.
+
+### Что изучено без новых подтверждённых находок
+
+HTTPS/no redirect/no retry/bearer origin boundary, bounded response decode и cancellation; local Session.id/nullable expiry/Unknown→Recovery→retry, protected401 vs login401/late epoch, cancel после durable write/ранняя logout invalidation; AEAD/Keystore/fresh IV/AAD/private noBackup/atomic replacement/key loss; explicit consent без default true, browser mail flow и отсутствие code/grant UI; variant DI/Unavailable и demo class isolation, сохранение source-set тестов. Эта запись не заменяет последующие проверки новых фич и финальную security/UX приёмку.
+
+### NOT_RUN / ограничения
+
+Новые полные assemble/lint/app unit/fake/device suites и live staging smoke ревьюером не выполнялись; изучены соответствующие исходники и сохранённое evidence. Реальные письма setup/reset/verify, legal URLs, полный старый demo device suite, OS process kill/restart remote UI, TalkBack/IME/fontScale/Figma/два физических устройства остаются не проверенными в этом ревью. Ручная приёмка только после M09 и не отмечалась пройденной. Будущие adapters/release/signing/Room не признаны готовыми через M01.
+
+Source/статусы/документы не исправлялись, commit/push не выполнялись. Предыдущие байты CODE_REVIEW.md сохранены полностью; до append SHA-256 `4c6e021c9aebac78a003fef89f823eb8a5105e386202102ec61a374179cb2f0a`.
