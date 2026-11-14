@@ -153,11 +153,19 @@ internal class FakeAuthRepository(
     }
     private fun <T> failed(s: FakeProductState, error: AuthError): Pair<FakeProductState, AuthResult<T>> = s to AuthResult.Failed(error)
 
+    private fun normalizedEmail(value: String) = value.trim().lowercase(java.util.Locale.ROOT)
+
+    /** A legacy collision has no safe winner: never merge accounts, proofs or their event links. */
+    private fun matchingAccounts(s: FakeProductState, email: String): List<Account> {
+        val normalized = normalizedEmail(email)
+        return s.accounts.values.filter { normalizedEmail(it.email) == normalized }
+    }
+
     override suspend fun signUp(name: String, email: String, password: AuthSecret, consentAccepted: Boolean): AuthResult<Session> = command("signUp", acceptSessionOnCaller = true) { s ->
-        val mail = email.trim().lowercase(java.util.Locale.ROOT)
+        val mail = normalizedEmail(email)
         when {
             !consentAccepted || !policy.input.validName(name) || !policy.input.validEmail(mail) || !policy.input.validPassword(password) -> failed(s, AuthError.InvalidInput)
-            s.accounts.values.any { it.email == mail } -> failed(s, AuthError.EmailTaken)
+            matchingAccounts(s, mail).isNotEmpty() -> failed(s, AuthError.EmailTaken)
             else -> {
                 val account = Account(UserId(secrets.id()), mail, false)
                 val next = s.copy(accounts = s.accounts + (account.id to account), auth = s.auth.copy(
@@ -172,7 +180,7 @@ internal class FakeAuthRepository(
     }
 
     override suspend fun signIn(email: String, password: AuthSecret): AuthResult<Session> = command("signIn", acceptSessionOnCaller = true) { s ->
-        val account = s.accounts.values.singleOrNull { it.email == email.trim().lowercase(java.util.Locale.ROOT) }
+        val account = matchingAccounts(s, email).singleOrNull()
         when {
             !policy.input.validLoginPassword(password) || account == null || s.auth.passwords[account.id]?.matches(password) != true -> failed(s, AuthError.InvalidCredentials)
             else -> {
@@ -185,11 +193,12 @@ internal class FakeAuthRepository(
     override suspend fun requestVerification(email: String) = request(email, false)
     override suspend fun requestPasswordReset(email: String) = request(email, true)
     private suspend fun request(email: String, reset: Boolean): AuthResult<EmailDispatch> = command("requestChallenge") { s ->
-        val mail = email.trim().lowercase(java.util.Locale.ROOT)
-        val account = s.accounts.values.singleOrNull { it.email == mail }
+        val mail = normalizedEmail(email)
+        val account = matchingAccounts(s, mail).singleOrNull()
         val previous = s.auth.challenges.values.singleOrNull { it.userId == account?.id && it.reset == reset }
         when {
             !policy.input.validEmail(mail) -> failed(s, AuthError.InvalidInput)
+            // Unknown or ambiguous legacy identity is accepted without dispatch, as with unknown email.
             account == null || (!reset && account.emailVerified) -> s to AuthResult.Success(EmailDispatch())
             previous != null && clock.instant() < previous.resendAt -> failed(s, AuthError.Cooldown(previous.resendAt))
             else -> issue(s, account, reset)
