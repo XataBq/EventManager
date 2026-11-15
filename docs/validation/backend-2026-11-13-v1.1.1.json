@@ -1,0 +1,255 @@
+{
+  "timestamp": "2026-11-13T08:31:01.258769+00:00",
+  "base": "https://staging.eventpass.dikanskii.ru/api",
+  "run": "e4660c747c52",
+  "checks": [
+    {
+      "check": "signup_owner",
+      "passed": true
+    },
+    {
+      "check": "signup_member",
+      "passed": true
+    },
+    {
+      "check": "signup_checker",
+      "passed": true
+    },
+    {
+      "check": "login_without_verification",
+      "passed": true
+    },
+    {
+      "check": "cover_upload",
+      "passed": true
+    },
+    {
+      "check": "cover_private",
+      "passed": true
+    },
+    {
+      "check": "cover_owner_read",
+      "passed": true
+    },
+    {
+      "check": "cover_foreign_attach",
+      "passed": true
+    },
+    {
+      "check": "create_concurrent_idempotency",
+      "passed": true
+    },
+    {
+      "check": "draft_incomplete",
+      "passed": true
+    },
+    {
+      "check": "publish_incomplete_rejected",
+      "passed": true
+    },
+    {
+      "check": "create_key_conflict",
+      "passed": true
+    },
+    {
+      "check": "draft_patch",
+      "passed": true
+    },
+    {
+      "check": "publish_live",
+      "passed": true
+    },
+    {
+      "check": "default_end_four_hours",
+      "passed": true
+    },
+    {
+      "check": "cover_public",
+      "passed": true
+    },
+    {
+      "check": "explicit_end",
+      "passed": true
+    },
+    {
+      "check": "publish_repeat_same_event",
+      "passed": true
+    },
+    {
+      "check": "required_checkbox_false",
+      "passed": true
+    },
+    {
+      "check": "registration_live",
+      "passed": true
+    },
+    {
+      "check": "registration_replay",
+      "passed": true
+    },
+    {
+      "check": "registration_duplicate",
+      "passed": true
+    },
+    {
+      "check": "guest_empty_phone_accepted",
+      "passed": true
+    },
+    {
+      "check": "guest_ticket_protected",
+      "passed": true
+    },
+    {
+      "check": "guest_capability_read",
+      "passed": true
+    },
+    {
+      "check": "guest_pdf",
+      "passed": true
+    },
+    {
+      "check": "scanner_without_role",
+      "passed": true
+    },
+    {
+      "check": "grant_checker",
+      "passed": true
+    },
+    {
+      "check": "scan_manual",
+      "passed": true
+    },
+    {
+      "check": "scan_replay_not_new",
+      "passed": true
+    },
+    {
+      "check": "new_scan_used",
+      "passed": true
+    },
+    {
+      "check": "used_cancel_rejected",
+      "passed": true
+    },
+    {
+      "check": "cancel_foreign_owner_rejected",
+      "passed": true
+    },
+    {
+      "check": "owner_cancel_active",
+      "passed": true
+    },
+    {
+      "check": "owner_cancel_repeat",
+      "passed": true
+    },
+    {
+      "check": "stale_page",
+      "passed": true
+    },
+    {
+      "check": "cancelled_scan_invalid",
+      "passed": true
+    },
+    {
+      "check": "volunteer_count",
+      "passed": true
+    },
+    {
+      "check": "revoke",
+      "passed": true
+    },
+    {
+      "check": "replay_after_revoke",
+      "passed": true
+    },
+    {
+      "check": "regrant_history",
+      "passed": true
+    },
+    {
+      "check": "volunteer_also_participant",
+      "passed": true
+    },
+    {
+      "check": "self_cancel",
+      "passed": true
+    },
+    {
+      "check": "reregister_after_cancel_new_ticket",
+      "passed": true
+    },
+    {
+      "check": "scan_cancel_race",
+      "passed": true
+    },
+    {
+      "check": "question_change_after_registration",
+      "passed": true
+    },
+    {
+      "check": "xlsx_real_and_all_statuses",
+      "passed": true
+    },
+    {
+      "check": "xlsx_historical_answers",
+      "passed": true
+    },
+    {
+      "check": "xlsx_metadata_contacts",
+      "passed": true
+    },
+    {
+      "check": "manual_finish",
+      "passed": true
+    },
+    {
+      "check": "finish_idempotent",
+      "passed": true
+    },
+    {
+      "check": "finished_registration",
+      "passed": true
+    },
+    {
+      "check": "finished_first_scan",
+      "passed": true
+    },
+    {
+      "check": "manual_finish_not_revived",
+      "passed": true
+    },
+    {
+      "check": "tickets_history",
+      "passed": true
+    },
+    {
+      "check": "cleanup_Android audit owner",
+      "passed": true
+    },
+    {
+      "check": "cleanup_Android audit member",
+      "passed": true
+    },
+    {
+      "check": "cleanup_Android audit checker",
+      "passed": true
+    }
+  ],
+  "observations": [
+    {
+      "guest_phone_omitted": 422,
+      "response": {
+        "code": "VALIDATION",
+        "message": "Проверьте поля формы",
+        "fields": {
+          "guest.phone": "MISSING"
+        }
+      }
+    },
+    {
+      "guest_test_account": "android.audit.e4660c747c52.guest@example.com",
+      "cleanup": "passwordless guest cannot be deleted without setup link; owner cascade removes its ticket"
+    }
+  ]
+}

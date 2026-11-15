@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.TicketStatus
 
-enum class AttendanceError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, FORBIDDEN, NOT_FOUND, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, STALE_PAGE, INVALID_INPUT, USED }
+enum class AttendanceError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, FORBIDDEN, NOT_FOUND, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, STALE_PAGE, INVALID_INPUT, USED, PROTOCOL, SERVER_UNAVAILABLE}
 data class AttendanceHeader(val eventId: EventId, val title: String, val startsAt: Instant, val zoneId: String,
     val venue: String, val lifecycle: EventLifecycle, val registrationOpen: Boolean, val finished: Boolean)
 data class AttendanceSummary(val registered: Int, val checkedIn: Int, val notCheckedIn: Int, val remaining: Int?) {

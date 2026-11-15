@@ -27,6 +27,8 @@ fun DemoTools(outbox: Boolean, onGallery: () -> Unit, onCounter: () -> Unit, onO
     val entry = remember(context) { EntryPointAccessors.fromApplication(context, DemoBackendEntryPoint::class.java) }
     val scope = rememberCoroutineScope()
     var revision by remember { mutableIntStateOf(0) }
+    var legacyResetRequired by remember { mutableStateOf(false) }
+    LaunchedEffect(revision) { legacyResetRequired = entry.environment().requiresLegacyReset() }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableIntStateOf(0) }
     fun scenario(action: suspend () -> Unit) {
@@ -36,6 +38,7 @@ fun DemoTools(outbox: Boolean, onGallery: () -> Unit, onCounter: () -> Unit, onO
         }
     }
     AuthColumn {
+        if (legacyResetRequired) Text(stringResource(R.string.demo_legacy_reset_required))
         Text(stringResource(if (outbox) R.string.auth_outbox else R.string.auth_demo_tools), style = EventPassTypography.heading)
         Text(stringResource(R.string.tools_disclaimer))
         if (message != 0) Text(stringResource(message))

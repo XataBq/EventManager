@@ -18,7 +18,7 @@ import kotlin.coroutines.suspendCoroutine
 class EditorViewModelTest {
     private val covers = object : CoverImporter { override suspend fun importCover(source: String) = CoverImportResult.InvalidImage }
     private fun environment() = FakeEventPassEnvironment(authPolicy = FakeAuthPolicy(passwordIterations = 1000))
-    private fun input() = EditorInput(EventFields(title = "Новая конференция", venue = "Зал"), "2026-10-28 12:00")
+    private fun input() = EditorInput(EventFields(title = "Новая конференция", venue = "Зал", description = "Описание", capacity = 20), "2026-10-28 12:00", capacity = "20")
     @Test fun explicitSaveIncompleteReloadAndPublishKeepsStableReceipt() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
@@ -52,8 +52,8 @@ class EditorViewModelTest {
         val selected = input().resolved(); assertTrue(selected.second.isEmpty())
         assertEquals(Instant.parse("2026-10-28T09:00:00Z"), selected.first.startsAt)
         assertTrue(input().copy(start = "2026-02-30 12:00").resolved().second.contains("startsAt"))
-        assertTrue(input().copy(unlimited = false, capacity = "").resolved().second.contains("capacity"))
-        assertEquals(0, input().copy(unlimited = false, capacity = "0").resolved().first.capacity)
+        assertNull(input().copy(capacity = "").resolved().first.capacity)
+        assertTrue(input().copy(capacity = "0").resolved().second.contains("capacity"))
         val gap = input().copy(fields = EventFields(zoneId = "Europe/Berlin"), start = "2026-03-29 02:30")
         assertTrue(gap.resolved().second.contains("startsAt"))
         val incomplete = EventFields(startsAt = Instant.parse("2026-10-28T09:00:00Z"), zoneId = "invalid zone")
@@ -88,7 +88,7 @@ class EditorViewModelTest {
             vm.bind(null, FakeFixtures.OWNED.value, false); vm.state.first { it.allowed }
             val old = (e.events.observePublicEvent(FakeFixtures.OWNED).first() as PublicEventResult.Found).event
             vm.edit(vm.state.value.input.copy(fields = old.toFields().copy(title = "Моя правка")))
-            e.events.updateEvent(old.id, old.revision, old.formVersion, old.toFields().copy(title = "Внешняя правка"))
+            e.events.updateEvent(old.id, requireNotNull(old.revision), old.localSchemaRevision, old.toFields().copy(title = "Внешняя правка"))
             runCurrent(); vm.save(); vm.state.first { it.error != null && !it.busy }
             assertEquals(EventEditError.Conflict, vm.state.value.error)
             assertEquals("Моя правка", vm.state.value.input.fields.title)

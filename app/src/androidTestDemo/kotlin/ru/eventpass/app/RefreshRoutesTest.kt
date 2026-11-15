@@ -74,7 +74,7 @@ class RefreshRoutesTest {
 
     @Test fun differentEventEntriesKeepRefreshResourceAndFormIncludingReadFailure() {
         val e=compose.backend().environment();val calls=mutableListOf<EventId>()
-        val repo=object:EventRepository by e.events {override suspend fun refreshPublicEvent(eventId:EventId){calls+=eventId;e.events.refreshPublicEvent(eventId)}}
+        val repo=object:EventRepository by e.events {override suspend fun refreshPublicEvent(reference: PublicEventReference) { val eventId = (reference as PublicEventReference.Internal).id;calls+=eventId;e.events.refreshPublicEvent(eventId)}}
         val one=own(EventViewModel(repo,e.registrations,e.tickets,SavedStateHandle()))
         val two=own(EventViewModel(repo,e.registrations,e.tickets,SavedStateHandle()))
         var first by mutableStateOf(true)
@@ -171,7 +171,7 @@ class RefreshRoutesTest {
 
     @Test fun guestReceiptAndScannerNeverRefreshUnderlyingEventOrRepeatCommand() {
         val e=compose.backend().environment();var reads=0
-        val repo=object:EventRepository by e.events {override suspend fun refreshPublicEvent(eventId:EventId){reads++;e.events.refreshPublicEvent(eventId)}}
+        val repo=object:EventRepository by e.events {override suspend fun refreshPublicEvent(reference: PublicEventReference) { val eventId = (reference as PublicEventReference.Internal).id;reads++;e.events.refreshPublicEvent(eventId)}}
         val vm=own(EventViewModel(repo,e.registrations,e.tickets,SavedStateHandle()))
         compose.runOnUiThread {compose.activity.setContent {EventPassTheme {EventRoute(FakeFixtures.OPEN.value,{_,_,_->},{},{},vm=vm)}}}
         await {vm.state.value.data!=null && reads==1}

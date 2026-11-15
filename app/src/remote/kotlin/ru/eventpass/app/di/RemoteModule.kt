@@ -20,7 +20,7 @@ object RemoteModule {
  @Provides fun authPort(auth: RemoteAuthRepository): AuthRepository = auth
  @Provides fun profiles(auth: RemoteAuthRepository): ProfileRepository = auth.profileRepository
  @Provides fun clock(): java.time.Clock = java.time.Clock.systemUTC()
- @Provides fun events(): ru.eventpass.core.domain.EventRepository = UnavailableRemoteFeatures
+ @Provides @Singleton fun events(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.EventRepository = RemoteEventRepository(http,auth,UnavailableRemoteFeatures)
  @Provides fun registrations(): ru.eventpass.core.domain.RegistrationRepository = UnavailableRemoteFeatures
  @Provides fun tickets(): ru.eventpass.core.domain.TicketRepository = UnavailableRemoteFeatures
  @Provides fun checkins(): ru.eventpass.core.domain.checkin.CheckInRepository = UnavailableRemoteFeatures

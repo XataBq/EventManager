@@ -1,0 +1,1873 @@
+{
+  "description": "Вымышленные примеры контрактных тел. IDs не принадлежат staging. Negative cases проверяют только JSON Schema; бизнес-сценарии перечислены в основном документе.",
+  "cases": [
+    {
+      "name": "getConfig response 200",
+      "schema": "Config",
+      "valid": true,
+      "value": {
+        "apiVersion": "v1",
+        "serverTime": "2026-10-31T12:00:00Z",
+        "legal": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "termsUrl": "https://eventpass.example/legal/terms",
+          "privacyUrl": "https://eventpass.example/legal/privacy"
+        },
+        "phoneRequirement": "OPTIONAL",
+        "minPasswordLength": 8,
+        "maxPasswordLength": 128,
+        "coverMaxBytes": 5242880,
+        "dashboardPollSeconds": 5,
+        "publicWebBaseUrl": "https://eventpass.example/e/e_conference"
+      },
+      "operationId": "getConfig",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "signUp request",
+      "schema": "SignUpRequest",
+      "valid": true,
+      "value": {
+        "name": "Алексей Иванов",
+        "email": "alex@example.com",
+        "password": "ExamplePassword42!",
+        "consent": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "accepted": true
+        }
+      },
+      "operationId": "signUp",
+      "direction": "request"
+    },
+    {
+      "name": "signUp response 201",
+      "schema": "EmailChallenge",
+      "valid": true,
+      "value": {
+        "challengeId": "ch_001",
+        "email": "alex@example.com",
+        "expiresAt": "2026-11-01T12:00:00Z",
+        "resendAt": "2026-10-31T12:01:00Z"
+      },
+      "operationId": "signUp",
+      "direction": "response",
+      "status": 201
+    },
+    {
+      "name": "requestVerification request",
+      "schema": "EmailRequest",
+      "valid": true,
+      "value": {
+        "email": "alex@example.com"
+      },
+      "operationId": "requestVerification",
+      "direction": "request"
+    },
+    {
+      "name": "requestVerification response 202",
+      "schema": "EmailChallenge",
+      "valid": true,
+      "value": {
+        "challengeId": "ch_001",
+        "email": "alex@example.com",
+        "expiresAt": "2026-11-01T12:00:00Z",
+        "resendAt": "2026-10-31T12:01:00Z"
+      },
+      "operationId": "requestVerification",
+      "direction": "response",
+      "status": 202
+    },
+    {
+      "name": "confirmEmail request",
+      "schema": "ConfirmEmailRequest",
+      "valid": true,
+      "value": {
+        "challengeId": "ch_001",
+        "token": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "operationId": "confirmEmail",
+      "direction": "request"
+    },
+    {
+      "name": "confirmEmail response 200",
+      "schema": "ConfirmedEmail",
+      "valid": true,
+      "value": {
+        "email": "alex@example.com",
+        "status": "VERIFIED"
+      },
+      "operationId": "confirmEmail",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "signIn request",
+      "schema": "LoginRequest",
+      "valid": true,
+      "value": {
+        "email": "alex@example.com",
+        "password": "ExamplePassword42!",
+        "device": {
+          "installationId": "acacbb10-4181-41af-8ade-088b514b581f",
+          "platform": "ANDROID",
+          "appVersion": "1.0.0",
+          "deviceName": "Android test phone"
+        }
+      },
+      "operationId": "signIn",
+      "direction": "request"
+    },
+    {
+      "name": "signIn response 200",
+      "schema": "SessionTokens",
+      "valid": true,
+      "value": {
+        "tokenType": "Bearer",
+        "accessToken": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accessExpiresAt": "2026-10-31T12:15:00Z",
+        "refreshToken": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "refreshExpiresAt": "2026-11-30T12:00:00Z",
+        "sessionAbsoluteExpiresAt": "2027-01-29T12:00:00Z",
+        "sessionId": "s_001",
+        "account": {
+          "id": "u_alex",
+          "email": "alex@example.com",
+          "emailVerified": true,
+          "name": "Алексей Иванов",
+          "phone": null,
+          "organization": "Московский Политех",
+          "emailNotificationsEnabled": true,
+          "revision": 1
+        },
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "signIn",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "refreshSession request",
+      "schema": "RefreshRequest",
+      "valid": true,
+      "value": {
+        "refreshToken": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "operationId": "refreshSession",
+      "direction": "request"
+    },
+    {
+      "name": "refreshSession response 200",
+      "schema": "SessionTokens",
+      "valid": true,
+      "value": {
+        "tokenType": "Bearer",
+        "accessToken": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accessExpiresAt": "2026-10-31T12:15:00Z",
+        "refreshToken": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "refreshExpiresAt": "2026-11-30T12:00:00Z",
+        "sessionAbsoluteExpiresAt": "2027-01-29T12:00:00Z",
+        "sessionId": "s_001",
+        "account": {
+          "id": "u_alex",
+          "email": "alex@example.com",
+          "emailVerified": true,
+          "name": "Алексей Иванов",
+          "phone": null,
+          "organization": "Московский Политех",
+          "emailNotificationsEnabled": true,
+          "revision": 1
+        },
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "refreshSession",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "signOut request",
+      "schema": "LogoutRequest",
+      "valid": true,
+      "value": {
+        "refreshToken": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "operationId": "signOut",
+      "direction": "request"
+    },
+    {
+      "name": "requestReset request",
+      "schema": "EmailRequest",
+      "valid": true,
+      "value": {
+        "email": "alex@example.com"
+      },
+      "operationId": "requestReset",
+      "direction": "request"
+    },
+    {
+      "name": "requestReset response 202",
+      "schema": "EmailChallenge",
+      "valid": true,
+      "value": {
+        "challengeId": "ch_001",
+        "email": "alex@example.com",
+        "expiresAt": "2026-10-31T12:10:00Z",
+        "resendAt": "2026-10-31T12:01:00Z"
+      },
+      "operationId": "requestReset",
+      "direction": "response",
+      "status": 202
+    },
+    {
+      "name": "verifyReset request",
+      "schema": "ResetVerifyRequest",
+      "valid": true,
+      "value": {
+        "challengeId": "ch_001",
+        "code": "123456"
+      },
+      "operationId": "verifyReset",
+      "direction": "request"
+    },
+    {
+      "name": "verifyReset response 200",
+      "schema": "ResetGrant",
+      "valid": true,
+      "value": {
+        "resetGrant": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expiresAt": "2026-10-31T12:05:00Z"
+      },
+      "operationId": "verifyReset",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "completeReset request",
+      "schema": "ResetCompleteRequest",
+      "valid": true,
+      "value": {
+        "resetGrant": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "newPassword": "AnotherExamplePassword42!"
+      },
+      "operationId": "completeReset",
+      "direction": "request"
+    },
+    {
+      "name": "getMe response 200",
+      "schema": "Account",
+      "valid": true,
+      "value": {
+        "id": "u_alex",
+        "email": "alex@example.com",
+        "emailVerified": true,
+        "name": "Алексей Иванов",
+        "phone": null,
+        "organization": "Московский Политех",
+        "emailNotificationsEnabled": true,
+        "revision": 1
+      },
+      "operationId": "getMe",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "updateMe request",
+      "schema": "ProfileUpdate",
+      "valid": true,
+      "value": {
+        "expectedRevision": 1,
+        "name": "Алексей Иванов",
+        "phone": null,
+        "organization": null,
+        "emailNotificationsEnabled": false
+      },
+      "operationId": "updateMe",
+      "direction": "request"
+    },
+    {
+      "name": "updateMe response 200",
+      "schema": "Account",
+      "valid": true,
+      "value": {
+        "id": "u_alex",
+        "email": "alex@example.com",
+        "emailVerified": true,
+        "name": "Алексей Иванов",
+        "phone": null,
+        "organization": "Московский Политех",
+        "emailNotificationsEnabled": true,
+        "revision": 1
+      },
+      "operationId": "updateMe",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "previewDeletion request",
+      "schema": "EmptyRequest",
+      "valid": true,
+      "value": {},
+      "operationId": "previewDeletion",
+      "direction": "request"
+    },
+    {
+      "name": "previewDeletion response 200",
+      "schema": "DeletionPreview",
+      "valid": true,
+      "value": {
+        "confirmationToken": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expiresAt": "2026-10-31T12:10:00Z",
+        "ownedEventsCount": 1,
+        "affectedOtherTicketsCount": 1,
+        "ownActiveTicketsCount": 1,
+        "volunteerGrantsCount": 1,
+        "policyVersion": "example"
+      },
+      "operationId": "previewDeletion",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "deleteAccount request",
+      "schema": "DeleteAccountRequest",
+      "valid": true,
+      "value": {
+        "password": "ExamplePassword42!",
+        "confirmationToken": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "confirm": true
+      },
+      "operationId": "deleteAccount",
+      "direction": "request"
+    },
+    {
+      "name": "deleteAccount response 202",
+      "schema": "DeletionReceipt",
+      "valid": true,
+      "value": {
+        "deletionId": "example",
+        "status": "ACCEPTED",
+        "acceptedAt": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "deleteAccount",
+      "direction": "response",
+      "status": 202
+    },
+    {
+      "name": "getEvent response 200",
+      "schema": "PublicEvent",
+      "valid": true,
+      "value": {
+        "id": "e_conference",
+        "title": "Студенческая конференция",
+        "startsAt": "2026-11-15T07:00:00Z",
+        "endsAt": null,
+        "zoneId": "Europe/Moscow",
+        "venue": "Главный корпус, аудитория 301",
+        "lifecycle": "PUBLISHED",
+        "cover": null,
+        "publicUrl": "https://eventpass.example/e/e_conference",
+        "ownerId": "u_host",
+        "description": "Доклады и обсуждение студенческих проектов.",
+        "sections": [
+          {
+            "title": "Регистрация участников",
+            "time": "09:30–10:00"
+          }
+        ],
+        "capacity": null,
+        "registrationOpen": true,
+        "revision": 1,
+        "formVersion": 1,
+        "questionsLocked": false,
+        "questions": [
+          {
+            "id": "q_school",
+            "type": "TEXT",
+            "title": "Вуз / факультет",
+            "required": false
+          }
+        ],
+        "availability": {
+          "open": true,
+          "reason": null,
+          "remaining": null
+        },
+        "access": {
+          "canRegister": true,
+          "canViewOwnTicket": false,
+          "canManage": false,
+          "canScan": false,
+          "canViewAttendees": false,
+          "canExport": false,
+          "canManageVolunteers": false,
+          "ownTicketId": null
+        },
+        "phoneRequirement": "OPTIONAL",
+        "legal": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "termsUrl": "https://eventpass.example/legal/terms",
+          "privacyUrl": "https://eventpass.example/legal/privacy"
+        },
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getEvent",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "registerGuest request",
+      "schema": "GuestRegistrationRequest",
+      "valid": true,
+      "value": {
+        "formVersion": 1,
+        "name": "Алексей Иванов",
+        "phone": null,
+        "answers": [
+          {
+            "questionId": "q_school",
+            "type": "TEXT",
+            "value": "Московский Политех"
+          }
+        ],
+        "consent": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "accepted": true
+        },
+        "email": "alex@example.com"
+      },
+      "operationId": "registerGuest",
+      "direction": "request"
+    },
+    {
+      "name": "registerGuest response 201",
+      "schema": "GuestIssued",
+      "valid": true,
+      "value": {
+        "outcome": "ISSUED",
+        "ticket": {
+          "ticketId": "t_001",
+          "registrationId": "r_001",
+          "eventId": "e_conference",
+          "eventTitle": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "attendeeName": "Алексей Иванов",
+          "displayNumber": "EVT-849102",
+          "credentials": {
+            "qrPayload": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "manualCode": "ABCD2345EFGH"
+          }
+        },
+        "email": "alex@example.com",
+        "mail": {
+          "status": "QUEUED",
+          "retryAt": "2026-10-31T12:01:00Z"
+        }
+      },
+      "operationId": "registerGuest",
+      "direction": "response",
+      "status": 201
+    },
+    {
+      "name": "registerGuest response 202",
+      "schema": "GuestExisting",
+      "valid": true,
+      "value": {
+        "outcome": "EXISTING_REGISTRATION",
+        "mail": {
+          "status": "QUEUED",
+          "retryAt": "2026-10-31T12:01:00Z"
+        }
+      },
+      "operationId": "registerGuest",
+      "direction": "response",
+      "status": 202
+    },
+    {
+      "name": "requestGuestTicketEmail request",
+      "schema": "GuestResendRequest",
+      "valid": true,
+      "value": {
+        "email": "alex@example.com"
+      },
+      "operationId": "requestGuestTicketEmail",
+      "direction": "request"
+    },
+    {
+      "name": "requestGuestTicketEmail response 202",
+      "schema": "AcceptedMail",
+      "valid": true,
+      "value": {
+        "status": "ACCEPTED",
+        "retryAt": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "requestGuestTicketEmail",
+      "direction": "response",
+      "status": 202
+    },
+    {
+      "name": "registerAuthenticated request",
+      "schema": "RegistrationRequest",
+      "valid": true,
+      "value": {
+        "formVersion": 1,
+        "name": "Алексей Иванов",
+        "phone": null,
+        "answers": [
+          {
+            "questionId": "q_school",
+            "type": "TEXT",
+            "value": "Московский Политех"
+          }
+        ],
+        "consent": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "accepted": true
+        }
+      },
+      "operationId": "registerAuthenticated",
+      "direction": "request"
+    },
+    {
+      "name": "registerAuthenticated response 201",
+      "schema": "Registered",
+      "valid": true,
+      "value": {
+        "ticketId": "t_001",
+        "existing": false,
+        "mail": {
+          "status": "QUEUED",
+          "retryAt": "2026-10-31T12:01:00Z"
+        }
+      },
+      "operationId": "registerAuthenticated",
+      "direction": "response",
+      "status": 201
+    },
+    {
+      "name": "registerAuthenticated response 200",
+      "schema": "Registered",
+      "valid": true,
+      "value": {
+        "ticketId": "t_001",
+        "existing": true,
+        "mail": null
+      },
+      "operationId": "registerAuthenticated",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "getMyTickets response 200",
+      "schema": "TicketPage",
+      "valid": true,
+      "value": {
+        "items": [
+          {
+            "id": "t_001",
+            "registrationId": "r_001",
+            "event": {
+              "id": "e_conference",
+              "title": "Студенческая конференция",
+              "startsAt": "2026-11-15T07:00:00Z",
+              "endsAt": null,
+              "zoneId": "Europe/Moscow",
+              "venue": "Главный корпус, аудитория 301",
+              "lifecycle": "PUBLISHED",
+              "deleted": false
+            },
+            "displayNumber": "EVT-849102",
+            "attendeeName": "Алексей Иванов",
+            "status": "ACTIVE",
+            "historyOutcome": null,
+            "createdAt": "2026-10-31T12:00:00Z",
+            "checkedAt": null,
+            "cancelledAt": null,
+            "canDisplayQr": true,
+            "canCancel": true,
+            "canDownloadPdf": true,
+            "canResendEmail": true,
+            "credentials": {
+              "qrPayload": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "manualCode": "ABCD2345EFGH"
+            }
+          }
+        ],
+        "nextCursor": null,
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getMyTickets",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "getMyTicket response 200",
+      "schema": "Ticket",
+      "valid": true,
+      "value": {
+        "id": "t_001",
+        "registrationId": "r_001",
+        "event": {
+          "id": "e_conference",
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "lifecycle": "PUBLISHED",
+          "deleted": false
+        },
+        "displayNumber": "EVT-849102",
+        "attendeeName": "Алексей Иванов",
+        "status": "ACTIVE",
+        "historyOutcome": null,
+        "createdAt": "2026-10-31T12:00:00Z",
+        "checkedAt": null,
+        "cancelledAt": null,
+        "canDisplayQr": true,
+        "canCancel": true,
+        "canDownloadPdf": true,
+        "canResendEmail": true,
+        "credentials": {
+          "qrPayload": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "manualCode": "ABCD2345EFGH"
+        }
+      },
+      "operationId": "getMyTicket",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "cancelMyTicket request",
+      "schema": "EmptyRequest",
+      "valid": true,
+      "value": {},
+      "operationId": "cancelMyTicket",
+      "direction": "request"
+    },
+    {
+      "name": "cancelMyTicket response 200",
+      "schema": "Ticket",
+      "valid": true,
+      "value": {
+        "id": "t_001",
+        "registrationId": "r_001",
+        "event": {
+          "id": "e_conference",
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "lifecycle": "PUBLISHED",
+          "deleted": false
+        },
+        "displayNumber": "EVT-849102",
+        "attendeeName": "Алексей Иванов",
+        "status": "CANCELLED",
+        "historyOutcome": "CANCELLED",
+        "createdAt": "2026-10-31T12:00:00Z",
+        "checkedAt": null,
+        "cancelledAt": "2026-10-31T12:00:00Z",
+        "canDisplayQr": false,
+        "canCancel": false,
+        "canDownloadPdf": false,
+        "canResendEmail": false,
+        "credentials": null
+      },
+      "operationId": "cancelMyTicket",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "resendMyTicket request",
+      "schema": "EmptyRequest",
+      "valid": true,
+      "value": {},
+      "operationId": "resendMyTicket",
+      "direction": "request"
+    },
+    {
+      "name": "resendMyTicket response 202",
+      "schema": "MailReceipt",
+      "valid": true,
+      "value": {
+        "status": "QUEUED",
+        "retryAt": "2026-10-31T12:01:00Z"
+      },
+      "operationId": "resendMyTicket",
+      "direction": "response",
+      "status": 202
+    },
+    {
+      "name": "createTicketPdf request",
+      "schema": "EmptyRequest",
+      "valid": true,
+      "value": {},
+      "operationId": "createTicketPdf",
+      "direction": "request"
+    },
+    {
+      "name": "createTicketPdf response 202",
+      "schema": "DocumentJob",
+      "valid": true,
+      "value": {
+        "id": "doc_001",
+        "kind": "TICKET_PDF",
+        "status": "PENDING",
+        "createdAt": "2026-10-31T12:00:00Z",
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "expiresAt": "2026-11-01T12:00:00Z",
+        "pollAfterSeconds": 2,
+        "fileName": null,
+        "mimeType": null,
+        "byteCount": null,
+        "errorCode": null
+      },
+      "operationId": "createTicketPdf",
+      "direction": "response",
+      "status": 202
+    },
+    {
+      "name": "getMyEvents response 200",
+      "schema": "MyEventPage",
+      "valid": true,
+      "value": {
+        "items": [
+          {
+            "event": {
+              "id": "example_001",
+              "title": "Студенческая конференция",
+              "startsAt": "2026-11-15T07:00:00Z",
+              "endsAt": null,
+              "zoneId": "Europe/Moscow",
+              "venue": "Главный корпус, аудитория 301",
+              "lifecycle": "PUBLISHED",
+              "cover": null,
+              "publicUrl": "https://eventpass.example/e/e_conference"
+            },
+            "access": {
+              "canRegister": true,
+              "canViewOwnTicket": false,
+              "canManage": true,
+              "canScan": true,
+              "canViewAttendees": true,
+              "canExport": true,
+              "canManageVolunteers": true,
+              "ownTicketId": null
+            }
+          }
+        ],
+        "nextCursor": null,
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getMyEvents",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "getDrafts response 200",
+      "schema": "DraftPage",
+      "valid": true,
+      "value": {
+        "items": [
+          {
+            "id": "acacbb10-4181-41af-8ade-088b514b581f",
+            "ownerId": "u_host",
+            "revision": 1,
+            "fields": {
+              "title": "Студенческая конференция",
+              "startsAt": "2026-11-15T07:00:00Z",
+              "endsAt": null,
+              "zoneId": "Europe/Moscow",
+              "venue": "Главный корпус, аудитория 301",
+              "capacity": null,
+              "description": "Доклады и обсуждение студенческих проектов.",
+              "sections": [
+                {
+                  "title": "Регистрация участников",
+                  "time": "09:30–10:00"
+                }
+              ],
+              "questions": [
+                {
+                  "id": "q_school",
+                  "type": "TEXT",
+                  "title": "Вуз / факультет",
+                  "required": false,
+                  "options": []
+                }
+              ],
+              "coverAssetId": null
+            },
+            "publishedEventId": null,
+            "updatedAt": "2026-10-31T12:00:00Z"
+          }
+        ],
+        "nextCursor": null,
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getDrafts",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "getDraft response 200",
+      "schema": "Draft",
+      "valid": true,
+      "value": {
+        "id": "acacbb10-4181-41af-8ade-088b514b581f",
+        "ownerId": "u_host",
+        "revision": 1,
+        "fields": {
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "capacity": null,
+          "description": "Доклады и обсуждение студенческих проектов.",
+          "sections": [
+            {
+              "title": "Регистрация участников",
+              "time": "09:30–10:00"
+            }
+          ],
+          "questions": [
+            {
+              "id": "q_school",
+              "type": "TEXT",
+              "title": "Вуз / факультет",
+              "required": false,
+              "options": []
+            }
+          ],
+          "coverAssetId": null
+        },
+        "publishedEventId": null,
+        "updatedAt": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getDraft",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "saveDraft request",
+      "schema": "SaveDraftRequest",
+      "valid": true,
+      "value": {
+        "expectedRevision": null,
+        "fields": {
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "capacity": null,
+          "description": "Доклады и обсуждение студенческих проектов.",
+          "sections": [
+            {
+              "title": "Регистрация участников",
+              "time": "09:30–10:00"
+            }
+          ],
+          "questions": [
+            {
+              "id": "q_school",
+              "type": "TEXT",
+              "title": "Вуз / факультет",
+              "required": false,
+              "options": []
+            }
+          ],
+          "coverAssetId": null
+        }
+      },
+      "operationId": "saveDraft",
+      "direction": "request"
+    },
+    {
+      "name": "saveDraft response 200",
+      "schema": "Draft",
+      "valid": true,
+      "value": {
+        "id": "acacbb10-4181-41af-8ade-088b514b581f",
+        "ownerId": "u_host",
+        "revision": 1,
+        "fields": {
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "capacity": null,
+          "description": "Доклады и обсуждение студенческих проектов.",
+          "sections": [
+            {
+              "title": "Регистрация участников",
+              "time": "09:30–10:00"
+            }
+          ],
+          "questions": [
+            {
+              "id": "q_school",
+              "type": "TEXT",
+              "title": "Вуз / факультет",
+              "required": false,
+              "options": []
+            }
+          ],
+          "coverAssetId": null
+        },
+        "publishedEventId": null,
+        "updatedAt": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "saveDraft",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "publishDraft request",
+      "schema": "RevisionRequest",
+      "valid": true,
+      "value": {
+        "expectedRevision": 1
+      },
+      "operationId": "publishDraft",
+      "direction": "request"
+    },
+    {
+      "name": "publishDraft response 200",
+      "schema": "Publication",
+      "valid": true,
+      "value": {
+        "eventId": "e_conference",
+        "publicUrl": "https://eventpass.example/e/e_conference",
+        "event": {
+          "id": "e_conference",
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "lifecycle": "PUBLISHED",
+          "cover": null,
+          "publicUrl": "https://eventpass.example/e/e_conference",
+          "ownerId": "u_host",
+          "description": "Доклады и обсуждение студенческих проектов.",
+          "sections": [
+            {
+              "title": "Регистрация участников",
+              "time": "09:30–10:00"
+            }
+          ],
+          "capacity": null,
+          "registrationOpen": true,
+          "revision": 1,
+          "formVersion": 1,
+          "questionsLocked": false,
+          "questions": [
+            {
+              "id": "q_school",
+              "type": "TEXT",
+              "title": "Вуз / факультет",
+              "required": false
+            }
+          ],
+          "availability": {
+            "open": true,
+            "reason": null,
+            "remaining": null
+          },
+          "access": {
+            "canRegister": true,
+            "canViewOwnTicket": false,
+            "canManage": false,
+            "canScan": false,
+            "canViewAttendees": false,
+            "canExport": false,
+            "canManageVolunteers": false,
+            "ownTicketId": null
+          },
+          "phoneRequirement": "OPTIONAL",
+          "legal": {
+            "termsVersion": "terms_2026_10",
+            "privacyVersion": "privacy_2026_10",
+            "termsUrl": "https://eventpass.example/legal/terms",
+            "privacyUrl": "https://eventpass.example/legal/privacy"
+          },
+          "serverTime": "2026-10-31T12:00:00Z"
+        }
+      },
+      "operationId": "publishDraft",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "getEventEditor response 200",
+      "schema": "ManagedEvent",
+      "valid": true,
+      "value": {
+        "event": {
+          "id": "e_conference",
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "lifecycle": "PUBLISHED",
+          "cover": null,
+          "publicUrl": "https://eventpass.example/e/e_conference",
+          "ownerId": "u_host",
+          "description": "Доклады и обсуждение студенческих проектов.",
+          "sections": [
+            {
+              "title": "Регистрация участников",
+              "time": "09:30–10:00"
+            }
+          ],
+          "capacity": null,
+          "registrationOpen": true,
+          "revision": 1,
+          "formVersion": 1,
+          "questionsLocked": false,
+          "questions": [
+            {
+              "id": "q_school",
+              "type": "TEXT",
+              "title": "Вуз / факультет",
+              "required": false
+            }
+          ],
+          "availability": {
+            "open": true,
+            "reason": null,
+            "remaining": null
+          },
+          "access": {
+            "canRegister": true,
+            "canViewOwnTicket": false,
+            "canManage": true,
+            "canScan": true,
+            "canViewAttendees": true,
+            "canExport": true,
+            "canManageVolunteers": true,
+            "ownTicketId": null
+          },
+          "phoneRequirement": "OPTIONAL",
+          "legal": {
+            "termsVersion": "terms_2026_10",
+            "privacyVersion": "privacy_2026_10",
+            "termsUrl": "https://eventpass.example/legal/terms",
+            "privacyUrl": "https://eventpass.example/legal/privacy"
+          },
+          "serverTime": "2026-10-31T12:00:00Z"
+        },
+        "editableFields": []
+      },
+      "operationId": "getEventEditor",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "updateEvent request",
+      "schema": "UpdateEventRequest",
+      "valid": true,
+      "value": {
+        "expectedRevision": 1,
+        "expectedFormVersion": 1,
+        "fields": {
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "capacity": null,
+          "description": "Доклады и обсуждение студенческих проектов.",
+          "sections": [
+            {
+              "title": "Регистрация участников",
+              "time": "09:30–10:00"
+            }
+          ],
+          "questions": [
+            {
+              "id": "q_school",
+              "type": "TEXT",
+              "title": "Вуз / факультет",
+              "required": false,
+              "options": []
+            }
+          ],
+          "coverAssetId": null
+        }
+      },
+      "operationId": "updateEvent",
+      "direction": "request"
+    },
+    {
+      "name": "updateEvent response 200",
+      "schema": "ManagedEvent",
+      "valid": true,
+      "value": {
+        "event": {
+          "id": "e_conference",
+          "title": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "endsAt": null,
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "lifecycle": "PUBLISHED",
+          "cover": null,
+          "publicUrl": "https://eventpass.example/e/e_conference",
+          "ownerId": "u_host",
+          "description": "Доклады и обсуждение студенческих проектов.",
+          "sections": [
+            {
+              "title": "Регистрация участников",
+              "time": "09:30–10:00"
+            }
+          ],
+          "capacity": null,
+          "registrationOpen": true,
+          "revision": 1,
+          "formVersion": 1,
+          "questionsLocked": false,
+          "questions": [
+            {
+              "id": "q_school",
+              "type": "TEXT",
+              "title": "Вуз / факультет",
+              "required": false
+            }
+          ],
+          "availability": {
+            "open": true,
+            "reason": null,
+            "remaining": null
+          },
+          "access": {
+            "canRegister": true,
+            "canViewOwnTicket": false,
+            "canManage": true,
+            "canScan": true,
+            "canViewAttendees": true,
+            "canExport": true,
+            "canManageVolunteers": true,
+            "ownTicketId": null
+          },
+          "phoneRequirement": "OPTIONAL",
+          "legal": {
+            "termsVersion": "terms_2026_10",
+            "privacyVersion": "privacy_2026_10",
+            "termsUrl": "https://eventpass.example/legal/terms",
+            "privacyUrl": "https://eventpass.example/legal/privacy"
+          },
+          "serverTime": "2026-10-31T12:00:00Z"
+        },
+        "editableFields": []
+      },
+      "operationId": "updateEvent",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "closeRegistration request",
+      "schema": "RevisionRequest",
+      "valid": true,
+      "value": {
+        "expectedRevision": 1
+      },
+      "operationId": "closeRegistration",
+      "direction": "request"
+    },
+    {
+      "name": "closeRegistration response 200",
+      "schema": "PublicEvent",
+      "valid": true,
+      "value": {
+        "id": "e_conference",
+        "title": "Студенческая конференция",
+        "startsAt": "2026-11-15T07:00:00Z",
+        "endsAt": null,
+        "zoneId": "Europe/Moscow",
+        "venue": "Главный корпус, аудитория 301",
+        "lifecycle": "PUBLISHED",
+        "cover": null,
+        "publicUrl": "https://eventpass.example/e/e_conference",
+        "ownerId": "u_host",
+        "description": "Доклады и обсуждение студенческих проектов.",
+        "sections": [
+          {
+            "title": "Регистрация участников",
+            "time": "09:30–10:00"
+          }
+        ],
+        "capacity": null,
+        "registrationOpen": false,
+        "revision": 1,
+        "formVersion": 1,
+        "questionsLocked": false,
+        "questions": [
+          {
+            "id": "q_school",
+            "type": "TEXT",
+            "title": "Вуз / факультет",
+            "required": false
+          }
+        ],
+        "availability": {
+          "open": false,
+          "reason": "CLOSED",
+          "remaining": null
+        },
+        "access": {
+          "canRegister": false,
+          "canViewOwnTicket": false,
+          "canManage": false,
+          "canScan": false,
+          "canViewAttendees": false,
+          "canExport": false,
+          "canManageVolunteers": false,
+          "ownTicketId": null
+        },
+        "phoneRequirement": "OPTIONAL",
+        "legal": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "termsUrl": "https://eventpass.example/legal/terms",
+          "privacyUrl": "https://eventpass.example/legal/privacy"
+        },
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "closeRegistration",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "finishEvent request",
+      "schema": "RevisionRequest",
+      "valid": true,
+      "value": {
+        "expectedRevision": 1
+      },
+      "operationId": "finishEvent",
+      "direction": "request"
+    },
+    {
+      "name": "finishEvent response 200",
+      "schema": "PublicEvent",
+      "valid": true,
+      "value": {
+        "id": "e_conference",
+        "title": "Студенческая конференция",
+        "startsAt": "2026-11-15T07:00:00Z",
+        "endsAt": null,
+        "zoneId": "Europe/Moscow",
+        "venue": "Главный корпус, аудитория 301",
+        "lifecycle": "FINISHED",
+        "cover": null,
+        "publicUrl": "https://eventpass.example/e/e_conference",
+        "ownerId": "u_host",
+        "description": "Доклады и обсуждение студенческих проектов.",
+        "sections": [
+          {
+            "title": "Регистрация участников",
+            "time": "09:30–10:00"
+          }
+        ],
+        "capacity": null,
+        "registrationOpen": false,
+        "revision": 1,
+        "formVersion": 1,
+        "questionsLocked": false,
+        "questions": [
+          {
+            "id": "q_school",
+            "type": "TEXT",
+            "title": "Вуз / факультет",
+            "required": false
+          }
+        ],
+        "availability": {
+          "open": false,
+          "reason": "FINISHED",
+          "remaining": null
+        },
+        "access": {
+          "canRegister": false,
+          "canViewOwnTicket": false,
+          "canManage": false,
+          "canScan": false,
+          "canViewAttendees": false,
+          "canExport": false,
+          "canManageVolunteers": false,
+          "ownTicketId": null
+        },
+        "phoneRequirement": "OPTIONAL",
+        "legal": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "termsUrl": "https://eventpass.example/legal/terms",
+          "privacyUrl": "https://eventpass.example/legal/privacy"
+        },
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "finishEvent",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "uploadCover response 201",
+      "schema": "Cover",
+      "valid": true,
+      "value": {
+        "assetId": "example",
+        "url": "https://eventpass.example/e/e_conference",
+        "mimeType": "image/jpeg",
+        "byteCount": 1,
+        "width": 1,
+        "height": 1
+      },
+      "operationId": "uploadCover",
+      "direction": "response",
+      "status": 201
+    },
+    {
+      "name": "getVolunteers response 200",
+      "schema": "VolunteerPage",
+      "valid": true,
+      "value": {
+        "items": [
+          {
+            "userId": "u_alex",
+            "name": "Алексей Иванов",
+            "email": "alex@example.com",
+            "active": true,
+            "grantedAt": "2026-10-31T12:00:00Z",
+            "checkedInCount": 1
+          }
+        ],
+        "nextCursor": null,
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getVolunteers",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "grantVolunteer request",
+      "schema": "GrantTarget",
+      "valid": true,
+      "value": {
+        "target": {
+          "type": "EMAIL",
+          "value": "volunteer@example.com"
+        }
+      },
+      "operationId": "grantVolunteer",
+      "direction": "request"
+    },
+    {
+      "name": "grantVolunteer response 200",
+      "schema": "GrantResult",
+      "valid": true,
+      "value": {
+        "eventId": "e_conference",
+        "userId": "u_alex",
+        "active": true,
+        "alreadyActive": false
+      },
+      "operationId": "grantVolunteer",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "getScanAccess response 200",
+      "schema": "ScanAccess",
+      "valid": true,
+      "value": {
+        "eventId": "e_conference",
+        "eventTitle": "Студенческая конференция",
+        "canScan": true,
+        "eventLifecycle": "PUBLISHED",
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getScanAccess",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "checkIn request",
+      "schema": "CheckInRequest",
+      "valid": true,
+      "value": {
+        "credential": {
+          "type": "QR",
+          "value": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "operationId": "checkIn",
+      "direction": "request"
+    },
+    {
+      "name": "checkIn response 200",
+      "schema": "CheckInResult",
+      "valid": true,
+      "value": {
+        "outcome": "ADMITTED",
+        "record": {
+          "id": "example_001",
+          "eventId": "e_conference",
+          "ticketId": "t_001",
+          "checkerId": "u_host",
+          "checkerName": "Организатор",
+          "checkedAt": "2026-11-15T06:50:00Z",
+          "attendeeName": "Алексей Иванов",
+          "displayNumber": "EVT-849102"
+        }
+      },
+      "operationId": "checkIn",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "getDashboard response 200",
+      "schema": "Dashboard",
+      "valid": true,
+      "value": {
+        "eventId": "e_conference",
+        "registered": 10,
+        "checkedIn": 3,
+        "notCheckedIn": 7,
+        "cancelled": 2,
+        "capacity": 20,
+        "remaining": 10,
+        "revision": 12,
+        "updatedAt": "2026-10-31T12:00:00Z",
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getDashboard",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "getAttendees response 200",
+      "schema": "AttendeePage",
+      "valid": true,
+      "value": {
+        "items": [
+          {
+            "registrationId": "r_001",
+            "ticketId": "t_001",
+            "displayNumber": "EVT-849102",
+            "name": "Алексей Иванов",
+            "email": "alex@example.com",
+            "phone": null,
+            "status": "ACTIVE",
+            "registeredAt": "2026-10-31T12:00:00Z",
+            "checkedAt": null,
+            "checkerName": null,
+            "formVersion": 1,
+            "answers": [
+              {
+                "questionId": "q_school",
+                "type": "TEXT",
+                "value": "Московский Политех"
+              }
+            ]
+          }
+        ],
+        "nextCursor": null,
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "serverTime": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "getAttendees",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "cancelAttendee request",
+      "schema": "EmptyRequest",
+      "valid": true,
+      "value": {},
+      "operationId": "cancelAttendee",
+      "direction": "request"
+    },
+    {
+      "name": "cancelAttendee response 200",
+      "schema": "CancelAttendeeResult",
+      "valid": true,
+      "value": {
+        "registrationId": "r_001",
+        "status": "CANCELLED",
+        "cancelledAt": "2026-10-31T12:00:00Z"
+      },
+      "operationId": "cancelAttendee",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "exportAttendees request",
+      "schema": "EmptyRequest",
+      "valid": true,
+      "value": {},
+      "operationId": "exportAttendees",
+      "direction": "request"
+    },
+    {
+      "name": "exportAttendees response 202",
+      "schema": "DocumentJob",
+      "valid": true,
+      "value": {
+        "id": "doc_001",
+        "kind": "ATTENDEES_XLSX",
+        "status": "PENDING",
+        "createdAt": "2026-10-31T12:00:00Z",
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "expiresAt": "2026-11-01T12:00:00Z",
+        "pollAfterSeconds": 2,
+        "fileName": null,
+        "mimeType": null,
+        "byteCount": null,
+        "errorCode": null
+      },
+      "operationId": "exportAttendees",
+      "direction": "response",
+      "status": 202
+    },
+    {
+      "name": "getDocumentJob response 200",
+      "schema": "DocumentJob",
+      "valid": true,
+      "value": {
+        "id": "doc_001",
+        "kind": "TICKET_PDF",
+        "status": "PENDING",
+        "createdAt": "2026-10-31T12:00:00Z",
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "expiresAt": "2026-11-01T12:00:00Z",
+        "pollAfterSeconds": 2,
+        "fileName": null,
+        "mimeType": null,
+        "byteCount": null,
+        "errorCode": null
+      },
+      "operationId": "getDocumentJob",
+      "direction": "response",
+      "status": 200
+    },
+    {
+      "name": "checkIn already used",
+      "schema": "CheckInResult",
+      "valid": true,
+      "value": {
+        "outcome": "ALREADY_USED",
+        "record": {
+          "id": "example_001",
+          "eventId": "e_conference",
+          "ticketId": "t_001",
+          "checkerId": "u_host",
+          "checkerName": "Организатор",
+          "checkedAt": "2026-11-15T06:50:00Z",
+          "attendeeName": "Алексей Иванов",
+          "displayNumber": "EVT-849102"
+        }
+      }
+    },
+    {
+      "name": "checkIn wrong event without PII",
+      "schema": "CheckInResult",
+      "valid": true,
+      "value": {
+        "outcome": "INVALID",
+        "reason": "WRONG_EVENT"
+      }
+    },
+    {
+      "name": "manual checkIn",
+      "schema": "CheckInRequest",
+      "valid": true,
+      "value": {
+        "credential": {
+          "type": "MANUAL",
+          "value": "abcd-2345-efgh"
+        }
+      }
+    },
+    {
+      "name": "ready XLSX job",
+      "schema": "DocumentJob",
+      "valid": true,
+      "value": {
+        "id": "doc_001",
+        "kind": "ATTENDEES_XLSX",
+        "status": "READY",
+        "createdAt": "2026-10-31T12:00:00Z",
+        "snapshotAt": "2026-10-31T12:00:00Z",
+        "expiresAt": "2026-11-01T12:00:00Z",
+        "pollAfterSeconds": 2,
+        "fileName": "event-e_conference-attendees.xlsx",
+        "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "byteCount": 8421,
+        "errorCode": null
+      }
+    },
+    {
+      "name": "field error",
+      "schema": "Error",
+      "valid": true,
+      "value": {
+        "code": "VALIDATION_FAILED",
+        "requestId": "req_001",
+        "fieldErrors": [
+          {
+            "field": "phone",
+            "code": "INVALID_PHONE",
+            "params": {}
+          }
+        ],
+        "retryAt": null,
+        "details": {}
+      }
+    },
+    {
+      "name": "guest cannot send userId",
+      "schema": "GuestRegistrationRequest",
+      "valid": false,
+      "value": {
+        "formVersion": 1,
+        "name": "Алексей Иванов",
+        "phone": null,
+        "answers": [
+          {
+            "questionId": "q_school",
+            "type": "TEXT",
+            "value": "Московский Политех"
+          }
+        ],
+        "consent": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "accepted": true
+        },
+        "email": "alex@example.com",
+        "userId": "u_other"
+      }
+    },
+    {
+      "name": "authenticated cannot set email",
+      "schema": "RegistrationRequest",
+      "valid": false,
+      "value": {
+        "formVersion": 1,
+        "name": "Алексей Иванов",
+        "phone": null,
+        "answers": [
+          {
+            "questionId": "q_school",
+            "type": "TEXT",
+            "value": "Московский Политех"
+          }
+        ],
+        "consent": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "accepted": true
+        },
+        "email": "other@example.com"
+      }
+    },
+    {
+      "name": "reject non Russian phone",
+      "schema": "RegistrationRequest",
+      "valid": false,
+      "value": {
+        "formVersion": 1,
+        "name": "Алексей Иванов",
+        "phone": "+15555555555",
+        "answers": [
+          {
+            "questionId": "q_school",
+            "type": "TEXT",
+            "value": "Московский Политех"
+          }
+        ],
+        "consent": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "accepted": true
+        }
+      }
+    },
+    {
+      "name": "consent cannot be false",
+      "schema": "Consent",
+      "valid": false,
+      "value": {
+        "termsVersion": "t1",
+        "privacyVersion": "p1",
+        "accepted": false
+      }
+    },
+    {
+      "name": "wrong reset code length",
+      "schema": "ResetVerifyRequest",
+      "valid": false,
+      "value": {
+        "challengeId": "ch_001",
+        "code": "12345"
+      }
+    },
+    {
+      "name": "empty name",
+      "schema": "SignUpRequest",
+      "valid": false,
+      "value": {
+        "name": "",
+        "email": "alex@example.com",
+        "password": "ExamplePassword42!",
+        "consent": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "accepted": true
+        }
+      }
+    },
+    {
+      "name": "short password",
+      "schema": "SignUpRequest",
+      "valid": false,
+      "value": {
+        "name": "Алексей Иванов",
+        "email": "alex@example.com",
+        "password": "123",
+        "consent": {
+          "termsVersion": "terms_2026_10",
+          "privacyVersion": "privacy_2026_10",
+          "accepted": true
+        }
+      }
+    },
+    {
+      "name": "QR not in invalid response",
+      "schema": "CheckInResult",
+      "valid": false,
+      "value": {
+        "outcome": "INVALID",
+        "reason": "WRONG_EVENT",
+        "attendeeName": "Секретное имя"
+      }
+    },
+    {
+      "name": "admitted requires record",
+      "schema": "CheckInResult",
+      "valid": false,
+      "value": {
+        "outcome": "ADMITTED"
+      }
+    },
+    {
+      "name": "credentials not guest duplicate",
+      "schema": "GuestExisting",
+      "valid": false,
+      "value": {
+        "outcome": "EXISTING_REGISTRATION",
+        "mail": {
+          "status": "QUEUED",
+          "retryAt": "2026-10-31T12:01:00Z"
+        },
+        "ticket": {
+          "ticketId": "t_001",
+          "registrationId": "r_001",
+          "eventId": "e_conference",
+          "eventTitle": "Студенческая конференция",
+          "startsAt": "2026-11-15T07:00:00Z",
+          "zoneId": "Europe/Moscow",
+          "venue": "Главный корпус, аудитория 301",
+          "attendeeName": "Алексей Иванов",
+          "displayNumber": "EVT-849102",
+          "credentials": {
+            "qrPayload": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "manualCode": "ABCD2345EFGH"
+          }
+        }
+      }
+    },
+    {
+      "name": "negative capacity",
+      "schema": "EventFields",
+      "valid": false,
+      "value": {
+        "title": "Студенческая конференция",
+        "startsAt": "2026-11-15T07:00:00Z",
+        "endsAt": null,
+        "zoneId": "Europe/Moscow",
+        "venue": "Главный корпус, аудитория 301",
+        "capacity": -1,
+        "description": "Доклады и обсуждение студенческих проектов.",
+        "sections": [
+          {
+            "title": "Регистрация участников",
+            "time": "09:30–10:00"
+          }
+        ],
+        "questions": [
+          {
+            "id": "q_school",
+            "type": "TEXT",
+            "title": "Вуз / факультет",
+            "required": false,
+            "options": []
+          }
+        ],
+        "coverAssetId": null
+      }
+    },
+    {
+      "name": "wrong answer type",
+      "schema": "Answer",
+      "valid": false,
+      "value": {
+        "questionId": "q_school",
+        "type": "CHECKBOX",
+        "value": "yes"
+      }
+    },
+    {
+      "name": "public role forbidden",
+      "schema": "Account",
+      "valid": false,
+      "value": {
+        "id": "u_alex",
+        "email": "alex@example.com",
+        "emailVerified": true,
+        "name": "Алексей Иванов",
+        "phone": null,
+        "organization": "Московский Политех",
+        "emailNotificationsEnabled": true,
+        "revision": 1,
+        "role": "OWNER"
+      }
+    },
+    {
+      "name": "manual invalid alphabet",
+      "schema": "TicketCredentials",
+      "valid": false,
+      "value": {
+        "qrPayload": "ExampleOnly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manualCode": "000000000000"
+      }
+    }
+  ]
+}

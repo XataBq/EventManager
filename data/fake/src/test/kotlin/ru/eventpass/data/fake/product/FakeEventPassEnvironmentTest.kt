@@ -32,7 +32,7 @@ import ru.eventpass.core.domain.registration.RegistrationPolicy
 
 class FakeEventPassEnvironmentTest {
     private fun command(email: String = "new@example.com") = GuestRegistrationCommand(
-        eventId = FakeFixtures.OPEN, formVersion = 1, name = "李", email = email,
+        eventId = FakeFixtures.OPEN, localSchemaRevision = 1, name = "李", email = email,
         consentAccepted = true,
     )
 
@@ -96,34 +96,30 @@ class FakeEventPassEnvironmentTest {
         assertEquals(RegistrationAvailability.Open(AvailablePlaces.Limited(20)), event.availability)
     }
 
-    @Test fun consentAndStaleFormFailuresHaveNoSideEffects() = runTest {
-        val environment = FakeEventPassEnvironment()
-        val invalid = environment.registrations.submitGuest(command().copy(consentAccepted = false))
+    @Test fun consentAndStaleAnswerValidationDoNotPretendLocalCounterIsServerVersion() = runTest {
+        val environment=FakeEventPassEnvironment()
+        val invalid=environment.registrations.submitGuest(command().copy(consentAccepted=false))
         assertTrue((invalid as GuestRegistrationOutcome.Failed).error is RegistrationError.Validation)
-        assertEquals(
-            GuestRegistrationOutcome.Failed(RegistrationError.StaleForm),
-            environment.registrations.submitGuest(command().copy(formVersion = 2)),
-        )
+        for(answers in listOf(mapOf("removed-question" to Answer.Text("old")),mapOf("organization" to Answer.Checkbox(true)))) {
+            val stale=environment.registrations.submitGuest(command().copy(localSchemaRevision=2,answers=answers))
+            assertTrue((stale as GuestRegistrationOutcome.Failed).error is RegistrationError.Validation)
+        }
         assertTrue(environment.scenarios.outbox().isEmpty())
+        assertTrue(environment.registrations.submitGuest(command().copy(localSchemaRevision=99)) is GuestRegistrationOutcome.Issued)
+        assertEquals(1,environment.scenarios.outbox().size)
     }
 
-    @Test fun fullClosedAndMissingEventsReturnDistinctResults() = runTest {
-        val environment = FakeEventPassEnvironment()
-        val event = FakeFixtures.events().single { it.id == FakeFixtures.OPEN }
-        environment.scenarios.putEvent(event.copy(capacity = 0))
-        assertEquals(
-            GuestRegistrationOutcome.Failed(RegistrationError.Unavailable(RegistrationClosureReason.FULL)),
-            environment.registrations.submitGuest(command()),
-        )
-        environment.scenarios.putEvent(event.copy(registrationOpen = false))
-        assertEquals(
-            GuestRegistrationOutcome.Failed(RegistrationError.Unavailable(RegistrationClosureReason.CLOSED)),
-            environment.registrations.submitGuest(command()),
-        )
-        environment.scenarios.putEvent(event.copy(lifecycle = EventLifecycle.DRAFT))
-        assertEquals(PublicEventResult.NotFound, environment.events.observePublicEvent(event.id).first())
-        assertEquals(GuestRegistrationOutcome.Failed(RegistrationError.NotFound), environment.registrations.submitGuest(command()))
-        assertTrue(environment.scenarios.outbox().isEmpty())
+    @Test fun fullFinishedAndMissingEventsReturnDistinctResults() = runTest {
+        val environment=FakeEventPassEnvironment();val event=FakeFixtures.events().single{it.id==FakeFixtures.OPEN}
+        environment.scenarios.putEvent(event.copy(capacity=1))
+        assertTrue(environment.registrations.submitGuest(command("first@example.com")) is GuestRegistrationOutcome.Issued)
+        assertEquals(GuestRegistrationOutcome.Failed(RegistrationError.Unavailable(RegistrationClosureReason.FULL)),environment.registrations.submitGuest(command()))
+        environment.scenarios.putEvent(event.copy(lifecycle=EventLifecycle.FINISHED))
+        assertEquals(GuestRegistrationOutcome.Failed(RegistrationError.Unavailable(RegistrationClosureReason.FINISHED)),environment.registrations.submitGuest(command()))
+        environment.scenarios.putEvent(event.copy(lifecycle=EventLifecycle.DRAFT))
+        assertEquals(PublicEventResult.NotFound,environment.events.observePublicEvent(event.id).first())
+        assertEquals(GuestRegistrationOutcome.Failed(RegistrationError.NotFound),environment.registrations.submitGuest(command()))
+        assertEquals(1,environment.scenarios.outbox().size)
     }
 
     @Test fun submissionChecksTheClockEvenWhenAnOldPageSaidOpen() = runTest {
@@ -133,13 +129,15 @@ class FakeEventPassEnvironmentTest {
         assertTrue((environment.events.observePublicEvent(event.id).first() as PublicEventResult.Found)
             .availability is RegistrationAvailability.Open)
         clock.now = event.startsAt
+        assertTrue(environment.registrations.submitGuest(command("live@example.com")) is GuestRegistrationOutcome.Issued)
+        clock.now = event.effectiveEndsAt
         assertEquals(
-            GuestRegistrationOutcome.Failed(RegistrationError.Unavailable(RegistrationClosureReason.STARTED)),
+            GuestRegistrationOutcome.Failed(RegistrationError.Unavailable(RegistrationClosureReason.FINISHED)),
             environment.registrations.submitGuest(command()),
         )
         environment.events.refreshPublicEvent(event.id)
         assertEquals(
-            RegistrationAvailability.Closed(RegistrationClosureReason.STARTED),
+            RegistrationAvailability.Closed(RegistrationClosureReason.FINISHED),
             (environment.events.observePublicEvent(event.id).first() as PublicEventResult.Found).availability,
         )
     }

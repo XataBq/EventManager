@@ -28,7 +28,7 @@ data object GalleryKey : NavKey
 @Serializable data object OutboxKey : NavKey
 @Serializable data class EditorKey(val draftId: String? = null, val eventId: String? = null, val create: Boolean = false,
     val entryId: String = UUID.randomUUID().toString()) : NavKey
-@Serializable data class EventKey(val eventId: String, val flowId: String = UUID.randomUUID().toString()) : NavKey
+@Serializable data class EventKey(val eventId: String, val flowId: String = UUID.randomUUID().toString(), val publicSlug: String? = null) : NavKey
 @Serializable data class ScannerKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
 @Serializable data class VolunteersKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
 @Serializable data class DashboardKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
@@ -110,3 +110,5 @@ fun rememberNavigationState(): NavigationState {
         ))
     }
 }
+
+@Serializable data object RemoteUnavailableKey : NavKey

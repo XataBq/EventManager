@@ -24,6 +24,30 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
  override fun observeSession(): Flow<SessionSnapshot> = mutable.asStateFlow()
  private fun publish(state: SessionState) { mutable.value = SessionSnapshot(epoch.get(), state) }
  private fun clearMemory() { token = null; user = null; profiles.value = ProfileResult.Failed(ProfileError.AUTHENTICATION_REQUIRED) }
+ /** Captures only an already validated session. Guest/recovery never reads a stored bearer. */
+ internal suspend fun capturePublicRead(): PublicReadContext = lock.withLock {
+  PublicReadContext(mutable.value, epoch.get(), if(mutable.value.state is SessionState.Authenticated) token else null,
+   if(mutable.value.state is SessionState.Authenticated) user?.profile() else null)
+ }
+ internal fun isCurrentPublicRead(context: PublicReadContext): Boolean =
+  mutable.value == context.snapshot && epoch.get() == context.epoch && (context.token == null || token === context.token)
+ internal suspend fun requestPublic(path: String, context: PublicReadContext): String? {
+  if(!isCurrentPublicRead(context)) return null
+  try {
+   val body = api.request(path, token = context.token, responseLimit = 16_777_216)
+   return body.takeIf { isCurrentPublicRead(context) }
+  } catch(e: RemoteFailure) {
+   if(e.error == AuthError.Unauthorized && context.token != null) lock.withLock {
+    if(isCurrentPublicRead(context)) {
+     epoch.incrementAndGet(); clearMemory(); publish(SessionState.Guest)
+     try { withContext(NonCancellable) { tokens.clear() } }
+     catch(_: IOException) { publish(SessionState.Recovery(AuthError.StorageUnavailable)) }
+    }
+   }
+   throw e
+  }
+ }
+
  override suspend fun refreshSession() {
   val captured = lock.withLock {
    if(!initialized) {
@@ -89,4 +113,10 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
   override suspend fun refreshProfile(): ProfileResult { refreshSession(); return profiles.value }
   override suspend fun saveProfile(fields: ProfileFields): ProfileResult = ProfileResult.Failed(ProfileError.FEATURE_UNAVAILABLE)
  }
+}
+
+/** Data-local request scope; toString never reveals credential or contacts. */
+internal class PublicReadContext(val snapshot: SessionSnapshot, val epoch: Long,
+ internal val token: AuthSecret?, val profile: Profile?) {
+ override fun toString() = "PublicReadContext(generation=${snapshot.generation}, credentials=[redacted])"
 }

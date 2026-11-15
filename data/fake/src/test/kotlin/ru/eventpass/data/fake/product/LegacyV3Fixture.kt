@@ -21,13 +21,14 @@ internal object LegacyV3Fixture {
                 out.writeUTF(e.id.value); out.writeUTF(e.ownerId.value); out.writeUTF(e.title)
                 out.writeUTF(e.startsAt.toString()); out.writeUTF(e.endsAt?.toString().orEmpty())
                 out.writeUTF(e.zoneId); out.writeUTF(e.venue); out.writeInt(e.capacity ?: -1)
-                out.writeUTF(e.lifecycle.name); out.writeBoolean(e.registrationOpen); out.writeInt(e.formVersion)
+                out.writeUTF(e.lifecycle.name); out.writeBoolean(e.registrationOpen); out.writeInt(requireNotNull(e.localSchemaRevision))
                 out.writeUTF(e.description); out.writeInt(e.sections.size)
                 e.sections.forEach { out.writeUTF(it.title); out.writeUTF(it.time) }
                 out.writeInt(e.questions.size)
                 e.questions.forEach { q ->
                     out.writeUTF(q.id); out.writeUTF(q.title); out.writeBoolean(q.required)
                     when (q) {
+                        is RegistrationQuestion.MultipleChoice, is RegistrationQuestion.Unsupported -> error("Not representable by legacy schema")
                         is RegistrationQuestion.Text -> out.writeInt(0)
                         is RegistrationQuestion.Checkbox -> out.writeInt(1)
                         is RegistrationQuestion.SingleChoice -> {
@@ -41,11 +42,12 @@ internal object LegacyV3Fixture {
             state.registrations.forEach { r ->
                 out.writeUTF(r.id); out.writeUTF(r.eventId.value); out.writeUTF(r.userId?.value.orEmpty())
                 out.writeUTF(r.attendeeEmail); out.writeUTF(r.attendeeName); out.writeUTF(r.phone.orEmpty())
-                out.writeInt(r.formVersion); out.writeUTF(r.consentAcceptedAt.toString())
+                out.writeInt(requireNotNull(r.localSchemaRevision)); out.writeUTF(r.consentAcceptedAt.toString())
                 out.writeInt(r.answers.size)
                 r.answers.forEach { (id, answer) ->
                     out.writeUTF(id)
                     when (answer) {
+                        is Answer.MultipleChoice -> error("Not representable by legacy schema")
                         is Answer.Text -> { out.writeInt(0); out.writeUTF(answer.value) }
                         is Answer.Checkbox -> { out.writeInt(1); out.writeBoolean(answer.checked) }
                         is Answer.SingleChoice -> { out.writeInt(2); out.writeUTF(answer.optionId) }
@@ -64,7 +66,7 @@ internal object LegacyV3Fixture {
             state.grants.forEach { out.writeUTF(it.eventId.value); out.writeUTF(it.userId.value); out.writeBoolean(it.active) }
             // V3 appends editor metadata to the unchanged v2 product payload.
             out.writeInt(state.events.size)
-            state.events.values.forEach { out.writeUTF(it.id.value); out.writeLong(it.revision); out.cover(it.cover) }
+            state.events.values.forEach { out.writeUTF(it.id.value); out.writeLong(requireNotNull(it.revision)); out.cover(it.cover) }
             out.writeInt(state.drafts.size)
             state.drafts.values.forEach { d ->
                 out.writeUTF(d.id.value); out.writeUTF(d.ownerId.value); out.writeLong(d.revision)

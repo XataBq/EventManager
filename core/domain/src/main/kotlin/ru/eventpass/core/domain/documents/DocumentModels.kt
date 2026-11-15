@@ -5,7 +5,7 @@ import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.*
 
 enum class DocumentError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, SESSION_CHANGED, FORBIDDEN, NOT_FOUND, NOT_CURRENT,
-    NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, PROVIDER_UNAVAILABLE, WRITE_FAILED }
+    NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, PROVIDER_UNAVAILABLE, WRITE_FAILED, PROTOCOL, SERVER_UNAVAILABLE}
 sealed interface DocumentRequest {
     data class TicketPdf(val ticketId: TicketId) : DocumentRequest
     data class AttendanceXlsx(val eventId: EventId) : DocumentRequest

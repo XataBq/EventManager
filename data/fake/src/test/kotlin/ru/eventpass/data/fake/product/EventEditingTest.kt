@@ -35,11 +35,11 @@ class EventEditingTest {
         FakeEventPassEnvironment(clock = clock, authClock = fixed, authStorage = storage, authPolicy = policy)
     private val id = DraftId("draft-one")
     private fun fields() = EventFields("Новая конференция", FakeFixtures.NOW.plusSeconds(3600),
-        FakeFixtures.NOW.plusSeconds(7200), "Europe/Moscow", "Зал 1", null, listOf(
+        FakeFixtures.NOW.plusSeconds(7200), "Europe/Moscow", "Зал 1", 20, listOf(
             DraftQuestion("text", "Организация"), DraftQuestion("check", "Участие", kind = QuestionKind.CHECKBOX),
             DraftQuestion("choice", "Формат", kind = QuestionKind.SINGLE_CHOICE,
                 options = listOf(RegistrationQuestion.Option("live", "Очно"), RegistrationQuestion.Option("online", "Онлайн")))),
-        "Описание", listOf(EventSection("Открытие", "12:00")), EventCover("cover-one", "image/png", 100))
+        "Описание", listOf(EventSection("Открытие", "12:00", "opening")), EventCover("cover-one", "image/png", 100))
     private fun <T> saved(result: EventEditResult<T>): T = (result as EventEditResult.Saved<T>).value
     private fun failed(error: EventEditError) = EventEditResult.Failed(error)
     private suspend fun event(e: FakeEventPassEnvironment, eventId: EventId = FakeFixtures.OPEN) =
@@ -85,7 +85,7 @@ class EventEditingTest {
         val volunteer = event(e, FakeFixtures.VOLUNTEER)
         assertEquals(EventEditorResult.Failed(EventEditError.Forbidden), e.events.observeEditor(EventEditorTarget.Published(volunteer.id)).first())
         assertEquals(failed(EventEditError.Forbidden), e.events.updateEvent(volunteer.id, 1, 1, volunteer.toFields()))
-        assertEquals(failed(EventEditError.Forbidden), e.events.closeRegistration(volunteer.id, 1))
+        assertEquals(failed(EventEditError.Forbidden), e.events.finishEvent(volunteer.id, 1))
         assertEquals(failed(EventEditError.Forbidden), e.events.finishEvent(volunteer.id, 1))
         assertTrue((e.events.observeMyEvents().first() as MyEventsResult.Ready).drafts.isEmpty())
         e.scenarios.putAccount(Account(UserId("unverified"), "new@example.com", false)); e.scenarios.signInAs(UserId("unverified"))
@@ -110,47 +110,47 @@ class EventEditingTest {
             zoneId = "invalid zone", capacity = -1, questions = listOf(DraftQuestion("q", " ", kind = QuestionKind.SINGLE_CHOICE)))
         saved(e.events.saveDraft(id, null, invalid))
         val errors = (e.events.publishDraft(id, 1) as EventEditResult.Failed).error as EventEditError.Validation
-        assertTrue(errors.fields.containsAll(setOf("title", "venue", "startsAt", "endsAt", "zoneId", "capacity", "questions")))
+        assertTrue(errors.fields.containsAll(setOf("title", "venue", "endsAt", "zoneId", "capacity", "questions")))
         assertEquals(invalid, (e.events.observeEditor(EventEditorTarget.Draft(id)).first() as EventEditorResult.Draft).draft.fields)
-        saved(e.events.saveDraft(id, 1, fields().copy(capacity = 0)))
+        saved(e.events.saveDraft(id, 1, fields().copy(capacity = 1)))
         val eventId = saved(e.events.publishDraft(id, 2)); val current = event(e, eventId)
-        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FULL), current.registrationAvailability(FakeFixtures.NOW, 0))
-        val unlimited = saved(e.events.updateEvent(eventId, 1, 1, current.toFields().copy(capacity = null)))
-        assertEquals(RegistrationAvailability.Open(AvailablePlaces.Unlimited), unlimited.registrationAvailability(FakeFixtures.NOW, 500))
+        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FULL), current.registrationAvailability(FakeFixtures.NOW, 1))
+        val limited = saved(e.events.updateEvent(eventId, 1, 1, current.toFields().copy(capacity = 501)))
+        assertEquals(RegistrationAvailability.Open(AvailablePlaces.Limited(1)), limited.registrationAvailability(FakeFixtures.NOW, 500))
     }
 
     @Test fun revisionsPreventLostUpdatesAndSchemaVersionChangesOnlyForQuestions() = runTest {
         val e = backend(); e.scenarios.signInAs(FakeFixtures.HOST); val original = event(e)
         val renamed = saved(e.events.updateEvent(original.id, 1, 1, original.toFields().copy(title = "Новое название")))
-        assertEquals(1, renamed.formVersion); assertEquals(2L, renamed.revision)
+        assertEquals(1, renamed.localSchemaRevision); assertEquals(2L, renamed.revision!!)
         assertEquals(original.description, renamed.description); assertEquals(original.sections, renamed.sections)
         assertEquals(failed(EventEditError.Conflict), e.events.updateEvent(original.id, 1, 1, original.toFields()))
         val schema = original.toFields().copy(questions = fields().questions.reversed())
         val changed = saved(e.events.updateEvent(original.id, 2, 1, schema))
-        assertEquals(2, changed.formVersion); assertEquals(fields().questions.reversed().map { it.id }, changed.questions.map { it.id })
+        assertEquals(2, changed.localSchemaRevision); assertEquals(fields().questions.reversed().map { it.id }, changed.questions.map { it.id })
         assertEquals(failed(EventEditError.StaleForm), e.events.updateEvent(original.id, 3, 1, changed.toFields()))
         val stale = e.registrations.submitGuest(GuestRegistrationCommand(original.id, 1, "Мария", "guest@example.com", consentAccepted = true))
-        assertEquals(GuestRegistrationOutcome.Failed(RegistrationError.StaleForm), stale)
+        val issued=stale as GuestRegistrationOutcome.Issued
+        val committed=e.scenarios.registrationFor(issued.ticket.ticketId)
+        saved(e.events.updateEvent(original.id,3,2,changed.toFields().copy(questions=emptyList())))
+        assertEquals(committed,e.scenarios.registrationFor(issued.ticket.ticketId))
+        assertEquals(changed.questions,committed?.questionSnapshot)
     }
 
-    @Test fun guestRegistrationLocksSchemaAfterAllCancelAndRestartWithoutChangingAnswers() = runTest {
-        val storage = Storage(); val e = backend(storage); e.scenarios.signInAs(FakeFixtures.HOST)
-        val before = event(e)
-        val ticket = (e.registrations.submitGuest(GuestRegistrationCommand(before.id, 1, "Guest", "guest@example.com",
-            answers = mapOf("organization" to Answer.Text("Университет")), consentAccepted = true)) as GuestRegistrationOutcome.Issued).ticket
-        val registration = e.scenarios.registrationFor(ticket.ticketId)
-        assertEquals(failed(EventEditError.QuestionsLocked), e.events.updateEvent(before.id, 1, 1,
-            before.toFields().copy(questions = before.toFields().questions.reversed())))
-        e.scenarios.setTicketStatus(ticket.ticketId, TicketStatus.CANCELLED)
-        val restarted = backend(storage); restarted.scenarios.signInAs(FakeFixtures.HOST)
-        assertTrue((restarted.events.observeEditor(EventEditorTarget.Published(before.id)).first() as EventEditorResult.Published).questionsLocked)
-        for (schema in listOf(emptyList(), before.toFields().questions.map { it.copy(required = !it.required) },
-            before.toFields().questions.map { it.copy(title = "Другая формулировка") },
-            before.toFields().questions.map { q -> if (q.kind == QuestionKind.SINGLE_CHOICE) q.copy(options = q.options.map { it.copy(title = "Иной вариант") }) else q })) {
-            assertEquals(failed(EventEditError.QuestionsLocked), restarted.events.updateEvent(before.id, 1, 1, before.toFields().copy(questions = schema)))
+    @Test fun guestAnswersSurviveQuestionEditsCancellationAndRestart() = runTest {
+        val storage=Storage();val e=backend(storage);e.scenarios.signInAs(FakeFixtures.HOST)
+        val before=event(e)
+        val ticket=(e.registrations.submitGuest(GuestRegistrationCommand(before.id,1,"Guest","guest@example.com",answers=mapOf("organization" to Answer.Text("Original")),consentAccepted=true)) as GuestRegistrationOutcome.Issued).ticket
+        val registration=e.scenarios.registrationFor(ticket.ticketId)
+        saved(e.events.updateEvent(before.id,1,1,before.toFields().copy(questions=before.toFields().questions.reversed())))
+        e.scenarios.setTicketStatus(ticket.ticketId,TicketStatus.CANCELLED)
+        val restarted=backend(storage);restarted.scenarios.signInAs(FakeFixtures.HOST)
+        assertFalse((restarted.events.observeEditor(EventEditorTarget.Published(before.id)).first() as EventEditorResult.Published).questionsLocked)
+        for(schema in listOf(emptyList(),before.toFields().questions.map{it.copy(required=!it.required)},before.toFields().questions.map{it.copy(title="Renamed")})) {
+            val current=event(restarted,before.id)
+            saved(restarted.events.updateEvent(before.id,current.revision!!,current.localSchemaRevision,current.toFields().copy(questions=schema)))
+            assertEquals(registration,restarted.scenarios.registrationFor(ticket.ticketId))
         }
-        saved(restarted.events.updateEvent(before.id, 1, 1, before.toFields().copy(venue = "Новый зал")))
-        assertEquals(registration, restarted.scenarios.registrationFor(ticket.ticketId))
     }
 
     @Test fun capacityIncludesUsedAndExcludesCancelledAndMetadataKeepsCredentials() = runTest {
@@ -166,28 +166,23 @@ class EventEditingTest {
         assertEquals(old.snapshot.qrPayload, changed.snapshot.qrPayload); assertEquals(old.registrationId, changed.registrationId)
         assertEquals(TicketStatus.USED, changed.status); assertEquals(updated.title, changed.snapshot.eventTitle); assertEquals(updated.venue, changed.snapshot.venue)
         e.scenarios.setTicketStatus(issued.ticketId, TicketStatus.CANCELLED); e.scenarios.signInAs(FakeFixtures.HOST)
-        assertTrue(e.events.updateEvent(original.id, 2, 1, updated.toFields().copy(capacity = 0)) is EventEditResult.Saved)
+        assertTrue(e.events.updateEvent(original.id, 2, 1, updated.toFields().copy(capacity = 0)) is EventEditResult.Failed)
         val restarted = backend(storage); restarted.scenarios.signInAs(FakeFixtures.ALEX)
         assertEquals(changed.snapshot, (restarted.tickets.observeOwnTicket(issued.ticketId).first() as OwnTicketResult.Found).ticket.snapshot)
     }
 
-    @Test fun closeStartEndAndManualFinishUseSharedClockAndCannotReopen() = runTest {
-        val time = Time(); val e = backend(clock = time); e.scenarios.signInAs(FakeFixtures.ALEX)
-        val eventId = create(e); val original = event(e, eventId)
-        val closed = saved(e.events.closeRegistration(eventId, 1))
-        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.CLOSED),
-            (e.events.observePublicEvent(eventId).first() as PublicEventResult.Found).availability)
-        assertEquals(original.title, event(e, eventId).title)
-        time.now = original.startsAt
-        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.STARTED), event(e, eventId).registrationAvailability(time.now, 0))
-        assertEquals(failed(EventEditError.Validation(setOf("datesLocked"))), e.events.updateEvent(eventId, closed.revision, 1,
-            closed.toFields().copy(startsAt = time.now.plusSeconds(1))))
-        val metadata = saved(e.events.updateEvent(eventId, closed.revision, 1, closed.toFields().copy(title = "Идёт")))
-        time.now = original.endsAt!!
-        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FINISHED), event(e, eventId).registrationAvailability(time.now, 0))
-        assertEquals(failed(EventEditError.EventFinished), e.events.updateEvent(eventId, metadata.revision, 1, fields().copy(startsAt = time.now.plusSeconds(1))))
-        saved(e.events.finishEvent(eventId, metadata.revision))
-        assertEquals(EventLifecycle.FINISHED, event(e, eventId).lifecycle)
+    @Test fun liveRegistrationAndManualFinishUseSharedClockAndCannotReopen() = runTest {
+        val time=Time();val e=backend(clock=time);e.scenarios.signInAs(FakeFixtures.HOST)
+        val id=create(e);val original=event(e,id)
+        time.now=original.startsAt
+        assertEquals(RegistrationAvailability.Open(AvailablePlaces.Limited(20)),original.registrationAvailability(time.now,0))
+        val edited=saved(e.events.updateEvent(id,original.revision!!,original.localSchemaRevision,original.toFields().copy(title="Live edit")))
+        assertEquals("Live edit",edited.title)
+        val finished=saved(e.events.finishEvent(id,edited.revision!!))
+        assertEquals(time.now,finished.finishedAt)
+        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FINISHED),finished.registrationAvailability(time.now,0))
+        assertEquals(finished,saved(e.events.finishEvent(id,finished.revision!!)))
+        assertEquals(failed(EventEditError.EventFinished),e.events.updateEvent(id,finished.revision!!,finished.localSchemaRevision,fields()))
     }
 
     @Test fun failedWritesAndTransientFailuresPublishNoFalseDraftOrEvent() = runTest {
@@ -206,7 +201,7 @@ class EventEditingTest {
         val eventId = saved(e.events.publishDraft(id, 1)); val old = event(e, eventId)
         storage.fail = true
         assertEquals(failed(EventEditError.StorageUnavailable), e.events.updateEvent(eventId, 1, 1, fields().copy(title = "Не сохранено")))
-        assertEquals(failed(EventEditError.StorageUnavailable), e.events.closeRegistration(eventId, 1))
+        assertEquals(failed(EventEditError.StorageUnavailable), e.events.finishEvent(eventId, 1))
         assertEquals(failed(EventEditError.StorageUnavailable), e.events.finishEvent(eventId, 1))
         assertEquals(old, event(e, eventId))
     }
@@ -280,7 +275,7 @@ class EventEditingTest {
         val decodedV2 = ProductSnapshotCodec.restore(storage.bytes!!, seed())
         assertEquals(state.accounts, decodedV2.accounts); assertEquals(state.auth.passwords, decodedV2.auth.passwords)
         assertEquals(state.auth.challenges, decodedV2.auth.challenges); assertEquals(state.auth.names, decodedV2.auth.names)
-        assertEquals(state.events, decodedV2.events); assertEquals(state.registrations, decodedV2.registrations)
+        assertEquals(state.events.mapValues { (_,e) -> e.copy(sections = e.sections.mapIndexed { i,v -> v.copy(id = "legacy-$i") }) }, decodedV2.events.mapValues { (_,e) -> e.copy(sections = e.sections.mapIndexed { i,v -> v.copy(id = "legacy-$i") }) }); assertEquals(state.registrations.map { it.copy(questionSnapshot = null) }, decodedV2.registrations)
         assertEquals(state.tickets, decodedV2.tickets); assertEquals(state.grants, decodedV2.grants)
         assertEquals(state.policy, decodedV2.policy); assertEquals(state.nextId, decodedV2.nextId)
         val restarted = backend(storage)
@@ -289,11 +284,11 @@ class EventEditingTest {
         assertTrue(restarted.auth.signIn("pending@example.com", AuthSecret("Pending123!")) is AuthResult.Success)
         saved(restarted.events.saveDraft(id, null, EventFields()))
         val migrated = ProductSnapshotCodec.restore(storage.bytes!!, seed())
-        assertEquals(5, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
-        assertEquals(state.registrations, migrated.registrations); assertEquals(state.tickets, migrated.tickets)
+        assertEquals(6, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
+        assertEquals(state.registrations.map { it.copy(questionSnapshot = null) }, migrated.registrations); assertEquals(state.tickets, migrated.tickets)
         assertEquals(state.auth.passwords, migrated.auth.passwords)
         assertEquals(state.auth.challenges.keys, migrated.auth.challenges.keys)
-        assertEquals(e.scenarios.registrationFor(receipt.ticket.ticketId), restarted.scenarios.registrationFor(receipt.ticket.ticketId))
+        assertEquals(e.scenarios.registrationFor(receipt.ticket.ticketId)?.copy(questionSnapshot = null), restarted.scenarios.registrationFor(receipt.ticket.ticketId))
         assertEquals(1, migrated.drafts.size)
     }
 

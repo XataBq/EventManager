@@ -1,6 +1,6 @@
 # UI-кит и Android-адаптация
 
-Источник: [06 / UI-кит](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=35-486). Исходный JSON — `sources/figma-2026-10-21.json`. **T03, 27 октября:** реализованы нативные компоненты в `core:designsystem`, локальный Inter и demo-галерея. H1 ожидается; наличие компонентов не означает утверждённое визуальное соответствие. Отчёт — [17-t03-validation.md](17-t03-validation.md).
+Источник: [06 / UI-кит](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=35-486). Исходный JSON — `sources/figma-2026-10-21.json`. **T03 — DONE:** нативные компоненты в `core:designsystem`, локальный Inter и demo-галерея реализованы 27 октября; **H1 подтверждена пользователем 29 октября 2026**. Запись приёмки и история реализации — [17-t03-validation.md](17-t03-validation.md). Инструкции визуальной проверки ниже сохраняют описание объёма H1; повторное подтверждение перед T04 не требуется.
 
 ## Фактический API T03
 

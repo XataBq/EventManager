@@ -79,6 +79,9 @@ fun ProfileScreen(s: ProfileUiState, edit: (ProfileFields) -> Unit, save: () -> 
 fun profileErrorResource(error: ProfileError): Int=when(error) {
     ProfileError.INVALID_INPUT -> R.string.profile_invalid
     ProfileError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
+    ProfileError.PROTOCOL -> R.string.auth_protocol
+    ProfileError.FORBIDDEN -> R.string.auth_forbidden
+    ProfileError.SERVER_UNAVAILABLE -> R.string.m02_server_unavailable
     ProfileError.NETWORK -> R.string.auth_network
     ProfileError.TIMEOUT -> R.string.auth_timeout
     ProfileError.STORAGE_UNAVAILABLE -> R.string.auth_storage

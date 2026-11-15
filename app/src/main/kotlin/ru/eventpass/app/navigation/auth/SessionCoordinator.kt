@@ -10,8 +10,8 @@ import ru.eventpass.core.domain.auth.*
 
 @Serializable
 sealed interface ReturnDestination {
-    @Serializable data class Event(val eventId: String) : ReturnDestination {
-        init { require(eventId.matches(Regex("[a-zA-Z0-9_-]{1,64}"))) }
+    @Serializable data class Event(val eventId: String, val publicSlug: String? = null) : ReturnDestination {
+        init { require(eventId.matches(Regex("[a-zA-Z0-9_-]{1,64}")) || (eventId.isEmpty() && publicSlug != null)); publicSlug?.let { ru.eventpass.core.domain.event.EventSlug(it) } }
     }
     @Serializable data class Root(val tab: ru.eventpass.app.navigation.RootTab) : ReturnDestination
 }

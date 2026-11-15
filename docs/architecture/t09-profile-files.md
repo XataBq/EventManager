@@ -1,6 +1,6 @@
 # T09: профиль, документы и demo resend
 
-Независимый срез поверх T08 `aaca508`. Q10/каскад удаления не реализован; backend/API не согласованы. T07 camera/UI и H3/H4 ожидают человека. Исходный результат и единый checklist — [28](../28-t09-validation.md); исправление SAF recreation — [29](../29-t09-saf-recreation-validation.md).
+Независимый срез поверх T08 `aaca508`. Q10/каскад удаления не реализован; backend/API не согласованы. Реализованный независимый T09 и H3/H4 текущего demo приняты пользователем 6 ноября; [свидетельство](../validation/2026-11-06-manual-acceptance.md). Полная T09 ждёт решения Q10. Исходный результат и единый checklist — [28](../28-t09-validation.md); исправление SAF recreation — [29](../29-t09-saf-recreation-validation.md).
 
 ## Ответственность и профиль
 
@@ -46,8 +46,8 @@ Resend использует тот же own/current ACTIVE guard, recipient из
 ## Доказательства и остаток
 
 - [ProfileDocumentsTest](../../data/fake/src/test/kotlin/ru/eventpass/data/fake/product/ProfileDocumentsTest.kt): profile/new contacts/history/session/storage, v1–v4/defaults/all writers/restart/corruption, own PDF/status, owner full snapshot, resend/outbox/cooldown.
-- [ProfileViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/profile/ProfileViewModelTest.kt), [DocumentsViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/documents/DocumentsViewModelTest.kt): dirty observer/Back, single flight, late result/finally/new owner, picker cancellation, logout/retry, configuration rebind pending/writer и настоящий exit/hidden/смена ресурса. [SafRecreationTest](../../app/src/androidTest/kotlin/ru/eventpass/app/SafRecreationTest.kt) проверяет delivery через настоящий ActivityResultRegistry после Android recreation/rotation с controlled URI/provider.
-- [DocumentStreamsTest](../../core/platform/src/test/kotlin/ru/eventpass/core/platform/DocumentStreamsTest.kt): close/cancel/denial/partial transfer; [ProfileFilesIntegrationTest](../../app/src/androidTest/kotlin/ru/eventpass/app/ProfileFilesIntegrationTest.kt) и [ProfileRestartTest](../../app/src/androidTest/kotlin/ru/eventpass/app/ProfileRestartTest.kt): Android/provider/QR/system picker/profile/restart. Реальные запуски — в 28, наличие тестов не равно прохождению.
+- [ProfileViewModelTest](../../app/src/test/kotlin/ru/eventpass/app/feature/profile/ProfileViewModelTest.kt), [DocumentsViewModelTest](../../app/src/testDemo/kotlin/ru/eventpass/app/feature/documents/DocumentsViewModelTest.kt): dirty observer/Back, single flight, late result/finally/new owner, picker cancellation, logout/retry, configuration rebind pending/writer и настоящий exit/hidden/смена ресурса. [SafRecreationTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/SafRecreationTest.kt) проверяет delivery через настоящий ActivityResultRegistry после Android recreation/rotation с controlled URI/provider.
+- [DocumentStreamsTest](../../core/platform/src/test/kotlin/ru/eventpass/core/platform/DocumentStreamsTest.kt): close/cancel/denial/partial transfer; [ProfileFilesIntegrationTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/ProfileFilesIntegrationTest.kt) и [ProfileRestartTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/ProfileRestartTest.kt): Android/provider/QR/system picker/profile/restart. Реальные запуски — в 28, наличие тестов не равно прохождению.
 
 Q10: требуется решение об активных собственных E, чужих tickets/местах/письмах, USED/check-in audit/checker identity и повторном signup. Кнопки ложного удаления/reset нет. H3/H4, физическая камера, независимые providers и реальные backend files/delivery не принимаются автоматизацией.
 

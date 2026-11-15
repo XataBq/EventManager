@@ -1,5 +1,7 @@
 # Фактическая архитектура EventPass Android
 
+**Срез передачи 15 ноября:** M00/M01 TECH_ACCEPTED, M02 WIP_HANDOFF и ещё без итогового ревью. В коде уже меняются модель Event/Question, публичный EventSlug и RemoteEventRepository; это частичная реализация. При чтении учитывать [актуальный handoff M02](validation/t10-m02-handoff-2026-11-15.md), решения 08/34 и исходники; следующий исполнитель должен синхронизировать затронутые разделы перед REVIEW_PENDING. Наличие описания здесь не подтверждает завершение WIP.
+
 M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
 
 Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.

@@ -23,6 +23,8 @@ interface FakeAuthStorage {
     fun read(): ByteArray?
     /** Implementations must replace the snapshot atomically, or throw IOException. */
     fun write(snapshot: ByteArray)
+    /** Required before explicit reset of valid but incompatible legacy data. */
+    fun backupLegacy(snapshot: ByteArray) { throw IOException("Legacy backup unavailable") }
 }
 object VolatileAuthStorage : FakeAuthStorage {
     override fun read(): ByteArray? = null

@@ -47,10 +47,13 @@ object RegistrationValidator {
         questions.forEach { question ->
             val answer = command.answers[question.id]
             val issue = when (question) {
+                is RegistrationQuestion.Unsupported -> FieldIssue.INVALID_ANSWER
                 is RegistrationQuestion.Text -> when {
                     answer == null -> if (question.required) FieldIssue.REQUIRED else null
-                    answer !is Answer.Text -> FieldIssue.INVALID_ANSWER
+                    answer !is Answer.Text || answer.value.codePointCount(0, answer.value.length) > 4000 -> FieldIssue.INVALID_ANSWER
                     question.required && answer.value.isBlank() -> FieldIssue.REQUIRED
+                    answer.value.isBlank() -> null
+                    !validText(question.format, answer.value.trim()) -> FieldIssue.INVALID_ANSWER
                     else -> null
                 }
                 is RegistrationQuestion.Checkbox -> when {
@@ -65,6 +68,13 @@ object RegistrationValidator {
                     question.options.none { it.id == answer.optionId } -> FieldIssue.INVALID_ANSWER
                     else -> null
                 }
+                is RegistrationQuestion.MultipleChoice -> when {
+                    answer == null -> if (question.required) FieldIssue.REQUIRED else null
+                    answer !is Answer.MultipleChoice -> FieldIssue.INVALID_ANSWER
+                    answer.optionIds.isEmpty() -> if (question.required) FieldIssue.REQUIRED else null
+                    answer.optionIds.size > 50 || answer.optionIds.distinct().size != answer.optionIds.size || answer.optionIds.any { id -> question.options.none { it.id == id } } -> FieldIssue.INVALID_ANSWER
+                    else -> null
+                }
             }
             if (issue != null) errors += FieldError(RegistrationField.Question(question.id), issue)
         }
@@ -74,6 +84,14 @@ object RegistrationValidator {
                 if (answer is Answer.Text) answer.copy(value = answer.value.trim()) else answer
             }),
         )
+    }
+
+    private fun validText(format: TextFormat, text: String): Boolean = when (format) {
+        TextFormat.TEXT, TextFormat.TEXTAREA -> true
+        TextFormat.EMAIL -> ru.eventpass.core.domain.auth.AuthInputPolicy().validEmail(text)
+        TextFormat.TEL -> text.matches(Regex("[+0-9 ().-]+")) && text.count(Char::isDigit) in 7..15
+        TextFormat.NUMBER -> text.matches(Regex("[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?")) && text.toDoubleOrNull()?.isFinite() == true
+        TextFormat.DATE -> runCatching { java.time.LocalDate.parse(text).toString() == text }.getOrDefault(false)
     }
 
     fun normalizeRussianPhone(raw: String): String? {

@@ -35,17 +35,18 @@ object AttendanceXlsxWriter {
             }
             val questions = data.event.questions.associateBy { it.id }
             val ids = (questions.keys + data.rows.flatMap { it.registration.answers.keys }).distinct()
-            val fixed = listOf("registrationId", "displayNumber", "Имя", "Email", "Телефон", "Регистрация (consentAcceptedAt)", "Статус", "Первый проход", "checkerId", "formVersion")
+            val fixed = listOf("registrationId", "displayNumber", "Имя", "Email", "Телефон", "Регистрация (consentAcceptedAt)", "Статус", "Первый проход", "checkerId", "localSchemaRevision")
             sheet("xl/worksheets/sheet1.xml", sequence {
                 yield(fixed + ids.flatMap { listOf("$it / ${questions[it]?.title ?: "Архивный вопрос"}", "$it / optionId") })
                 data.rows.forEach { row ->
                     val r = row.registration
                     yield(listOf(r.id, row.displayNumber, r.attendeeName, r.attendeeEmail, r.phone, r.consentAcceptedAt, row.status.name,
-                        row.checkedAt, row.checkerId?.value, r.formVersion) + ids.flatMap { id ->
+                        row.checkedAt, row.checkerId?.value, r.localSchemaRevision) + ids.flatMap { id ->
                         when(val answer = r.answers[id]) {
                             is Answer.Text -> listOf(answer.value, null)
                             is Answer.Checkbox -> listOf(answer.checked, null)
                             is Answer.SingleChoice -> listOf((questions[id] as? RegistrationQuestion.SingleChoice)?.options?.find { it.id == answer.optionId }?.title, answer.optionId)
+                            is Answer.MultipleChoice -> listOf(answer.optionIds.joinToString(", "), answer.optionIds.joinToString(", "))
                             null -> listOf(null, null)
                         }
                     })

@@ -29,6 +29,8 @@ internal class FakeAuthRepository(
 ) : AuthRepository {
     private val initialization = Mutex()
     @Volatile private var initialized = false
+    @Volatile private var incompatibleLegacy: ByteArray? = null
+    internal fun requiresLegacyReset() = incompatibleLegacy != null
 
     internal suspend fun initialize() = initialization.withLock {
         if (!initialized) withContext(Dispatchers.IO) {
@@ -43,6 +45,9 @@ internal class FakeAuthRepository(
                         passwordProof(AuthSecret("DemoPass123!"), policy.passwordIterations)
                     })
                     state.value = (restored ?: current).copy(accounts = accounts, auth = data.copy(session = null))
+                } catch (e: LegacyProductIncompatible) {
+                    incompatibleLegacy = e.original.copyOf()
+                    state.value = state.value.copy(auth = AuthData(healthy = false))
                 } catch (_: IOException) {
                     state.value = state.value.copy(auth = AuthData(healthy = false))
                 } catch (_: IllegalArgumentException) {
@@ -244,7 +249,9 @@ internal class FakeAuthRepository(
             val data = seed.auth.copy(passwords = seed.accounts.mapValues {
                 passwordProof(AuthSecret("DemoPass123!"), policy.passwordIterations)
             }, generation = state.value.auth.generation + 1)
+            incompatibleLegacy?.let { storage.backupLegacy(it.copyOf()) }
             storage.write(ProductSnapshotCodec.encode(seed.copy(auth = data)))
+            incompatibleLegacy = null
             state.value = seed.copy(auth = data)
             initialized = true
         }

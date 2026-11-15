@@ -54,7 +54,7 @@ internal class FakeCheckInOperations(private val state: MutableStateFlow<FakePro
                 if (ticket.status == TicketStatus.CANCELLED) return@mutate s to CheckInOutcome.Invalid(InvalidTicketReason.CANCELLED)
                 if (ticket.status == TicketStatus.USED) return@mutate s to CheckInOutcome.AlreadyUsed(s.checkIns.singleOrNull { it.ticketId == ticket.snapshot.ticketId })
                 val event = s.events.getValue(eventId)
-                if (event.lifecycle != EventLifecycle.PUBLISHED || event.endsAt?.let { clock.instant() >= it } == true)
+                if (event.statusAt(clock.instant()) !in setOf(EventLifecycle.PUBLISHED, EventLifecycle.LIVE))
                     return@mutate s to CheckInOutcome.Invalid(InvalidTicketReason.EVENT_INACTIVE)
                 val checker = s.activeAccount(authClock.instant()) ?: return@mutate s to CheckInOutcome.Failed(CheckInError.AUTHENTICATION_REQUIRED)
                 val record = CheckInRecord("checkin-${UUID.randomUUID()}", eventId, ticket.snapshot.ticketId, checker.id,

@@ -38,38 +38,30 @@ class RegistrationRulesTest {
         event.id, 1, name, "new@example.com", phone, consentAccepted = true,
     )
 
-    @Test fun unlimitedAndNoPlacesAreDifferent() {
-        assertEquals(
-            RegistrationAvailability.Open(AvailablePlaces.Unlimited),
-            event.copy(capacity = null).registrationAvailability(now, 500),
-        )
-        assertEquals(
-            RegistrationAvailability.Closed(RegistrationClosureReason.FULL),
-            event.copy(capacity = 0).registrationAvailability(now, 0),
-        )
-        assertEquals(
-            RegistrationAvailability.Open(AvailablePlaces.Limited(1)),
-            event.registrationAvailability(now, 9),
-        )
+    @Test fun publishedCapacityIsPositiveAndFullIsNotUnlimited() {
+        for (invalid in listOf<Int?>(null, 0, -1)) assertTrue(runCatching { event.copy(capacity = invalid) }.isFailure)
+        assertEquals(RegistrationAvailability.Open(AvailablePlaces.Limited(1)), event.registrationAvailability(now, 9))
+        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FULL), event.registrationAvailability(now, 10))
+        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FULL), event.registrationAvailability(now, 11))
     }
 
-    @Test fun startClosesRegistrationWithoutFinishingTheEvent() {
-        assertEquals(
-            RegistrationAvailability.Closed(RegistrationClosureReason.STARTED),
-            event.registrationAvailability(event.startsAt, 0),
-        )
-        assertEquals(
-            RegistrationAvailability.Closed(RegistrationClosureReason.FINISHED),
-            event.registrationAvailability(event.endsAt!!, 0),
-        )
-        assertEquals(
-            RegistrationAvailability.Closed(RegistrationClosureReason.FINISHED),
-            event.copy(lifecycle = EventLifecycle.FINISHED).registrationAvailability(now, 0),
-        )
-        assertEquals(
-            RegistrationAvailability.Closed(RegistrationClosureReason.CLOSED),
-            event.copy(registrationOpen = false).registrationAvailability(now, 0),
-        )
+    @Test fun liveRegistrationAndDefaultFourHoursReplaceStartAndCloseFlags() {
+        assertTrue(event.registrationAvailability(event.startsAt, 0) is RegistrationAvailability.Open)
+        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FINISHED), event.registrationAvailability(event.endsAt!!, 0))
+        val defaultEnd = event.copy(endsAt = null, registrationOpen = false)
+        assertEquals(defaultEnd.startsAt.plusSeconds(14400), defaultEnd.effectiveEndsAt)
+        assertTrue(defaultEnd.registrationAvailability(defaultEnd.startsAt.plusSeconds(14399), 0) is RegistrationAvailability.Open)
+        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FINISHED), defaultEnd.registrationAvailability(defaultEnd.effectiveEndsAt, 0))
+        assertEquals(RegistrationAvailability.Closed(RegistrationClosureReason.FINISHED), defaultEnd.copy(finishedAt = now).registrationAvailability(now, 0))
+    }
+
+    @Test fun inactiveAvailabilityNeverGrantsScanningButFullDoes() {
+        val actor = Account(owner, "owner@example.com", false)
+        val ended = event.registrationAvailability(event.endsAt!!, 0)
+        assertFalse(EventAccessPolicy.resolve(event, actor, false, emptyList(), ended).canScan)
+        val cancelled = event.copy(lifecycle = EventLifecycle.CANCELLED)
+        assertFalse(EventAccessPolicy.resolve(cancelled, actor, false, emptyList(), cancelled.registrationAvailability(now, 0)).canScan)
+        assertTrue(EventAccessPolicy.resolve(event, actor, false, emptyList(), event.registrationAvailability(now, 10)).canScan)
     }
 
     @Test fun grantsAreScopedToBothUserAndEventAndDoNotRemoveParticipation() {
@@ -124,7 +116,7 @@ class RegistrationRulesTest {
         val questions = listOf(
             RegistrationQuestion.Text("text", "Text", true),
             RegistrationQuestion.Checkbox("check", "Check", true),
-            RegistrationQuestion.SingleChoice("choice", "Choice", true, listOf(RegistrationQuestion.Option("a", "A"))),
+            RegistrationQuestion.SingleChoice("choice", "Choice", true, listOf(RegistrationQuestion.Option("a", "A"), RegistrationQuestion.Option("b", "B"))),
         )
         val missing = RegistrationValidator.validate(command(), questions, RegistrationPolicy())
         assertEquals(3, (missing as RegistrationValidation.Invalid).errors.size)

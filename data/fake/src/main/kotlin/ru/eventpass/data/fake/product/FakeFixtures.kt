@@ -49,30 +49,28 @@ object FakeFixtures {
             capacity = 20,
             lifecycle = EventLifecycle.PUBLISHED,
             registrationOpen = true,
-            formVersion = 1,
+            localSchemaRevision = 1,
+            revision = 1,
+            slug = ru.eventpass.core.domain.event.EventSlug("demo-${id.value}"),
             questions = listOf(
                 RegistrationQuestion.Text("organization", "Вуз / компания", required = false),
                 RegistrationQuestion.Checkbox("workshop", "Участвовать в мастер-классе", required = false),
                 RegistrationQuestion.SingleChoice(
                     "format", "Формат участия", required = false,
-                    options = listOf(RegistrationQuestion.Option("listener", "Слушатель")),
+                    options = listOf(RegistrationQuestion.Option("listener", "Слушатель"), RegistrationQuestion.Option("speaker", "Докладчик")),
                 ),
             ),
             description = "Студенческая научно-практическая конференция: исследования, прикладные модели и мастер-классы.",
-            sections = listOf(ru.eventpass.core.domain.event.EventSection("LLM & Generative AI", "10:30 — 13:00"),
-                ru.eventpass.core.domain.event.EventSection("Data Engineering & ML Ops", "14:00 — 17:30")),
+            sections = listOf(ru.eventpass.core.domain.event.EventSection("LLM & Generative AI", "10:30 — 13:00", "program-one"),
+                ru.eventpass.core.domain.event.EventSection("Data Engineering & ML Ops", "14:00 — 17:30", "program-two")),
         )
     }
 
     fun grants(): List<ScanGrant> = listOf(ScanGrant(VOLUNTEER, ALEX), ScanGrant(MIXED, ALEX))
 
     internal fun registrations(): List<Registration> = listOf(ATTENDING, MIXED).map {
-        Registration(
-            id = "seed-registration-${it.value}", eventId = it, userId = ALEX,
-            attendeeEmail = "alex@example.com", attendeeName = "Alex", phone = null,
-            formVersion = 1, answers = mapOf("organization" to Answer.Text("Demo")),
-            consentAcceptedAt = NOW,
-        )
+        Registration("seed-registration-${it.value}", it, ALEX, "alex@example.com", "Alex", null, 1,
+            mapOf("organization" to Answer.Text("Demo")), NOW)
     }
 
     internal fun tickets(events: List<Event>): List<Ticket> = registrations().map { registration ->

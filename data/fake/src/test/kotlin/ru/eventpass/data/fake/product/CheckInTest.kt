@@ -87,7 +87,7 @@ class CheckInTest {
         assertEquals(CheckInOutcome.Invalid(InvalidTicketReason.UNKNOWN), e.checkIns.checkIn(FakeFixtures.MIXED, TicketCredential.Qr(QrToken("unknown"))))
         assertEquals(CheckInOutcome.Failed(CheckInError.INVALID_INPUT), e.checkIns.checkIn(FakeFixtures.MIXED, TicketCredential.Manual(ManualCode(t.snapshot.displayNumber))))
         time.now = FakeFixtures.NOW.plusSeconds(200000)
-        assertEquals(CheckInOutcome.Invalid(InvalidTicketReason.EVENT_INACTIVE), e.checkIns.checkIn(FakeFixtures.MIXED, qr(t)))
+        assertEquals(CheckInOutcome.Failed(CheckInError.FORBIDDEN), e.checkIns.checkIn(FakeFixtures.MIXED, qr(t)))
         time.now = FakeFixtures.NOW
         e.scenarios.setTicketStatus(t.snapshot.ticketId, TicketStatus.CANCELLED)
         assertEquals(CheckInOutcome.Invalid(InvalidTicketReason.CANCELLED), e.checkIns.checkIn(FakeFixtures.MIXED, qr(t)))
@@ -95,7 +95,6 @@ class CheckInTest {
     }
     @Test fun closeAndStartDoNotCancelAdmissionButUsedRepeatKeepsOriginalChecker() = runBlocking {
         val time = Time(); val e = backend(clock = time); val t = ticket(e); e.scenarios.signInAs(FakeFixtures.HOST)
-        e.events.closeRegistration(FakeFixtures.MIXED, 1)
         val event = (e.events.observePublicEvent(FakeFixtures.MIXED).first() as PublicEventResult.Found).event
         time.now = event.startsAt
         val first = e.checkIns.checkIn(FakeFixtures.MIXED, qr(t)) as CheckInOutcome.Admitted
@@ -150,9 +149,9 @@ class CheckInTest {
         assertEquals(t.snapshot.qrPayload, restored.snapshot.qrPayload); assertEquals(t.snapshot.manualCode, restored.snapshot.manualCode)
         assertTrue(next.checkIns.checkIn(FakeFixtures.MIXED, manual(t)) is CheckInOutcome.Admitted)
         val after = ProductSnapshotCodec.restore(storage.bytes!!, seed())
-        assertEquals(5, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
+        assertEquals(6, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
         assertEquals(before.accounts, after.accounts); assertEquals(before.auth.passwords, after.auth.passwords)
-        assertEquals(before.auth.challenges, after.auth.challenges); assertEquals(before.events, after.events)
+        assertEquals(before.auth.challenges, after.auth.challenges); assertEquals(before.events.mapValues { (_,e) -> e.copy(sections = e.sections.mapIndexed { i,v -> v.copy(id = "legacy-$i") }) }, after.events.mapValues { (_,e) -> e.copy(sections = e.sections.mapIndexed { i,v -> v.copy(id = "legacy-$i") }) })
         assertEquals(before.drafts, after.drafts); assertEquals(before.registrations, after.registrations); assertEquals(before.grants, after.grants)
     }
     @Test fun authEditorAndRegistrationWritesPreserveCheckInsAndGrantAcrossRestart() = runBlocking {

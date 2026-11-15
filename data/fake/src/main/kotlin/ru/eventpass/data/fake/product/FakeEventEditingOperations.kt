@@ -56,7 +56,7 @@ internal class FakeEventEditingOperations(
     private fun published(s: FakeProductState, id: EventId, actor: UserId): EventEditorResult {
         val event = s.events[id] ?: return EventEditorResult.Failed(EventEditError.NotFound)
         return if (event.ownerId != actor) EventEditorResult.Failed(EventEditError.Forbidden)
-        else EventEditorResult.Published(event, s.registrations.any { it.eventId == id }, clock.instant())
+        else EventEditorResult.Published(event, false, clock.instant())
     }
 
     suspend fun refreshMyEvents() {
@@ -94,32 +94,29 @@ internal class FakeEventEditingOperations(
         if (errors.isNotEmpty()) return@mutate failure(s, EventEditError.Validation(errors))
         val eventId = EventId("event-${UUID.randomUUID()}")
         val event = Event(eventId, actor, fields.title, fields.startsAt!!, fields.endsAt, fields.zoneId, fields.venue,
-            fields.capacity, EventLifecycle.PUBLISHED, true, 1, EventEditingPolicy.questions(fields), fields.description, fields.sections, cover = fields.cover)
+            fields.capacity, EventLifecycle.PUBLISHED, true, 1, EventEditingPolicy.questions(fields), fields.description, fields.sections, revision = 1, cover = fields.cover, slug = EventSlug("demo-${eventId.value}"), priceType = fields.priceType, coverUrl = fields.remoteCoverUrl, remoteCoverAssetId = fields.remoteCoverAssetId)
         s.copy(events = s.events + (eventId to event), drafts = s.drafts + (id to draft.copy(publishedEventId = eventId))) to EventEditResult.Saved(eventId)
     }
 
-    suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedFormVersion: Int, fields: EventFields): EventEditResult<Event> {
+    suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedLocalSchemaRevision: Int?, fields: EventFields): EventEditResult<Event> {
         val input = fields.detached()
         return changeEvent(id, expectedRevision) { s, event ->
-            if (event.formVersion != expectedFormVersion) return@changeEvent EventEditResult.Failed(EventEditError.StaleForm)
+            if (event.localSchemaRevision != expectedLocalSchemaRevision) return@changeEvent EventEditResult.Failed(EventEditError.StaleForm)
             EventEditingPolicy.updateError(event, input, clock.instant(),
                 s.tickets.count { it.snapshot.eventId == id && it.status != TicketStatus.CANCELLED },
                 s.registrations.any { it.eventId == id })?.let { return@changeEvent EventEditResult.Failed(it) }
             val questions = EventEditingPolicy.questions(input)
             EventEditResult.Saved(event.copy(title = input.title, startsAt = input.startsAt!!, endsAt = input.endsAt,
                 zoneId = input.zoneId, venue = input.venue, capacity = input.capacity, questions = questions,
-                formVersion = event.formVersion + if (questions == event.questions) 0 else 1,
-                description = input.description, sections = input.sections, cover = input.cover, revision = event.revision + 1))
+                localSchemaRevision = requireNotNull(event.localSchemaRevision) + if (questions == event.questions) 0 else 1,
+                description = input.description, sections = input.sections, cover = input.cover, priceType = input.priceType, coverUrl = input.remoteCoverUrl, remoteCoverAssetId = input.remoteCoverAssetId, revision = requireNotNull(event.revision) + 1))
         }
     }
 
-    suspend fun closeRegistration(id: EventId, expectedRevision: Long): EventEditResult<Event> = changeEvent(id, expectedRevision) { _, event ->
-        EventEditResult.Saved(if (!event.registrationOpen) event else event.copy(registrationOpen = false, revision = event.revision + 1))
-    }
     suspend fun finishEvent(id: EventId, expectedRevision: Long): EventEditResult<Event> = changeEvent(id, expectedRevision) { _, event ->
         if (event.lifecycle == EventLifecycle.CANCELLED) EventEditResult.Failed(EventEditError.EventFinished)
         else EventEditResult.Saved(if (event.lifecycle == EventLifecycle.FINISHED) event else
-            event.copy(lifecycle = EventLifecycle.FINISHED, registrationOpen = false, revision = event.revision + 1))
+            event.copy(lifecycle = EventLifecycle.FINISHED, finishedAt = clock.instant(), registrationOpen = false, revision = requireNotNull(event.revision) + 1))
     }
 
     private suspend fun changeEvent(id: EventId, expectedRevision: Long,
@@ -170,6 +167,9 @@ internal class FakeEventEditingOperations(
 private fun EventFields.detached() = copy(questions = questions.map { it.copy(options = it.options.toList()) }, sections = sections.toList())
 private fun ProductReadError.toEditError(): EventEditError = when (this) {
     ProductReadError.FEATURE_UNAVAILABLE -> EventEditError.FeatureUnavailable
+    ProductReadError.SERVER_UNAVAILABLE -> EventEditError.ServerUnavailable
+    ProductReadError.PROTOCOL -> EventEditError.Protocol
+    ProductReadError.FORBIDDEN -> EventEditError.Forbidden
     ProductReadError.NETWORK -> EventEditError.Network
     ProductReadError.TIMEOUT -> EventEditError.Timeout
     ProductReadError.STORAGE_UNAVAILABLE -> EventEditError.StorageUnavailable

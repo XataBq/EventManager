@@ -54,7 +54,7 @@ class RefreshOwnersTest {
         val repo=object: EventRepository by e.events {
             override fun observeMyEvents()=values
             override suspend fun refreshMyEvents() {calls++;suspendCoroutine<Unit>{replies+=it}}
-            override suspend fun refreshPublicEvent(eventId: EventId)=error("Hidden public read")
+            override suspend fun refreshPublicEvent(reference: PublicEventReference)=error("Hidden public read")
         }
         val vm=MyEventsViewModel(repo,SavedStateHandle())
         try {
@@ -76,8 +76,8 @@ class RefreshOwnersTest {
         val streams=mapOf(first.event.id to MutableStateFlow<PublicEventResult>(first),second.event.id to MutableStateFlow<PublicEventResult>(second))
         val calls=mutableListOf<EventId>();val replies=mutableListOf<Continuation<Unit>>()
         val repo=object: EventRepository by e.events {
-            override fun observePublicEvent(eventId: EventId)=streams.getValue(eventId)
-            override suspend fun refreshPublicEvent(eventId: EventId) {calls+=eventId;suspendCoroutine<Unit>{replies+=it}}
+            override fun observePublicEvent(reference: PublicEventReference)=streams.getValue((reference as PublicEventReference.Internal).id)
+            override suspend fun refreshPublicEvent(reference: PublicEventReference) { val eventId = (reference as PublicEventReference.Internal).id;calls+=eventId;suspendCoroutine<Unit>{replies+=it}}
             override suspend fun refreshMyEvents()=error("Hidden MyEvents read")
         }
         val vm=EventViewModel(repo,e.registrations,e.tickets,SavedStateHandle())
@@ -98,19 +98,19 @@ class RefreshOwnersTest {
         } finally {vm.viewModelScope.cancel();hidden.viewModelScope.cancel();Dispatchers.resetMain()}
     }
 
-    @Test fun newFormVersionDiscardsAnswersExplicitlyAndGuestReceiptCannotRefresh()=runTest {
+    @Test fun changedSchemaDropsIncompatibleAnswersButKeepsContactAndConsent()=runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler));val e=environment()
         val value=e.events.observePublicEvent(FakeFixtures.OPEN).first() as PublicEventResult.Found
         val stream=MutableStateFlow<PublicEventResult>(value);var calls=0
         val repo=object: EventRepository by e.events {
-            override fun observePublicEvent(eventId: EventId)=stream
-            override suspend fun refreshPublicEvent(eventId: EventId) {calls++}
+            override fun observePublicEvent(reference: PublicEventReference)=stream
+            override suspend fun refreshPublicEvent(reference: PublicEventReference) { val eventId = (reference as PublicEventReference.Internal).id;calls++}
         }
         val vm=EventViewModel(repo,e.registrations,e.tickets,SavedStateHandle())
         try {
             vm.bind(value.event.id.value);runCurrent();vm.edit(RegistrationForm("Ж","refresh@example.com",answers=mapOf("old" to Answer.Text("Do not migrate")),consent=true))
-            stream.value=value.copy(event=value.event.copy(formVersion=value.event.formVersion+1));runCurrent()
-            assertEquals(RegistrationError.StaleForm,vm.state.value.error);assertTrue(vm.state.value.form.answers.isEmpty());assertFalse(vm.state.value.form.consent)
+            stream.value=value.copy(event=value.event.copy(questions=value.event.questions + RegistrationQuestion.Text("new-required", "Новый вопрос", true)));runCurrent()
+            assertEquals(RegistrationError.StaleForm,vm.state.value.error);assertTrue(vm.state.value.form.answers.isEmpty());assertTrue(vm.state.value.form.consent)
             stream.value=value;runCurrent();vm.edit(RegistrationForm("Ж","refresh@example.com",consent=true));vm.submit()
             vm.state.first {it.receipt!=null};vm.refresh();runCurrent();assertEquals(0,calls);assertNotNull(vm.state.value.receipt)
         } finally {vm.viewModelScope.cancel();Dispatchers.resetMain()}

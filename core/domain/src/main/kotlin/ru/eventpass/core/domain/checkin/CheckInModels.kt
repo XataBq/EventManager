@@ -27,7 +27,7 @@ object ManualCodePolicy {
     }
 }
 
-enum class CheckInError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, FORBIDDEN, NOT_FOUND, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, INVALID_INPUT }
+enum class CheckInError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, FORBIDDEN, NOT_FOUND, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, INVALID_INPUT, PROTOCOL, SERVER_UNAVAILABLE}
 enum class InvalidTicketReason { UNKNOWN, WRONG_EVENT, CANCELLED, EVENT_INACTIVE }
 
 data class CheckInRecord(val id: String, val eventId: EventId, val ticketId: TicketId, val checkerId: UserId,
@@ -54,7 +54,7 @@ interface CheckInRepository {
 }
 
 data class Volunteer(val grant: ScanGrant, val email: String, val checkedInCount: Int = 0)
-enum class VolunteerError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, FORBIDDEN, NOT_FOUND, ACCOUNT_NOT_FOUND, INVALID_TARGET, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE }
+enum class VolunteerError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, FORBIDDEN, NOT_FOUND, ACCOUNT_NOT_FOUND, INVALID_TARGET, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, PROTOCOL, SERVER_UNAVAILABLE}
 sealed interface VolunteersResult {
     data class Ready(val volunteers: List<Volunteer>) : VolunteersResult
     data class Failed(val error: VolunteerError) : VolunteersResult

@@ -31,7 +31,7 @@ import kotlin.coroutines.resumeWithException
 @Serializable internal data class ErrorDto(val code: String, val fields: Map<String,String> = emptyMap())
 @Serializable internal data class ConsentDto(val terms: ConsentItemDto, val privacy: ConsentItemDto)
 @Serializable internal data class ConsentItemDto(val url: String?, val version: String?)
-internal class RemoteFailure(val error: AuthError) : IOException("Remote request failed")
+internal class RemoteFailure(val error: AuthError, val httpStatus: Int? = null, val machineCode: String? = null, val fields: Map<String, String> = emptyMap()) : IOException("Remote request failed")
 
 /** Bounded, cancellable HTTP. No logging, redirects or mutation retries; bearer only API origin. */
 class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
@@ -39,7 +39,8 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
  private val base = baseUrl.toHttpUrlStrict()
  private val http = client.newBuilder().retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false).build()
  init { require(base.encodedPath.endsWith("/")); require(base.scheme == "https" || base.host in setOf("localhost", "127.0.0.1", "::1")) }
- internal suspend fun request(path: String, body: String? = null, token: AuthSecret? = null, method: String? = null): String = withContext(Dispatchers.IO) {
+ internal suspend fun request(path: String, body: String? = null, token: AuthSecret? = null, method: String? = null, responseLimit: Int = 1_048_576): String = withContext(Dispatchers.IO) {
+  require(responseLimit in 1..16_777_216)
   require(!path.startsWith("/") && !path.contains(":") && !path.contains(".."))
   val target = requireNotNull(base.resolve(path))
   require(target.scheme == base.scheme && target.host == base.host && target.port == base.port)
@@ -53,7 +54,7 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
     call.enqueue(object : Callback {
      override fun onFailure(call: Call, e: IOException) { if(c.isActive) c.resumeWithException(e) }
      override fun onResponse(call: Call, response: Response) {
-      try { val text = decodeResponse(response); if(c.isActive) c.resume(text) }
+      try { val text = decodeResponse(response, responseLimit); if(c.isActive) c.resume(text) }
       catch(e: Exception) { if(c.isActive) c.resumeWithException(e) }
      }
     })
@@ -62,13 +63,14 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
     catch(e: RemoteFailure) { throw e }
     catch(e: IOException) { throw RemoteFailure(AuthError.Network) }
  }
- private fun decodeResponse(response: Response): String = response.use {
-  val source = it.body?.source(); source?.request(1_048_577L)
+ private fun decodeResponse(response: Response, limit: Int): String = response.use {
+  val source = it.body?.source(); source?.request(limit.toLong() + 1)
   val raw = source?.buffer?.readByteArray() ?: byteArrayOf()
-  if(raw.size > 1_048_576) throw RemoteFailure(AuthError.Protocol)
+  if(raw.size > limit) throw RemoteFailure(AuthError.Protocol)
   val text = raw.toString(Charsets.UTF_8)
   if(!it.isSuccessful) {
-   val code = runCatching { json.decodeFromString<ErrorDto>(text).code }.getOrNull()
+   val envelope = runCatching { json.decodeFromString<ErrorDto>(text) }.getOrNull()
+   val code = envelope?.code
    throw RemoteFailure(when {
     it.code == 429 -> AuthError.Cooldown(Instant.now().plusSeconds(it.header("Retry-After")?.toLongOrNull()?.coerceIn(1,86400) ?: 60))
     code == "INVALID_CREDENTIALS" -> AuthError.InvalidCredentials
@@ -78,7 +80,7 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
     it.code == 422 -> AuthError.InvalidInput
     it.code >= 500 -> AuthError.ServerUnavailable
     else -> AuthError.Protocol
-   })
+   }, it.code, code, envelope?.fields.orEmpty())
   }
   if(it.code != 204 && !it.header("Content-Type").orEmpty().contains("application/json")) throw RemoteFailure(AuthError.Protocol)
   text

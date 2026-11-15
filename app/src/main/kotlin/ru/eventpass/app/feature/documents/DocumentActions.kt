@@ -47,6 +47,9 @@ fun DocumentActions(request: DocumentRequest, visible: Boolean = true, enabled: 
 }
 fun documentErrorResource(error: DocumentError): Int=when(error) {
     DocumentError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
+    DocumentError.PROTOCOL -> R.string.auth_protocol
+    DocumentError.FORBIDDEN -> R.string.auth_forbidden
+    DocumentError.SERVER_UNAVAILABLE -> R.string.m02_server_unavailable
     DocumentError.NETWORK -> R.string.auth_network
     DocumentError.TIMEOUT -> R.string.auth_timeout
     DocumentError.STORAGE_UNAVAILABLE -> R.string.auth_storage

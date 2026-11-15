@@ -10,7 +10,7 @@ data class ProfileFields(val name: String = "", val phone: String? = null, val o
     override fun toString() = "ProfileFields([redacted])"
 }
 data class Profile(val account: Account, val fields: ProfileFields)
-enum class ProfileError { FEATURE_UNAVAILABLE, INVALID_INPUT, AUTHENTICATION_REQUIRED, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE }
+enum class ProfileError { FEATURE_UNAVAILABLE, INVALID_INPUT, AUTHENTICATION_REQUIRED, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, PROTOCOL, FORBIDDEN, SERVER_UNAVAILABLE}
 sealed interface ProfileResult {
     data class Ready(val profile: Profile) : ProfileResult
     data class Failed(val error: ProfileError) : ProfileResult

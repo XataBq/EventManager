@@ -1,5 +1,7 @@
 # Текущие порты, fake и хранение
 
+**Срез передачи 15 ноября:** M00/M01 TECH_ACCEPTED, M02 WIP_HANDOFF и ещё без итогового ревью. В коде M02 уже меняются EventRepository/PublicEventReference, типизированные ответы и fake product schema 6 с legacy decoder; описания прежней schema 5 ниже относятся к принятому срезу до M02. При чтении учитывать [актуальный handoff M02](validation/t10-m02-handoff-2026-11-15.md), решения 08/34 и исходники; следующий исполнитель должен синхронизировать затронутые разделы перед REVIEW_PENDING. Наличие описания здесь не подтверждает завершение WIP.
+
 M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
 
 **Уточнение текущего целевого контракта:** после последнего ответа пользователя endsAt по умолчанию = startsAt+4 часа, ticket resend исключён. Перечень для backend — [32](32-backend-final-requirements.md); он не содержит Android-планов. Отдельный будущий offline draft: server snapshot + local pending в Room за repository, явная синхронизация без потери dirty данных; детали решения — в 08. Текущее demo этим документом не меняется.

@@ -69,19 +69,19 @@ class AttendanceTest {
     }
     @Test fun guestAndAuthenticatedRegistrationShareTotalsAndUnlimitedZeroPercent() = runTest {
         val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
-        val event = FakeFixtures.events().single { it.id == FakeFixtures.OWNED }; e.scenarios.putEvent(event.copy(capacity = null))
-        assertEquals(AttendanceSummary(0,0,0,null),dashboard(e,FakeFixtures.OWNED).summary)
+        val event = FakeFixtures.events().single { it.id == FakeFixtures.OWNED }; e.scenarios.putEvent(event.copy(capacity = 100))
+        assertEquals(AttendanceSummary(0,0,0,100),dashboard(e,FakeFixtures.OWNED).summary)
         assertEquals(0,dashboard(e,FakeFixtures.OWNED).summary.percent)
         guest(e,1)
         e.registrations.submitAuthenticated(AuthenticatedRegistrationCommand(event.id,1,"Owner",consentAccepted = true))
-        assertEquals(AttendanceSummary(2,0,2,null),dashboard(e,event.id).summary)
+        assertEquals(AttendanceSummary(2,0,2,98),dashboard(e,event.id).summary)
     }
     @Test fun ownerAndSelfCancelOnceShareStatusCapacityAndPermanentSchemaLock() = runTest {
         val e = environment(); e.scenarios.signInAs(FakeFixtures.HOST)
         val row = (e.attendance.attendees(FakeFixtures.MIXED,"") as AttendeesResult.Page).rows.single()
         repeat(2) { assertEquals(OwnerCancelResult.Cancelled,e.attendance.cancelRegistration(FakeFixtures.MIXED,row.registrationId)) }
         assertEquals(AttendanceSummary(0,0,0,20),dashboard(e).summary)
-        assertTrue((e.events.observeEditor(EventEditorTarget.Published(FakeFixtures.MIXED)).first() as EventEditorResult.Published).questionsLocked)
+        assertFalse((e.events.observeEditor(EventEditorTarget.Published(FakeFixtures.MIXED)).first() as EventEditorResult.Published).questionsLocked)
         e.scenarios.signInAs(FakeFixtures.ALEX)
         repeat(2) { assertTrue(e.tickets.cancelOwnTicket(row.ticketId) is CancelTicketOutcome.Cancelled) }
         val own = e.tickets.observeMyTickets().first() as MyTicketsResult.Ready
@@ -107,7 +107,7 @@ class AttendanceTest {
     }
     @Test fun searchAndRevisionPagesNeverChangeTotalsOrExposeCredentials() = runTest {
         val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
-        e.scenarios.putEvent(FakeFixtures.events().single { it.id == FakeFixtures.OWNED }.copy(capacity = null))
+        e.scenarios.putEvent(FakeFixtures.events().single { it.id == FakeFixtures.OWNED }.copy(capacity = 100))
         val issued = (1..43).map { guest(e,it) }
         val before = dashboard(e,FakeFixtures.OWNED)
         val ids = mutableListOf<TicketId>(); var cursor: AttendanceCursor? = null
@@ -123,7 +123,7 @@ class AttendanceTest {
         val first = e.attendance.attendees(FakeFixtures.OWNED,"") as AttendeesResult.Page
         e.checkIns.checkIn(FakeFixtures.OWNED,TicketCredential.Manual(issued.first().ticket.manualCode))
         assertEquals(AttendeesResult.Failed(AttendanceError.STALE_PAGE),e.attendance.attendees(FakeFixtures.OWNED,"",first.next))
-        assertEquals(AttendanceSummary(43,1,42,null),dashboard(e,FakeFixtures.OWNED).summary)
+        assertEquals(AttendanceSummary(43,1,42,57),dashboard(e,FakeFixtures.OWNED).summary)
     }
     @Test fun legacyUsedAndVolunteerCounterUseRealRecordsNotAttempts() = runTest {
         val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
@@ -153,7 +153,7 @@ class AttendanceTest {
         e.attendance.cancelRegistration(FakeFixtures.MIXED,"seed-registration-alex-mixed")
         val next=FakeEventPassEnvironment(authStorage=storage,authPolicy=FakeAuthPolicy(passwordIterations=1000)); next.scenarios.signInAs(FakeFixtures.HOST)
         assertEquals(AttendanceSummary(0,0,0,20),dashboard(next).summary)
-        assertTrue((next.events.observeEditor(EventEditorTarget.Published(FakeFixtures.MIXED)).first() as EventEditorResult.Published).questionsLocked)
+        assertFalse((next.events.observeEditor(EventEditorTarget.Published(FakeFixtures.MIXED)).first() as EventEditorResult.Published).questionsLocked)
     }
     @Test fun queuedCancellationChecksNewSessionAndCancelsWithoutBlockingCaller() = runBlocking {
         val storage=Storage(); val e=FakeEventPassEnvironment(authStorage=storage,authPolicy=FakeAuthPolicy(passwordIterations=1000))

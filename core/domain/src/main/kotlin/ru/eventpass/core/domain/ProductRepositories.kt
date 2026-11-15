@@ -14,15 +14,16 @@ import ru.eventpass.core.domain.registration.OwnTicketResult
 import ru.eventpass.core.domain.registration.CancelTicketOutcome
 
 interface EventRepository {
-    fun observePublicEvent(eventId: EventId): Flow<PublicEventResult>
-    suspend fun refreshPublicEvent(eventId: EventId)
+    fun observePublicEvent(reference: PublicEventReference): Flow<PublicEventResult>
+    suspend fun refreshPublicEvent(reference: PublicEventReference)
+    fun observePublicEvent(eventId: EventId): Flow<PublicEventResult> = observePublicEvent(PublicEventReference.Internal(eventId))
+    suspend fun refreshPublicEvent(eventId: EventId) = refreshPublicEvent(PublicEventReference.Internal(eventId))
     fun observeMyEvents(): Flow<MyEventsResult>
     fun observeEditor(target: EventEditorTarget): Flow<EventEditorResult>
     suspend fun refreshMyEvents()
     suspend fun saveDraft(id: DraftId, expectedRevision: Long?, fields: EventFields): EventEditResult<EventDraft>
     suspend fun publishDraft(id: DraftId, expectedRevision: Long): EventEditResult<EventId>
-    suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedFormVersion: Int, fields: EventFields): EventEditResult<Event>
-    suspend fun closeRegistration(id: EventId, expectedRevision: Long): EventEditResult<Event>
+    suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedLocalSchemaRevision: Int?, fields: EventFields): EventEditResult<Event>
     suspend fun finishEvent(id: EventId, expectedRevision: Long): EventEditResult<Event>
 }
 

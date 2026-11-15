@@ -28,24 +28,28 @@ internal class FakeTicketOperations(
         override suspend fun refreshMyEvents() = editing.refreshMyEvents()
         override suspend fun saveDraft(id: DraftId, expectedRevision: Long?, fields: EventFields) = editing.saveDraft(id, expectedRevision, fields)
         override suspend fun publishDraft(id: DraftId, expectedRevision: Long) = editing.publishDraft(id, expectedRevision)
-        override suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedFormVersion: Int, fields: EventFields) = editing.updateEvent(id, expectedRevision, expectedFormVersion, fields)
-        override suspend fun closeRegistration(id: EventId, expectedRevision: Long) = editing.closeRegistration(id, expectedRevision)
+        override suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedLocalSchemaRevision: Int?, fields: EventFields) = editing.updateEvent(id, expectedRevision, expectedLocalSchemaRevision, fields)
         override suspend fun finishEvent(id: EventId, expectedRevision: Long) = editing.finishEvent(id, expectedRevision)
-        override fun observePublicEvent(eventId: EventId): Flow<PublicEventResult> = initialized().map { s ->
-            val event = s.events[eventId]; val account = s.activeAccount(authClock.instant())
+        override fun observePublicEvent(reference: PublicEventReference): Flow<PublicEventResult> = initialized().map { s ->
+            val event = when (reference) { is PublicEventReference.Internal -> s.events[reference.id]; is PublicEventReference.Slug -> s.events.values.singleOrNull { it.slug == reference.slug } }
+            val eventId = event?.id
+            val account = s.activeAccount(authClock.instant())
             when {
                 !s.auth.healthy -> PublicEventResult.Failed(ProductReadError.STORAGE_UNAVAILABLE)
-                eventId in s.eventErrors -> PublicEventResult.Failed(s.eventErrors.getValue(eventId))
+                eventId != null && eventId in s.eventErrors -> PublicEventResult.Failed(s.eventErrors.getValue(eventId))
                 event == null || (event.lifecycle == EventLifecycle.DRAFT && !(account != null && account.id == event.ownerId)) -> PublicEventResult.NotFound
                 else -> {
-                    val availability = event.registrationAvailability(clock.instant(), count(s, eventId))
+                    val availability = event.registrationAvailability(clock.instant(), count(s, event.id))
                     PublicEventResult.Found(event, availability, EventAccessPolicy.resolve(event, account,
                         account != null && own(s, account).any { it.snapshot.eventId == eventId && it.status != TicketStatus.CANCELLED }, s.grants, availability),
-                        s.policy, account?.let { RegistrationContact(it.email, s.profileFields(it.id).name, s.profileFields(it.id).phone) })
+                        s.policy, account?.let { RegistrationContact(it.email, s.profileFields(it.id).name, s.profileFields(it.id).phone) },
+                        registeredCount = count(s,event.id), checkedInCount = s.tickets.count { it.snapshot.eventId == event.id && it.status == TicketStatus.USED },
+                        ownTicketId = account?.let { own(s,it).firstOrNull { t -> t.snapshot.eventId == event.id && t.status != TicketStatus.CANCELLED }?.snapshot?.ticketId })
                 }
             }
         }.distinctUntilChanged()
-        override suspend fun refreshPublicEvent(eventId: EventId) { update {
+        override suspend fun refreshPublicEvent(reference: PublicEventReference) { update {
+            val eventId = when(reference) { is PublicEventReference.Internal -> reference.id; is PublicEventReference.Slug -> it.events.values.singleOrNull { e -> e.slug == reference.slug }?.id } ?: return@update it
             it.copy(eventErrors = if (it.nextReadError == null) it.eventErrors - eventId else it.eventErrors + (eventId to it.nextReadError), nextReadError = null, revision = it.revision + 1)
         } }
     }
@@ -69,7 +73,7 @@ internal class FakeTicketOperations(
                     ?: return@transaction s to AuthenticatedRegistrationOutcome.Failed(RegistrationError.AuthenticationRequired)
                 existing(s, command.eventId, account.email)?.let { return@transaction s to AuthenticatedRegistrationOutcome.Registered(it.snapshot.ticketId, true) }
                 s.nextSubmissionError?.let { return@transaction s.copy(nextSubmissionError = null) to AuthenticatedRegistrationOutcome.Failed(it) }
-                val guest = GuestRegistrationCommand(command.eventId, command.formVersion, command.name, account.email, command.phone, command.answers, command.consentAccepted)
+                val guest = GuestRegistrationCommand(command.eventId, command.localSchemaRevision, command.name, account.email, command.phone, command.answers, command.consentAccepted)
                 val error = validate(s, guest)
                 if (error != null) s to AuthenticatedRegistrationOutcome.Failed(error)
                 else { val (next, ticket) = issue(s, guest, validated(s, guest), account.id); next to AuthenticatedRegistrationOutcome.Registered(ticket.snapshot.ticketId, false) }
@@ -121,13 +125,12 @@ internal class FakeTicketOperations(
         val event = s.events[command.eventId]?.takeIf { it.lifecycle != EventLifecycle.DRAFT } ?: return RegistrationError.NotFound
         val availability = event.registrationAvailability(clock.instant(), count(s, event.id))
         if (availability is RegistrationAvailability.Closed) return RegistrationError.Unavailable(availability.reason)
-        if (command.formVersion != event.formVersion) return RegistrationError.StaleForm
         return (RegistrationValidator.validate(command, event.questions, s.policy) as? RegistrationValidation.Invalid)?.let { RegistrationError.Validation(it.errors) }
     }
     private fun validated(s: FakeProductState, command: GuestRegistrationCommand) = (RegistrationValidator.validate(command, s.events.getValue(command.eventId).questions, s.policy) as RegistrationValidation.Valid).value
     private fun issue(s: FakeProductState, command: GuestRegistrationCommand, contact: ValidatedRegistration, userId: UserId?): Pair<FakeProductState, Ticket> {
         val event = s.events.getValue(command.eventId); val number = s.nextId
-        val registration = Registration("registration-$number", event.id, userId, contact.email, contact.name, contact.phone, event.formVersion, contact.answers.toMap(), clock.instant())
+        val registration = Registration("registration-$number", event.id, userId, contact.email, contact.name, contact.phone, event.localSchemaRevision, contact.answers.toMap(), clock.instant(), questionSnapshot = EventEditingPolicy.questions(EventFields(questions = event.questions.map { it.toDraftQuestion() })))
         val snapshot = GuestTicketSnapshot(TicketId("ticket-$number"), event.id, event.title, event.startsAt, event.zoneId, event.venue, contact.name, "DEMO-$number", "eventpass-demo-ticket:${UUID.randomUUID()}")
         val ticket = Ticket(snapshot, registration.id, TicketStatus.ACTIVE)
         return s.copy(registrations = s.registrations + registration, tickets = s.tickets + ticket, outbox = s.outbox + FakeTicketEmail(contact.email, snapshot.ticketId), nextId = number + 1) to ticket

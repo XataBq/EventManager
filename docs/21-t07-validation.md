@@ -1,16 +1,18 @@
 # T07 — grants/check-in и UI
 
+**Текущая ручная приёмка — принята 6 ноября 2026.** Реализованный срез принят; T01/T07/T08 и относящиеся H-проверки закрыты в общей приёмке. [запись приёмки](validation/2026-11-06-manual-acceptance.md). Основание — «если что все ручные проверки я закрыл и принял». Build/устройство каждого прогона не уточнены. Ниже сохранён исторический технический отчёт: прежние ожидания человека относятся к его дате, результаты автоматических проверок не меняются.
+
 **READY_FOR_HUMAN, актуальное исправление code 15.** Volunteers/Scanner UI интегрированы, schema 4 прежняя. Исправлены revoke Dialog error/retry и camera/autofocus requirement; 49 app JVM / 4 device и aapt/assemble/lint/isolation — [25](25-t07-fixes-validation.md). Полная интеграция code 14 и ручной camera checklist — [24](24-t07-ui-validation.md). Back/H2/T06 приняты на code 13, camera/UI T07 и H3/H4 ожидаются. Backend отсутствует/API на согласовании.
 
 ## История независимой foundation code 12
 
-**IN_PROGRESS.** Пользователь прямо ответил: «Ещё не проверял — выполнить независимую часть T07». Организаторский smoke T06 ожидается на code 11. Реализованы только domain/fake/persistence, чистая модель scanner state и тесты; Volunteers/Scanner UI, routes, показ manual code и камера не подключены. T06 DONE/H3/H4 не отмечались. Архитектура текущей части — [t07-checkin-foundation](architecture/t07-checkin-foundation.md).
+**IN_PROGRESS, оставшийся UI разрешён с 1 ноября.** 1 ноября 2026 пользователь ответил «Проверил оба, замечаний нет» на вопрос о перепроверке Back и организаторском smoke T06 на code 13 (`0.7.1-t07-foundation-demo`, коммит `555a2a0`). Устройство и версия Android не сообщены. T05/H2 и T06 приняты; условие UI-интеграции T07 снято. H3/H4 этим не закрыты; новых автоматических проверок эта запись не заявляет. Domain/fake/persistence и ScannerController уже реализованы; Volunteers/Scanner UI, routes, показ manual code и камера ещё не подключены. [Промпт продолжения](prompts/t07-ui-integration.md). При первоначальном выполнении пользователь разрешил только независимую часть; ограничения ниже относятся к тому этапу.
 
 ## APK и воспроизводимость
 
 [app-demo-debug.apk](../artifacts/apk/eventpass-0.7.0-t07-foundation-demo-code12.apk): **0.7.0-t07-foundation-demo**, code **12**, **34079002 байт**, SHA-256 `ef163233826196c8006c05e8da12aebbdf0c2fdb5a400b6a1582136ad2ae9c69`. [Сохранённая копия](../artifacts/apk/eventpass-0.7.0-t07-foundation-demo-code12.apk). ApplicationId `ru.eventpass.android.demo`, minSdk 28, target/compile 37; aapt2/output metadata и debug-подпись v2 проверены. Test APK собран. На устройство ничего не устанавливалось; новых device/camera/OS process-kill прогонов нет.
 
-Для ожидающей приёмки T06 сохранён [APK code 11](../artifacts/apk/eventpass-0.6.1-t06-demo-code11.apk), SHA-256 `ab1567bb070cab86dca460830feb9298144495b38a0eeeccf87b9aadcb7d028d`. Прежние 9 device относятся к T06, не T07. Сначала проверить T06 на этой сборке, затем устанавливать foundation: после записи schema 4 старый code 11 её не читает, обратной миграции нет. Данные автоматически не сбрасываются.
+T06 и Back приняты на [code 13](23-navigation-back-validation.md) 1 ноября. Code 11/12 ниже — исторические сборки; не устанавливать code 11 поверх schema 4 без отдельного плана работы с данными. Технические результаты независимой T07 не приписываются новой сборке автоматически.
 
 Toolchain/версии сохранены: JBR 21 `C:\Program Files\Android\Android Studio1\jbr`, wrapper Gradle 9.5, AGP 9.3.3/Kotlin 2.4.21. Новых внешних библиотек нет; domain tests получили ту же coroutines-test 1.10.2, что уже была у app/fake. Камера/decoder не выбирались и не загружались до gate. UI-kit/Figma nodes в этой независимой части не читались заново: UI не менялся. Seed `t02-v1`, технический `t01-v1`; `alex@example.com` и `host@example.com`, пароль `DemoPass123!`. Event Clock fixed `2026-10-27T09:00Z`, auth Clock system UTC, отдельные demo offsets прежние и не persist.
 
@@ -59,8 +61,8 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
 
 ## Остаток и ручной checklist
 
-Сейчас человек принимает **T06/code 11** по [20-t06-validation.md](20-t06-validation.md): draft/restart/questions/cover/publish/share/guest/schema lock/close/finish. Подтверждение не запрашивается повторно в этой задаче; пользователь сообщил, что ещё не проверял. Foundation code 12 подготовлен для проверки кода/контрактов, не передан как готовый scanner UI.
+T06 и Back приняты на code 13; повторная приёмка перед продолжением не требуется. Нужен [оставшийся UI T07](prompts/t07-ui-integration.md); данные/контроллер/schema 4 повторно не создавать. Backend пока отсутствует; требования отправлены, согласование ожидается.
 
-После приёмки остаётся T07: O05 grant/revoke UI, переходы из существующего MyEvents/owner surface, Scanner/Result routes и Hilt VM, показ manual code на своих билетах/guest receipt, CameraX + один QR decoder с актуально проверенными совместимыми версиями, CAMERA denial/settings flow, lifecycle binding/unbind и ImageProxy/backpressure. Нужны адресные device-проверки permission/hidden tab/revoke/background/rotation и настоящего decoder; Figma O05/V02–V05 прочитать перед реализацией. Эти функции сейчас не заглушены фиктивным success.
+Остаётся T07: O05 grant/revoke UI, переходы из существующего MyEvents/owner surface, Scanner/Result routes и Hilt VM, показ manual code на своих билетах/guest receipt, CameraX + один QR decoder с актуально проверенными совместимыми версиями, CAMERA denial/settings flow, lifecycle binding/unbind и ImageProxy/backpressure. Нужны адресные device-проверки permission/hidden tab/revoke/background/rotation и настоящего decoder; Figma O05/V02–V05 прочитать перед реализацией. Эти функции сейчас не заглушены фиктивным success.
 
 Будущий scanner smoke (пока **не готов к выполнению в UI**): owner выдаёт grant → volunteer открывает E → Active QR → Admitted → повтор AlreadyUsed; WrongEvent/Cancelled/Unknown; manual code; deny/permanent deny камеры и ручной ввод; background/смена таба; revoke при камере; свой билет остаётся, Used не отменяется; restart сохраняет first record. Реальный QR с другого экрана/бумаги/слабый свет — отдельная проверка на конкретном устройстве. H3 целиком после T08; T08 dashboard/grants counters/search/export/offline/real API в этой части не реализуются.

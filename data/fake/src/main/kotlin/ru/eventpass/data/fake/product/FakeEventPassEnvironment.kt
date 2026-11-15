@@ -14,6 +14,7 @@ import ru.eventpass.core.domain.TicketRepository
 import ru.eventpass.core.domain.event.Account
 import ru.eventpass.core.domain.event.Event
 import ru.eventpass.core.domain.event.EventAccessPolicy
+import ru.eventpass.core.domain.event.EventSlug
 import ru.eventpass.core.domain.event.EventId
 import ru.eventpass.core.domain.event.EventLifecycle
 import ru.eventpass.core.domain.event.PublicEventResult
@@ -65,6 +66,8 @@ class FakeEventPassEnvironment(
     val profiles: ru.eventpass.core.domain.profile.ProfileRepository = profileDocuments
     val documents: ru.eventpass.core.domain.documents.DocumentsRepository = profileDocuments
 
+    suspend fun requiresLegacyReset(): Boolean { authBackend.initialize(); return authBackend.requiresLegacyReset() }
+
     /** Demo storage plumbing for startup cover GC. No actor data or ticket credentials leave the store. */
     suspend fun retainedCoverAssetIds(): Set<String>? {
         authBackend.initialize()
@@ -96,7 +99,7 @@ class FakeEventPassEnvironment(
             }) { "Duplicate demo email" }
             it.copy(accounts = it.accounts + (account.id to account))
         }
-        suspend fun putEvent(event: Event) = mutate(true) { it.copy(events = it.events + (event.id to event)) }
+        suspend fun putEvent(event: Event) = mutate(true) { it.copy(events = it.events + (event.id to event.copy(revision = event.revision ?: 1, localSchemaRevision = event.localSchemaRevision ?: 1, slug = event.slug ?: EventSlug("demo-${event.id.value}")))) }
         suspend fun setGrant(grant: ScanGrant) = mutate(true) {
             it.copy(grants = it.grants.filterNot { old ->
                 old.eventId == grant.eventId && old.userId == grant.userId

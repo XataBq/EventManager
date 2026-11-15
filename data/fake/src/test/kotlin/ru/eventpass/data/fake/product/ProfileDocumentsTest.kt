@@ -91,7 +91,7 @@ class ProfileDocumentsTest {
             val added=migrated.registrations.submitAuthenticated(AuthenticatedRegistrationCommand(FakeFixtures.OWNED,1,"Owner",consentAccepted=true)) as AuthenticatedRegistrationOutcome.Registered
             assertTrue(migrated.tickets.cancelOwnTicket(added.ticketId) is CancelTicketOutcome.Cancelled)
             val restored=ProductSnapshotCodec.restore(storage.bytes!!,seed())
-            assertEquals(5,java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
+            assertEquals(6,java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
             assertEquals(ProfileDetails("+79991234567",changed.organization,false),restored.profileDetails[FakeFixtures.HOST])
             assertEquals(changed.name,restored.auth.names[FakeFixtures.HOST]); assertTrue(restored.auth.names.values.contains("Signup имя"))
             assertTrue(restored.auth.passwords.entries.containsAll(expected.auth.passwords.entries))
@@ -105,7 +105,7 @@ class ProfileDocumentsTest {
     @Test fun corruptAndUnsupportedProfileSnapshotNeverOverwriteOrReset() = runTest {
         val storage=Storage(); val e=env(storage); e.scenarios.signInAs(FakeFixtures.ALEX); e.profiles.saveProfile(changed)
         val valid=storage.bytes!!
-        for(bytes in listOf(valid.copyOf(valid.size-1),valid+byteArrayOf(1),valid.copyOf().also {it[3]=6})) {
+        for(bytes in listOf(valid.copyOf(valid.size-1),valid+byteArrayOf(1),valid.copyOf().also {it[3]=99})) {
             storage.bytes=bytes; val broken=env(storage)
             assertEquals(ProfileResult.Failed(ProfileError.STORAGE_UNAVAILABLE),broken.profiles.saveProfile(changed)); assertArrayEquals(bytes,storage.bytes)
         }
@@ -124,7 +124,7 @@ class ProfileDocumentsTest {
     }
     @Test fun exportIsOneFullOwnerSnapshotWithAnswersAllStatusesAndNoSearchOrFakeHistory() = runTest {
         val e=env(); e.scenarios.signInAs(FakeFixtures.ALEX)
-        e.scenarios.putEvent(FakeFixtures.events().single {it.id==FakeFixtures.OWNED}.copy(capacity=null))
+        e.scenarios.putEvent(FakeFixtures.events().single {it.id==FakeFixtures.OWNED}.copy(capacity=100))
         repeat(25) { n -> e.registrations.submitGuest(GuestRegistrationCommand(FakeFixtures.OWNED,1,"=$n","g$n@example.com",
             answers=mapOf("organization" to Answer.Text("=SUM(1,2)"),"workshop" to Answer.Checkbox(n%2==0),"format" to Answer.SingleChoice("listener")),consentAccepted=true)) }
         val request=DocumentRequest.AttendanceXlsx(FakeFixtures.OWNED)

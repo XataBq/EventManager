@@ -21,13 +21,14 @@ internal object LegacyV2Fixture {
                 out.writeUTF(e.id.value); out.writeUTF(e.ownerId.value); out.writeUTF(e.title)
                 out.writeUTF(e.startsAt.toString()); out.writeUTF(e.endsAt?.toString().orEmpty())
                 out.writeUTF(e.zoneId); out.writeUTF(e.venue); out.writeInt(e.capacity ?: -1)
-                out.writeUTF(e.lifecycle.name); out.writeBoolean(e.registrationOpen); out.writeInt(e.formVersion)
+                out.writeUTF(e.lifecycle.name); out.writeBoolean(e.registrationOpen); out.writeInt(requireNotNull(e.localSchemaRevision))
                 out.writeUTF(e.description); out.writeInt(e.sections.size)
                 e.sections.forEach { out.writeUTF(it.title); out.writeUTF(it.time) }
                 out.writeInt(e.questions.size)
                 e.questions.forEach { q ->
                     out.writeUTF(q.id); out.writeUTF(q.title); out.writeBoolean(q.required)
                     when (q) {
+                        is RegistrationQuestion.MultipleChoice, is RegistrationQuestion.Unsupported -> error("Not representable by legacy schema")
                         is RegistrationQuestion.Text -> out.writeInt(0)
                         is RegistrationQuestion.Checkbox -> out.writeInt(1)
                         is RegistrationQuestion.SingleChoice -> {
@@ -41,11 +42,12 @@ internal object LegacyV2Fixture {
             state.registrations.forEach { r ->
                 out.writeUTF(r.id); out.writeUTF(r.eventId.value); out.writeUTF(r.userId?.value.orEmpty())
                 out.writeUTF(r.attendeeEmail); out.writeUTF(r.attendeeName); out.writeUTF(r.phone.orEmpty())
-                out.writeInt(r.formVersion); out.writeUTF(r.consentAcceptedAt.toString())
+                out.writeInt(requireNotNull(r.localSchemaRevision)); out.writeUTF(r.consentAcceptedAt.toString())
                 out.writeInt(r.answers.size)
                 r.answers.forEach { (id, answer) ->
                     out.writeUTF(id)
                     when (answer) {
+                        is Answer.MultipleChoice -> error("Not representable by legacy schema")
                         is Answer.Text -> { out.writeInt(0); out.writeUTF(answer.value) }
                         is Answer.Checkbox -> { out.writeInt(1); out.writeBoolean(answer.checked) }
                         is Answer.SingleChoice -> { out.writeInt(2); out.writeUTF(answer.optionId) }

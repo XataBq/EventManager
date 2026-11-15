@@ -102,7 +102,7 @@ class TicketPersistenceTest {
         storage.bytes = LegacyAuthV1Fixture.encode(initial.accounts, auth)
         val e = backend(storage)
         e.registrations.submitGuest(guest())
-        assertEquals(5, java.io.DataInputStream(java.io.ByteArrayInputStream(storage.bytes!!)).readInt())
+        assertEquals(6, java.io.DataInputStream(java.io.ByteArrayInputStream(storage.bytes!!)).readInt())
         val restarted = backend(storage); login(restarted, password = "LegacyPass123!")
         assertTrue(restarted.auth.completeEmailLink(token) is AuthResult.Success)
         assertEquals(GuestRegistrationOutcome.ExistingRegistration("guest@example.com"), restarted.registrations.submitGuest(guest()))

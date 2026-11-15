@@ -1,6 +1,6 @@
 # EventPass — Android
 
-**T10 — последовательная реализация разрешена, M00 TECH_ACCEPTED, M01 REVIEW_PENDING.** [Сравнение текущего кода с новыми правилами, ADR и этапы M00–M09](docs/34-api-migration-plan.md). Между этапами — автоматические проверки, обновление контекста и android-code-review; ручная проверка одна, после завершения всего цикла. Непринятый новый UX T09a входит в итоговую проверку, прежние приёмки не меняются. Исполнение и отчёты — [35](docs/35-t10-execution.md); контракты — [migration mapping](docs/api/migration-mapping.md). M01 remote auth/signup/login/read-only profile реализован; M02–M09 TODO. [Архитектура M01](docs/architecture/t10-session-transport.md), [отчёт](docs/validation/t10-m01-implementation.md).
+**15 ноября — передача текущей версии, без субагентов.** M00 и M01 TECH_ACCEPTED; M02 — **WIP_HANDOFF**, реализация частичная, итоговые проверки и ревью не завершены; M03–M09 TODO. Продолжение — [промпт M02](docs/prompts/t10-m02-resume-single-agent.md), фактический срез и ограничения — [handoff](docs/validation/t10-m02-handoff-2026-11-15.md). Последовательность и ADR — [34](docs/34-api-migration-plan.md), порядок работы одним агентом — [35](docs/35-t10-execution.md). Ревью каждого этапа — отдельная последовательная задача; ручная приёмка только после всего цикла. Прежние отчёты и APK не являются проверкой текущего WIP. [Принятая архитектура M01](docs/architecture/t10-session-transport.md), [отчёт](docs/validation/t10-m01-implementation.md), [исправление legacy email](docs/validation/t10-m01-fix-email.md).
 
 **Backend 1.1.1 проверен на staging, 13 ноября.** Сегодняшние изменения `6960209` → `def6565` покрывают BK01–BK09; публичные API/OpenAPI доступны, 55 сценарных проверок + 3 cleanup прошли. Для начала T10 ручек достаточно. Осталось настроить ссылки документов согласия и обеспечить доступ к тестовой почте для полного auth smoke; `guest.phone` без значения передавать как `""`. Android App Links отложены пользователем. [Результаты и границы проверки](docs/33-backend-update-2026-11-13.md). Android-интеграция этим не реализована.
 
@@ -24,7 +24,7 @@
 
 Мобильный MVP по Figma. Все подготовленные ручные проверки реализованного demo приняты пользователем. Остаток полной T09 — Q10/удаление после согласования; T10 требует backend. Файлы и письма — demo defaults, не утверждённый API.
 
-Локальный Git: ветка `main`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Каркас содержит пять модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`.
+Текущий T10: ветка `codex/t10-api-integration`, remote `origin` — [XataBq/EventManager](https://github.com/XataBq/EventManager). Проект содержит шесть модулей: `app`, `core:domain`, `core:designsystem`, `core:platform`, `data:fake`, `data:remote`. Варианты приложения: `demoDebug` и `remoteDebug`; release пока отключён.
 
 ## Сборка и запуск demo
 

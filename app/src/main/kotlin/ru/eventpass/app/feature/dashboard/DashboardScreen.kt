@@ -106,6 +106,9 @@ fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () ->
 }
 fun attendanceErrorResource(error: AttendanceError): Int = when (error) {
     AttendanceError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
+    AttendanceError.PROTOCOL -> R.string.auth_protocol
+    AttendanceError.FORBIDDEN -> R.string.auth_forbidden
+    AttendanceError.SERVER_UNAVAILABLE -> R.string.m02_server_unavailable
     AttendanceError.NETWORK -> R.string.auth_network
     AttendanceError.TIMEOUT -> R.string.auth_timeout
     AttendanceError.STORAGE_UNAVAILABLE -> R.string.auth_storage

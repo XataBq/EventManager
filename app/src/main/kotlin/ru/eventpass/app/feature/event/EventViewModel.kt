@@ -31,27 +31,36 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
     private val receipt = GuestReceiptState(saved)
     private val mutable = MutableStateFlow(EventUiState(receipt = receipt.read(), fullscreen = saved["guestFullscreen"] ?: false))
     val state = mutable.asStateFlow()
-    private var eventId: EventId? = null
+    private var reference: PublicEventReference? = null
     private var submitJob: Job? = null
-    private var formVersion = 0L
+    private var localSchemaRevision = 0L
     private var owner = 0L; private var observer: Job? = null; private var read: Job? = null
     private var active = false
-    fun bind(id: String) {
-        val key = EventId(id)
-        if (active && eventId == key) return
+    fun bind(id: String) = bind(PublicEventReference.Internal(EventId(id)))
+    fun bind(key: PublicEventReference) {
+        if (active && reference == key) return
         stopReading()
-        if (eventId != null && eventId != key) { close(); mutable.value = EventUiState() }
-        eventId = key; active = true; val generation = owner
+        if (reference != null && reference != key) { close(); mutable.value = EventUiState() }
+        reference = key; active = true; val generation = owner
         mutable.value = state.value.copy(loading = state.value.data == null && !state.value.notFound)
         observer = viewModelScope.launch { events.observePublicEvent(key).collect { result -> if (generation == owner) {
             val current = mutable.value
-            val stale = result is PublicEventResult.Found && current.data?.event?.formVersion?.let { it != result.event.formVersion } == true
-            if (stale) { formVersion++; submitJob?.cancel() }
+            val stale = result is PublicEventResult.Found && current.data != null && current.data.event.questions != result.event.questions
+            val keptAnswers = if (result is PublicEventResult.Found && stale) current.form.answers.filter { (id, answer) ->
+                val before = current.data?.event?.questions?.find { it.id == id }
+                val after = result.event.questions.find { it.id == id }
+                if(before == null || after == null || before.toDraftQuestion().kind != after.toDraftQuestion().kind) false
+                else when(answer) {
+                    is Answer.SingleChoice -> (after as? RegistrationQuestion.SingleChoice)?.options?.any { it.id == answer.optionId } == true
+                    is Answer.MultipleChoice -> (after as? RegistrationQuestion.MultipleChoice)?.options?.map { it.id }?.containsAll(answer.optionIds) == true
+                    else -> true
+                }
+            } else current.form.answers
             mutable.value = when (result) {
                 is PublicEventResult.Found -> current.copy(loading = false, data = result, notFound = false, readError = null,
-                    form = if (current.data == null || stale) RegistrationForm(result.contact?.name.orEmpty(), result.contact?.email.orEmpty(), result.contact?.phone.orEmpty()) else current.form,
-                    error = if (stale) RegistrationError.StaleForm else current.error,
-                    submitting = current.submitting && !stale, existingGuest = current.existingGuest && !stale)
+                    form = if (current.data == null) RegistrationForm(result.contact?.name.orEmpty(), result.contact?.email.orEmpty(), result.contact?.phone.orEmpty()) else current.form.copy(answers = keptAnswers),
+                    error = if (stale && !current.submitting) RegistrationError.StaleForm else current.error,
+                    submitting = current.submitting, existingGuest = current.existingGuest && !stale)
                 PublicEventResult.NotFound -> current.copy(loading = false, data = null, notFound = true, readError = null)
                 is PublicEventResult.Failed -> current.copy(loading = false, readError = result.error)
             }
@@ -63,7 +72,7 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
     }
     fun edit(form: RegistrationForm) { if (!mutable.value.submitting) mutable.value = mutable.value.copy(form = form, error = null, existingGuest = false) }
     fun refresh() {
-        val id = eventId ?: return
+        val id = reference ?: return
         if (!active || state.value.receipt != null || read?.isActive == true) return
         val generation = owner; mutable.value = state.value.copy(refreshing = !state.value.loading)
         val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
@@ -73,7 +82,7 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         read = job; job.start()
     }
     fun leaveForm() {
-        formVersion++; submitJob?.cancel()
+        localSchemaRevision++; submitJob?.cancel()
         val contact = mutable.value.data?.contact
         mutable.value = mutable.value.copy(form = RegistrationForm(contact?.name.orEmpty(), contact?.email.orEmpty(), contact?.phone.orEmpty()), submitting = false, error = null)
     }
@@ -84,12 +93,17 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         val generation = owner; if (!active) return@launch
         val result = tickets.observeMyTickets().first()
         currentCoroutineContext().ensureActive(); if (generation != owner) return@launch
-        val ticket = (result as? MyTicketsResult.Ready)?.tickets?.firstOrNull { it.snapshot.eventId == eventId && it.status != TicketStatus.CANCELLED }
+        val serverTicket = mutable.value.data?.ownTicketId
+        if (serverTicket != null) { mutable.value = mutable.value.copy(action = EventAction.Ticket(serverTicket.value)); return@launch }
+        val ticket = (result as? MyTicketsResult.Ready)?.tickets?.firstOrNull { it.snapshot.eventId == mutable.value.data?.event?.id && it.status != TicketStatus.CANCELLED }
         if (ticket != null) mutable.value = mutable.value.copy(action = EventAction.Ticket(ticket.snapshot.ticketId.value))
         else mutable.value = mutable.value.copy(error = when (result) {
             is MyTicketsResult.Failed -> when (result.error) {
                 ProductReadError.FEATURE_UNAVAILABLE -> RegistrationError.FeatureUnavailable
     ProductReadError.NETWORK -> RegistrationError.Network
+                ProductReadError.PROTOCOL -> RegistrationError.Protocol
+                ProductReadError.FORBIDDEN -> RegistrationError.Forbidden
+                ProductReadError.SERVER_UNAVAILABLE -> RegistrationError.ServerUnavailable
                 ProductReadError.TIMEOUT -> RegistrationError.Timeout
                 ProductReadError.STORAGE_UNAVAILABLE -> RegistrationError.StorageUnavailable
             }
@@ -101,17 +115,17 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         val s = mutable.value; val data = s.data ?: return
         if (s.submitting || s.receipt != null || s.readError != null) return
         val f = s.form
-        val command = GuestRegistrationCommand(data.event.id, data.event.formVersion, f.name,
+        val command = GuestRegistrationCommand(data.event.id, data.event.localSchemaRevision, f.name,
             data.contact?.email ?: f.email, f.phone, f.answers, f.consent)
         val validation = RegistrationValidator.validate(command, data.event.questions, data.policy)
         if (validation is RegistrationValidation.Invalid) { mutable.value = s.copy(error = RegistrationError.Validation(validation.errors)); return }
-        val version = formVersion
+        val version = localSchemaRevision
         mutable.value = s.copy(submitting = true, error = null)
         submitJob = viewModelScope.launch {
             try {
                 if (data.contact == null) {
                     val result = registrations.submitGuest(command)
-                    if (version != formVersion) return@launch
+                    if (version != localSchemaRevision) return@launch
                     when (result) {
                         is GuestRegistrationOutcome.Issued -> {
                             receipt.write(result.ticket, result.email) // Commit saved state before publishing the receipt.
@@ -122,9 +136,9 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
                         is GuestRegistrationOutcome.Failed -> fail(result.error)
                     }
                 } else {
-                    val result = registrations.submitAuthenticated(AuthenticatedRegistrationCommand(command.eventId, command.formVersion,
+                    val result = registrations.submitAuthenticated(AuthenticatedRegistrationCommand(command.eventId, command.localSchemaRevision,
                         command.name, command.phone, command.answers, command.consentAccepted))
-                    if (version != formVersion) return@launch
+                    if (version != localSchemaRevision) return@launch
                     when (result) {
                         is AuthenticatedRegistrationOutcome.Registered -> mutable.value = mutable.value.copy(action = EventAction.Ticket(result.ticketId.value), form = RegistrationForm())
                         is AuthenticatedRegistrationOutcome.Failed -> fail(result.error)
@@ -132,7 +146,7 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
                 }
             } finally {
                 // A cancelled call may finish after leaveForm and a newer submission.
-                if (version == formVersion) mutable.value = mutable.value.copy(submitting = false)
+                if (version == localSchemaRevision) mutable.value = mutable.value.copy(submitting = false)
             }
         }
     }

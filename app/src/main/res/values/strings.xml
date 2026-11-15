@@ -1,34 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <resources>
+
     <string name="app_name">EventPass Demo</string>
+
     <string name="demo_badge">Демонстрация</string>
+
     <string name="brand">EventPass</string>
+
     <string name="open_gallery">Открыть UI-кит</string>
+
     <string name="tickets_title">Мои билеты</string>
+
     <string name="events_title">Мои мероприятия</string>
+
     <string name="profile_title">Профиль</string>
+
     <string name="open_demo">Открыть демо-экран</string>
+
     <string name="demo_title">Проверка состояния</string>
+
     <string name="demo_description">Счётчик сохраняется в текущем экране при переключении вкладок и восстановлении задачи. После закрытия экрана начинается заново.</string>
+
     <string name="demo_seed">Набор данных: %1$s</string>
+
     <string name="demo_count">Счётчик: %1$d</string>
+
     <string name="increment">Увеличить</string>
+
     <string name="close_demo">Закрыть экран</string>
+
     <string name="loading">Загрузка…</string>
+
     <string name="demo_not_found">Демонстрационные данные не найдены.</string>
+
     <string name="invalid_link">Неподдерживаемая демонстрационная ссылка.</string>
+
     <string name="dismiss">Понятно</string>
-    <string name="feature_unavailable">��� ������� ��� �� ����������</string>
-    <string name="remote_protocol">�� ������� ��������� ����� �������. ��������� �����.</string>
-    <string name="remote_server_unavailable">������ �������� ����������</string>
-    <string name="auth_send_link">��������� ������</string>
-    <string name="auth_mail_link_sent">���� ������� ����������, �� %1$s ����� ������ �� �������. �������� � � ��������.</string>
-    <string name="remote_retry_session">��������� �����������</string>
-    <string name="remote_profile_readonly">�������. ��������� ������� ����� ���������� ���������������.</string>
-    <string name="auth_logout_action">�����</string>
-    <string name="auth_email_verified_status">Email ����������</string>
-    <string name="auth_email_unverified_status">Email �� ����������</string>
-    <string name="auth_terms_link">������� �������������</string>
-    <string name="auth_privacy_link">�������� ������������������</string>
-    <string name="auth_documents_unavailable">������ �� ��������� ���� �� ������������� ��������.</string>
+
+    <string name="feature_unavailable">Эта функция ещё не подключена</string>
+
+    <string name="remote_protocol">Не удалось прочитать ответ сервера. Повторите позже.</string>
+
+    <string name="remote_server_unavailable">Сервер временно недоступен</string>
+
+    <string name="auth_send_link">Отправить ссылку</string>
+
+    <string name="auth_mail_link_sent">Если аккаунт существует, на %1$s придёт письмо со ссылкой. Откройте её в браузере.</string>
+
+    <string name="remote_retry_session">Проверить подключение</string>
+
+    <string name="remote_profile_readonly">Профиль. Остальные функции будут подключены последовательно.</string>
+
+    <string name="auth_logout_action">Выйти</string>
+
+    <string name="auth_email_verified_status">Email подтверждён</string>
+
+    <string name="auth_email_unverified_status">Email не подтверждён</string>
+
+    <string name="auth_terms_link">Условия использования</string>
+
+    <string name="auth_privacy_link">Политика конфиденциальности</string>
+
+    <string name="auth_documents_unavailable">Ссылки на документы пока не предоставлены сервером.</string>
+
+    <string name="event_unsupported_question">Этот тип вопроса пока не поддерживается. Отправка недоступна.</string>
+    <string name="question_textarea">Многострочный текст</string>
+    <string name="question_number">Число</string>
+    <string name="question_date">Дата (ГГГГ-ММ-ДД)</string>
+    <string name="question_select">Раскрывающийся список</string>
+    <string name="question_multiple">Несколько вариантов</string>
+    <string name="event_link_input">Ссылка на мероприятие</string>
+    <string name="event_link_invalid">Введите публичную ссылку EventPass</string>
+    <string name="event_link_open">Открыть мероприятие</string>
+    <string name="demo_legacy_reset_required">Старые demo-данные несовместимы с новыми правилами. Сброс сохранит их приватную резервную копию.</string>
+    <string name="auth_protocol">Не удалось прочитать ответ сервера</string>
+    <string name="m02_server_unavailable">Сервис временно недоступен. Повторите позже.</string>
 </resources>

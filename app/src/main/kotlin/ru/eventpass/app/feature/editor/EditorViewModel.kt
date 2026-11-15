@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.ResolverStyle
 
 data class EditorInput(val fields: EventFields = EventFields(), val start: String = "", val end: String = "",
-    val unlimited: Boolean = true, val capacity: String = "") {
+    val unlimited: Boolean = false, val capacity: String = "") {
     fun resolved(): Pair<EventFields, Set<String>> {
         val errors = mutableSetOf<String>()
         val zone = runCatching { ZoneId.of(fields.zoneId) }.getOrNull()
@@ -35,8 +35,8 @@ data class EditorInput(val fields: EventFields = EventFields(), val start: Strin
             return result
         }
         val start = date(start, "startsAt"); val end = date(end, "endsAt")
-        val limit = if (unlimited) null else capacity.toIntOrNull()?.takeIf { it >= 0 }
-        if (!unlimited && limit == null) errors += "capacity"
+        val limit = capacity.toIntOrNull()?.takeIf { it > 0 }
+        if (capacity.isNotBlank() && limit == null) errors += "capacity"
         return fields.copy(startsAt = start, endsAt = end, capacity = limit) to errors
     }
     companion object {
@@ -45,7 +45,7 @@ data class EditorInput(val fields: EventFields = EventFields(), val start: Strin
             fun display(value: java.time.Instant?) = value?.let { time ->
                 runCatching { time.atZone(ZoneId.of(fields.zoneId)).format(formatter) }.getOrElse { time.toString() }
             }.orEmpty()
-            return EditorInput(fields, display(fields.startsAt), display(fields.endsAt), fields.capacity == null, fields.capacity?.toString().orEmpty())
+            return EditorInput(fields, display(fields.startsAt), display(fields.endsAt), false, fields.capacity?.toString().orEmpty())
         }
     }
 }
@@ -111,7 +111,7 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
         runOperation {
             val existing = event
             if (existing != null) {
-                when (val result = current { events.updateEvent(existing.id, requireNotNull(revision), existing.formVersion, fields) }) {
+                when (val result = current { events.updateEvent(existing.id, requireNotNull(revision), existing.localSchemaRevision, fields) }) {
                     is EventEditResult.Failed -> fail(result.error)
                     is EventEditResult.Saved -> { event = result.value; revision = result.value.revision; accepted(exit) }
                 }
@@ -133,7 +133,8 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
         if (mutable.value.busy || mutable.value.dirty) return
         val existing = event ?: return
         runOperation {
-            val result = current { if (finish) events.finishEvent(existing.id, requireNotNull(revision)) else events.closeRegistration(existing.id, requireNotNull(revision)) }
+            if (!finish) return@runOperation
+            val result = current { events.finishEvent(existing.id, requireNotNull(revision)) }
             when (result) {
                 is EventEditResult.Failed -> fail(result.error)
                 is EventEditResult.Saved -> { event = result.value; revision = result.value.revision; accepted(false) }

@@ -7,12 +7,12 @@ import ru.eventpass.core.domain.registration.RegistrationQuestion
 
 class EventEditingPolicyTest {
     private val now = Instant.parse("2026-10-27T09:00:00Z")
-    private val fields = EventFields("Событие", now.plusSeconds(3600), venue = "Зал")
+    private val fields = EventFields("Событие", now.plusSeconds(3600), venue = "Зал", capacity = 3, description = "Описание")
 
     @Test fun incompleteDraftHasDifferentValidationFromPublication() {
         assertTrue(EventEditingPolicy.storageErrors(EventFields()).isEmpty())
-        assertEquals(setOf("title", "venue", "startsAt"), EventEditingPolicy.publicationErrors(EventFields(), now))
-        assertTrue(EventEditingPolicy.publicationErrors(fields.copy(capacity = 0), now).isEmpty())
+        assertEquals(setOf("title", "venue", "description", "startsAt", "capacity"), EventEditingPolicy.publicationErrors(EventFields(), now))
+        assertTrue(EventEditingPolicy.publicationErrors(fields.copy(capacity = 0), now).contains("capacity"))
         assertTrue(EventEditingPolicy.publicationErrors(fields.copy(zoneId = "Invalid/Zone"), now).contains("zoneId"))
     }
 
@@ -23,7 +23,7 @@ class EventEditingPolicyTest {
         val invalid = listOf(
             listOf(choice),
             listOf(choice.copy(options = listOf(a, a))),
-            listOf(choice.copy(options = listOf(a, b.copy(title = " первый ")))),
+            listOf(choice.copy(options = listOf(a, b.copy(title = "")))),
             listOf(choice.copy(options = listOf(a.copy(id = "../../path")))),
             listOf(choice.copy(options = listOf(a)), choice.copy(options = listOf(b))),
         )
@@ -40,8 +40,28 @@ class EventEditingPolicyTest {
         val valid = fields.copy(questions = questions)
         assertTrue(EventEditingPolicy.publicationErrors(valid, now).isEmpty())
         val event = Event(EventId("one"), UserId("owner"), valid.title, valid.startsAt!!, valid.endsAt,
-            valid.zoneId, valid.venue, valid.capacity, EventLifecycle.PUBLISHED, true, 1, EventEditingPolicy.questions(valid))
+            valid.zoneId, valid.venue, valid.capacity, EventLifecycle.PUBLISHED, true, 1, EventEditingPolicy.questions(valid), description = valid.description)
         assertEquals(valid, event.toFields())
+    }
+
+    @Test fun serverOpaqueIdsDuplicateLabelsAndEditingRegisteredQuestionsAreSupported() {
+        val options = listOf(RegistrationQuestion.Option("../../opaque", "Same"), RegistrationQuestion.Option("другой", "Same"))
+        val q = DraftQuestion("問題", "Вопрос", kind = QuestionKind.SELECT, options = options)
+        assertTrue(EventEditingPolicy.publicationErrors(fields.copy(questions = listOf(q)), now).isEmpty())
+        val event = Event(EventId("e"), UserId("u"), fields.title, fields.startsAt!!, null, fields.zoneId, fields.venue,
+            fields.capacity, EventLifecycle.PUBLISHED, true, 1, emptyList(), description = fields.description)
+        assertNull(EventEditingPolicy.updateError(event, fields.copy(questions = listOf(q)), now, 1, true))
+    }
+
+    @Test fun unicodeDescriptionUsesCodePointsAndAllWireFormatsRoundTrip() {
+        val questions = QuestionKind.entries.filter { it != QuestionKind.UNSUPPORTED }.map { kind ->
+            DraftQuestion(kind.name, kind.name, kind = kind, options = if (kind in setOf(QuestionKind.SINGLE_CHOICE, QuestionKind.SELECT, QuestionKind.MULTIPLE))
+                listOf(RegistrationQuestion.Option("a", "A"), RegistrationQuestion.Option("b", "B")) else emptyList(), placeholder = "Hint", help = "Help")
+        }
+        val f = fields.copy(description = "😀".repeat(20000), questions = questions)
+        assertTrue(EventEditingPolicy.publicationErrors(f, now).isEmpty())
+        assertEquals(questions, EventEditingPolicy.questions(f).map { it.toDraftQuestion() })
+        assertTrue(EventEditingPolicy.storageErrors(f.copy(description = f.description + "a")).contains("description"))
     }
 
     @Test fun coverReferenceRejectsPathsUnsupportedMimeAndOversize() {

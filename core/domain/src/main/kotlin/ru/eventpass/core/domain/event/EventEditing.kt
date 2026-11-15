@@ -2,10 +2,10 @@ package ru.eventpass.core.domain.event
 
 import java.time.Instant
 import java.time.ZoneId
-import ru.eventpass.core.domain.registration.RegistrationQuestion
+import ru.eventpass.core.domain.registration.*
 
 @JvmInline value class DraftId(val value: String)
-enum class QuestionKind { TEXT, CHECKBOX, SINGLE_CHOICE }
+enum class QuestionKind { TEXT, TEXTAREA, EMAIL, TEL, NUMBER, DATE, CHECKBOX, SINGLE_CHOICE, SELECT, MULTIPLE, UNSUPPORTED }
 
 /** Incomplete editor input, including a choice with no options yet. IDs survive every save. */
 data class DraftQuestion(
@@ -14,6 +14,9 @@ data class DraftQuestion(
     val required: Boolean = false,
     val kind: QuestionKind = QuestionKind.TEXT,
     val options: List<RegistrationQuestion.Option> = emptyList(),
+    val placeholder: String? = null,
+    val help: String? = null,
+    val rawType: String? = null,
 )
 
 /** Opaque app-owned asset ID, never an arbitrary file path/URI or image bytes. */
@@ -36,6 +39,9 @@ data class EventFields(
     val description: String = "",
     val sections: List<EventSection> = emptyList(),
     val cover: EventCover? = null,
+    val priceType: PriceType = PriceType.FREE,
+    val remoteCoverAssetId: String? = null,
+    val remoteCoverUrl: String? = null,
 )
 
 data class EventDraft(
@@ -62,6 +68,8 @@ sealed interface EventEditResult<out T> {
     data class Failed(val error: EventEditError) : EventEditResult<Nothing>
 }
 sealed interface EventEditError {
+    data object Protocol : EventEditError
+    data object ServerUnavailable : EventEditError
     data object FeatureUnavailable : EventEditError
     data class Validation(val fields: Set<String>) : EventEditError
     data object Conflict : EventEditError
@@ -77,63 +85,61 @@ sealed interface EventEditError {
     data object StorageUnavailable : EventEditError
 }
 
-fun Event.toFields() = EventFields(title, startsAt, endsAt, zoneId, venue, capacity, questions.map { q ->
-    when (q) {
-        is RegistrationQuestion.Text -> DraftQuestion(q.id, q.title, q.required, QuestionKind.TEXT)
-        is RegistrationQuestion.Checkbox -> DraftQuestion(q.id, q.title, q.required, QuestionKind.CHECKBOX)
-        is RegistrationQuestion.SingleChoice -> DraftQuestion(q.id, q.title, q.required, QuestionKind.SINGLE_CHOICE, q.options)
-    }
-}, description, sections, cover)
+fun RegistrationQuestion.toDraftQuestion(): DraftQuestion = when (this) {
+    is RegistrationQuestion.Text -> DraftQuestion(id, title, required, QuestionKind.valueOf(format.name), placeholder = placeholder, help = help)
+    is RegistrationQuestion.Checkbox -> DraftQuestion(id, title, required, QuestionKind.CHECKBOX, placeholder = placeholder, help = help)
+    is RegistrationQuestion.SingleChoice -> DraftQuestion(id, title, required, if (format == ChoiceFormat.SELECT) QuestionKind.SELECT else QuestionKind.SINGLE_CHOICE, options, placeholder, help)
+    is RegistrationQuestion.MultipleChoice -> DraftQuestion(id, title, required, QuestionKind.MULTIPLE, options, placeholder = placeholder, help = help)
+    is RegistrationQuestion.Unsupported -> DraftQuestion(id, title, required, QuestionKind.UNSUPPORTED, placeholder = placeholder, help = help, rawType = rawType)
+}
+fun Event.toFields() = EventFields(title, startsAt, endsAt, zoneId, venue, capacity, questions.map { it.toDraftQuestion() }, description, sections, cover, priceType, remoteCoverAssetId, coverUrl)
 
-/** Central, reversible demo policy. Finished/cancelled is terminal; started dates cannot move. */
+/** Local editor validation follows published API constraints; no write-version or frozen-form claim. */
 object EventEditingPolicy {
-    private val id = Regex("[a-zA-Z0-9_-]{1,64}")
-    fun validId(value: String) = id.matches(value)
-
-    // Bound the binary snapshot's UTF fields/collections even for incomplete drafts.
+    private fun textLength(value: String) = value.codePointCount(0, value.length)
+    fun validId(value: String) = value.isNotBlank() && textLength(value) <= 300 && value.none(Char::isISOControl)
     fun storageErrors(f: EventFields): Set<String> = buildSet {
-        if (f.title.length > 200) add("title")
-        if (f.venue.length > 1000) add("venue")
+        if (textLength(f.title) > 300) add("title")
+        if (textLength(f.venue) > 300) add("venue")
         if (f.zoneId.length > 100) add("zoneId")
-        if (f.description.length > 10_000) add("description")
-        if (f.sections.size > 50 || f.sections.any { it.title.length > 1000 || it.time.length > 1000 }) add("sections")
-        if (f.questions.size > 100 || f.questions.any { q ->
-            !validId(q.id) || q.title.length > 500 || q.options.size > 100 || q.options.any { !validId(it.id) || it.title.length > 300 }
+        if (textLength(f.description) > 20_000) add("description")
+        if (f.sections.size > 50 || f.sections.any { !validId(it.id) || textLength(it.title) > 300 || textLength(it.time) > 300 } || f.sections.map { it.id }.distinct().size != f.sections.size) add("sections")
+        if (f.questions.size > 50 || f.questions.any { q ->
+            !validId(q.id) || textLength(q.title) > 300 || q.options.size > 50 || q.options.any { textLength(it.id) > 300 || textLength(it.title) > 300 || (it.hint?.let(::textLength) ?: 0) > 300 } ||
+                (q.placeholder?.let(::textLength) ?: 0) > 300 || (q.help?.let(::textLength) ?: 0) > 300
         } || f.questions.map { it.id }.distinct().size != f.questions.size) add("questions")
     }
 
     fun publicationErrors(f: EventFields, now: Instant, allowStarted: Boolean = false): Set<String> = buildSet {
         addAll(storageErrors(f))
-        if (f.title.isBlank() || f.title.any(Char::isISOControl)) add("title")
-        if (f.venue.isBlank() || f.venue.any(Char::isISOControl)) add("venue")
-        if (f.startsAt == null || (!allowStarted && f.startsAt <= now)) add("startsAt")
+        if (f.title.isBlank()) add("title")
+        if (f.venue.isBlank()) add("venue")
+        if (f.description.isBlank()) add("description")
+        if (f.startsAt == null) add("startsAt")
         if (f.endsAt != null && (f.startsAt == null || f.endsAt <= f.startsAt)) add("endsAt")
         if (runCatching { ZoneId.of(f.zoneId) }.isFailure) add("zoneId")
-        if (f.capacity != null && f.capacity < 0) add("capacity")
+        if (f.capacity == null || f.capacity !in 1..1_000_000) add("capacity")
+        if (f.sections.any { it.title.isBlank() }) add("sections")
         if (f.questions.any { q ->
-            q.title.isBlank() || q.title.any(Char::isISOControl) ||
-                (q.kind != QuestionKind.SINGLE_CHOICE && q.options.isNotEmpty()) ||
-                (q.kind == QuestionKind.SINGLE_CHOICE && (q.options.isEmpty() ||
-                    q.options.map { it.id }.distinct().size != q.options.size ||
-                    q.options.map { it.title.trim().lowercase(java.util.Locale.ROOT) }.distinct().size != q.options.size ||
-                    q.options.any { it.title.isBlank() || it.title.any(Char::isISOControl) }))
+            q.title.isBlank() || q.kind == QuestionKind.UNSUPPORTED ||
+                (q.kind in setOf(QuestionKind.SINGLE_CHOICE, QuestionKind.SELECT, QuestionKind.MULTIPLE) &&
+                    (q.options.size < 2 || q.options.map { it.id }.distinct().size != q.options.size || q.options.any { it.id.isBlank() || it.title.isBlank() }))
         }) add("questions")
     }
 
     fun questions(f: EventFields): List<RegistrationQuestion> = f.questions.map { q -> when (q.kind) {
-        QuestionKind.TEXT -> RegistrationQuestion.Text(q.id, q.title, q.required)
-        QuestionKind.CHECKBOX -> RegistrationQuestion.Checkbox(q.id, q.title, q.required)
-        QuestionKind.SINGLE_CHOICE -> RegistrationQuestion.SingleChoice(q.id, q.title, q.required, q.options.toList())
+        QuestionKind.CHECKBOX -> RegistrationQuestion.Checkbox(q.id, q.title, q.required, q.help, q.placeholder)
+        QuestionKind.SINGLE_CHOICE, QuestionKind.SELECT -> RegistrationQuestion.SingleChoice(q.id, q.title, q.required, q.options.toList(), if (q.kind == QuestionKind.SELECT) ChoiceFormat.SELECT else ChoiceFormat.CHOICE, q.placeholder, q.help)
+        QuestionKind.MULTIPLE -> RegistrationQuestion.MultipleChoice(q.id, q.title, q.required, q.options.toList(), q.help, q.placeholder)
+        QuestionKind.UNSUPPORTED -> RegistrationQuestion.Unsupported(q.id, q.title, q.required, q.rawType.orEmpty(), q.help, q.placeholder)
+        else -> RegistrationQuestion.Text(q.id, q.title, q.required, TextFormat.valueOf(q.kind.name), q.placeholder, q.help)
     } }
 
     fun updateError(event: Event, fields: EventFields, now: Instant, activeCount: Int, hasRegistrations: Boolean): EventEditError? {
-        if (event.lifecycle != EventLifecycle.PUBLISHED || event.endsAt?.let { now >= it } == true) return EventEditError.EventFinished
-        val started = now >= event.startsAt
-        val errors = publicationErrors(fields, now, allowStarted = started).toMutableSet()
-        if (started && (fields.startsAt != event.startsAt || fields.endsAt != event.endsAt || fields.zoneId != event.zoneId)) errors += "datesLocked"
+        if (event.statusAt(now) in setOf(EventLifecycle.FINISHED, EventLifecycle.CANCELLED)) return EventEditError.EventFinished
+        val errors = publicationErrors(fields, now, allowStarted = true).toMutableSet()
         if (fields.capacity != null && fields.capacity < activeCount) errors += "capacity"
         if (errors.isNotEmpty()) return EventEditError.Validation(errors)
-        if (hasRegistrations && questions(fields) != event.questions) return EventEditError.QuestionsLocked
         return null
     }
 }

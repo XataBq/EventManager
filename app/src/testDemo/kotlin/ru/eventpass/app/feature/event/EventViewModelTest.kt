@@ -162,4 +162,33 @@ class EventViewModelTest {
             Dispatchers.resetMain()
         }
     }
+    @Test fun acceptedSubmitSurvivesQuestionRenameDuringLostResponseWindow() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val e = environment()
+        val before = e.events.observePublicEvent(ru.eventpass.core.domain.event.EventId("open-registration")).first() as ru.eventpass.core.domain.event.PublicEventResult.Found
+        val stream = kotlinx.coroutines.flow.MutableStateFlow<ru.eventpass.core.domain.event.PublicEventResult>(before)
+        val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        val events = object : ru.eventpass.core.domain.EventRepository by e.events {
+            override fun observePublicEvent(reference: ru.eventpass.core.domain.event.PublicEventReference) = stream
+        }
+        val registrations = object : RegistrationRepository by e.registrations {
+            override suspend fun submitGuest(command: GuestRegistrationCommand): GuestRegistrationOutcome {
+                val committed = e.registrations.submitGuest(command)
+                entered.complete(Unit); release.await(); return committed
+            }
+        }
+        val vm = EventViewModel(events, registrations, e.tickets, SavedStateHandle())
+        try {
+            vm.bind("open-registration"); runCurrent(); vm.edit(form("delayed@example.com")); vm.submit()
+            entered.await()
+            stream.value = before.copy(event = before.event.copy(questions = before.event.questions.map { q ->
+                if(q is RegistrationQuestion.Text) q.copy(title = "Новая подпись", help = "Новое пояснение") else q
+            }))
+            runCurrent(); assertTrue(vm.state.value.submitting); assertNull(vm.state.value.receipt)
+            release.complete(Unit)
+            val receipt = vm.state.first { it.receipt != null }.receipt!!
+            assertEquals(e.scenarios.outbox().single().ticketId, receipt.ticket.ticketId)
+            assertFalse(vm.state.value.submitting)
+        } finally { release.complete(Unit); vm.viewModelScope.cancel(); Dispatchers.resetMain() }
+    }
 }

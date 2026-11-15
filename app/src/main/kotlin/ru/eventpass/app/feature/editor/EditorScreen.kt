@@ -46,6 +46,8 @@ fun editErrorResource(error: EventEditError): Int = when (error) {
     EventEditError.NotFound -> R.string.event_not_found
     EventEditError.AuthenticationRequired -> R.string.auth_login
     EventEditError.SessionChanged -> R.string.auth_session_changed
+    EventEditError.Protocol -> R.string.auth_protocol
+    EventEditError.ServerUnavailable -> R.string.m02_server_unavailable
     EventEditError.Network -> R.string.auth_network
     EventEditError.Timeout -> R.string.auth_timeout
     EventEditError.StorageUnavailable -> R.string.auth_storage
@@ -137,8 +139,7 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
             FormField(input.end, { onEdit(input.copy(end = it)) }, stringResource(R.string.editor_end), Modifier.testTag("editor-end"), enabled = enabled, error = error("endsAt"))
             FormField(fields.zoneId, { change(fields.copy(zoneId = it)) }, stringResource(R.string.editor_zone), enabled = enabled, error = error("zoneId"))
             FormField(fields.venue, { change(fields.copy(venue = it)) }, stringResource(R.string.editor_venue), Modifier.testTag("editor-venue"), enabled = enabled, error = error("venue"))
-            SettingsSwitch(input.unlimited, { onEdit(input.copy(unlimited = it)) }, stringResource(R.string.editor_unlimited), enabled = enabled)
-            if (!input.unlimited) FormField(input.capacity, { onEdit(input.copy(capacity = it)) }, stringResource(R.string.editor_capacity), enabled = enabled, error = error("capacity"))
+            FormField(input.capacity, { onEdit(input.copy(capacity = it)) }, stringResource(R.string.editor_capacity), enabled = enabled, error = error("capacity"))
             if ("datesLocked" in invalid) InlineError(stringResource(R.string.editor_dates_locked))
         }
         EventPassSection {
@@ -152,7 +153,7 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
                     { direction -> val list = fields.questions.toMutableList(); val at = index + direction
                         if (at in list.indices) { java.util.Collections.swap(list, index, at); change(fields.copy(questions = list)) } })
             } }
-            if (!s.questionsLocked) QuestionKind.entries.forEach { kind ->
+            if (!s.questionsLocked) QuestionKind.entries.filter { it != QuestionKind.UNSUPPORTED }.forEach { kind ->
                 TextAction(stringResource(R.string.editor_add_question, stringResource(questionKindResource(kind))), {
                     change(fields.copy(questions = fields.questions + DraftQuestion(UUID.randomUUID().toString(), kind = kind)))
                 }, enabled = enabled)
@@ -165,22 +166,26 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
         if (!published) EventPassButton(stringResource(R.string.editor_publish), onPublish, Modifier.testTag("publish-event"), enabled = enabled, loading = s.busy)
         if (published && !s.terminal) {
             Text(stringResource(R.string.editor_manage_hint), style = EventPassTypography.hint)
-            EventPassButton(stringResource(R.string.editor_close), { onManage(false) }, Modifier.testTag("close-registration"), enabled = enabled && !s.dirty, style = ActionStyle.Secondary)
             EventPassButton(stringResource(R.string.editor_finish), { onManage(true) }, Modifier.testTag("finish-event"), enabled = enabled && !s.dirty, style = ActionStyle.Danger)
         }
     }
 }
 
-fun questionKindResource(kind: QuestionKind) = when (kind) { QuestionKind.TEXT -> R.string.editor_text; QuestionKind.CHECKBOX -> R.string.editor_checkbox; QuestionKind.SINGLE_CHOICE -> R.string.editor_choice }
+fun questionKindResource(kind: QuestionKind) = when (kind) {
+ QuestionKind.TEXT -> R.string.editor_text; QuestionKind.CHECKBOX -> R.string.editor_checkbox; QuestionKind.SINGLE_CHOICE -> R.string.editor_choice
+ QuestionKind.TEXTAREA -> R.string.question_textarea; QuestionKind.EMAIL -> R.string.auth_email; QuestionKind.TEL -> R.string.event_phone_optional
+ QuestionKind.NUMBER -> R.string.question_number; QuestionKind.DATE -> R.string.question_date; QuestionKind.SELECT -> R.string.question_select
+ QuestionKind.MULTIPLE -> R.string.question_multiple; QuestionKind.UNSUPPORTED -> R.string.event_unsupported_question
+}
 
 @Composable
 private fun QuestionEditor(q: DraftQuestion, enabled: Boolean, edit: (DraftQuestion) -> Unit, remove: () -> Unit, move: (Int) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
-        QuestionKind.entries.forEach { kind -> if (kind != q.kind) TextAction(stringResource(questionKindResource(kind)),
+        QuestionKind.entries.filter { it != QuestionKind.UNSUPPORTED }.forEach { kind -> if (kind != q.kind) TextAction(stringResource(questionKindResource(kind)),
             { edit(q.copy(kind = kind, options = emptyList())) }, enabled = enabled) }
         FormField(q.title, { edit(q.copy(title = it)) }, stringResource(questionKindResource(q.kind)), enabled = enabled)
         SettingsSwitch(q.required, { edit(q.copy(required = it)) }, stringResource(R.string.editor_required), enabled = enabled)
-        if (q.kind == QuestionKind.SINGLE_CHOICE) {
+        if (q.kind in setOf(QuestionKind.SINGLE_CHOICE, QuestionKind.SELECT, QuestionKind.MULTIPLE)) {
             q.options.forEachIndexed { index, option -> FormField(option.title, { text -> edit(q.copy(options = q.options.map { if (it.id == option.id) it.copy(title = text) else it })) },
                 stringResource(R.string.editor_option), enabled = enabled, trailingContent = {
                     TextAction(stringResource(R.string.editor_remove), { edit(q.copy(options = q.options.filterNot { it.id == option.id })) }, enabled = enabled)

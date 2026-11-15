@@ -10,15 +10,14 @@ import ru.eventpass.core.domain.documents.*
 
 /** Temporary DI boundary for existing ports only. No remote success or false network failure. */
 internal object UnavailableRemoteFeatures : EventRepository, RegistrationRepository, TicketRepository, CheckInRepository, VolunteerRepository, AttendanceRepository, DocumentsRepository {
- override fun observePublicEvent(eventId: EventId) = flowOf(PublicEventResult.Failed(ProductReadError.FEATURE_UNAVAILABLE))
- override suspend fun refreshPublicEvent(eventId: EventId) = Unit
+ override fun observePublicEvent(reference: PublicEventReference) = flowOf(PublicEventResult.Failed(ProductReadError.FEATURE_UNAVAILABLE))
+ override suspend fun refreshPublicEvent(reference: PublicEventReference) = Unit
  override fun observeMyEvents() = flowOf(MyEventsResult.Failed(EventEditError.FeatureUnavailable))
  override fun observeEditor(target: EventEditorTarget) = flowOf(EventEditorResult.Failed(EventEditError.FeatureUnavailable))
  override suspend fun refreshMyEvents() = Unit
  override suspend fun saveDraft(id: DraftId, expectedRevision: Long?, fields: EventFields) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
  override suspend fun publishDraft(id: DraftId, expectedRevision: Long) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
- override suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedFormVersion: Int, fields: EventFields) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
- override suspend fun closeRegistration(id: EventId, expectedRevision: Long) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
+ override suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedLocalSchemaRevision: Int?, fields: EventFields) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
  override suspend fun finishEvent(id: EventId, expectedRevision: Long) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
  override suspend fun submitGuest(command: GuestRegistrationCommand) = GuestRegistrationOutcome.Failed(RegistrationError.FeatureUnavailable)
  override suspend fun submitAuthenticated(command: AuthenticatedRegistrationCommand) = AuthenticatedRegistrationOutcome.Failed(RegistrationError.FeatureUnavailable)

@@ -1,5 +1,7 @@
 # Текущая навигация и mobile-frame
 
+**Срез передачи 15 ноября:** M00/M01 TECH_ACCEPTED, M02 WIP_HANDOFF и ещё без итогового ревью. В коде M02 уже меняются публичная ссылка/slug и remote host; App Links остаются отложенными. При чтении учитывать [актуальный handoff M02](validation/t10-m02-handoff-2026-11-15.md), решения 08/34 и исходники; следующий исполнитель должен синхронизировать затронутые разделы перед REVIEW_PENDING. Наличие описания здесь не подтверждает завершение WIP.
+
 M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
 
 **Целевые auth/guest links после решения 13 ноября:** применять [32](32-backend-final-requirements.md): server slug/web links, immediate signup session и setup/reset по ссылке. Ниже — фактически реализованная demo-навигация; она ещё не адаптирована. Прежние обязательные VerifyEmail/code-reset маршруты не являются требованием к новому backend.

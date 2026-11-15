@@ -82,6 +82,9 @@ fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Bo
                 s.cancelError?.let { InlineError(stringResource(when (it) {
                     TicketError.USED -> R.string.ticket_used_no_cancel
                     TicketError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
+    TicketError.PROTOCOL -> R.string.auth_protocol
+    TicketError.FORBIDDEN -> R.string.auth_forbidden
+    TicketError.SERVER_UNAVAILABLE -> R.string.m02_server_unavailable
     TicketError.NETWORK -> R.string.auth_network
                     TicketError.TIMEOUT -> R.string.auth_timeout
                     TicketError.STORAGE_UNAVAILABLE -> R.string.auth_storage

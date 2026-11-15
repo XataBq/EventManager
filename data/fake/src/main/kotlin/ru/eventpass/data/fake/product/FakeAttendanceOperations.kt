@@ -50,7 +50,7 @@ internal class FakeAttendanceOperations(private val state: MutableStateFlow<Fake
         val active = rows.count { it.status == TicketStatus.ACTIVE }; val used = rows.count { it.status == TicketStatus.USED }
         val now = clock.instant()
         return DashboardResult.Ready(AttendanceDashboard(AttendanceHeader(id, e.title, e.startsAt, e.zoneId, e.venue,
-            e.lifecycle, e.registrationOpen, e.lifecycle == EventLifecycle.FINISHED || e.endsAt?.let { now >= it } == true),
+            e.statusAt(now), e.registrationOpen, e.statusAt(now) == EventLifecycle.FINISHED),
             AttendanceSummary(active + used, used, active, e.capacity?.let { (it - active - used).coerceAtLeast(0) }), revision(s, id, rows), now))
     }
     override fun observeDashboard(eventId: EventId): Flow<DashboardResult> = flow { auth.initialize(); emitAll(state) }

@@ -44,6 +44,9 @@ fun closureText(reason: RegistrationClosureReason): String = stringResource(when
 @Composable
 fun readErrorText(error: ProductReadError) = stringResource(when (error) {
     ProductReadError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
+    ProductReadError.PROTOCOL -> R.string.auth_protocol
+    ProductReadError.FORBIDDEN -> R.string.auth_forbidden
+    ProductReadError.SERVER_UNAVAILABLE -> R.string.m02_server_unavailable
     ProductReadError.NETWORK -> R.string.auth_network
     ProductReadError.TIMEOUT -> R.string.auth_timeout
     ProductReadError.STORAGE_UNAVAILABLE -> R.string.auth_storage
@@ -53,6 +56,9 @@ fun registrationErrorText(error: RegistrationError): String = when (error) {
     is RegistrationError.Unavailable -> closureText(error.reason)
     is RegistrationError.Validation -> stringResource(R.string.event_validation)
     else -> stringResource(when (error) {
+        RegistrationError.Protocol -> R.string.auth_protocol
+        RegistrationError.Forbidden -> R.string.auth_forbidden
+        RegistrationError.ServerUnavailable -> R.string.m02_server_unavailable
         RegistrationError.FeatureUnavailable -> R.string.feature_unavailable
     RegistrationError.NotFound -> R.string.event_not_found
         RegistrationError.StaleForm -> R.string.event_stale
@@ -66,11 +72,11 @@ fun registrationErrorText(error: RegistrationError): String = when (error) {
 
 @Composable
 fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTicket: (String) -> Unit, onClose: () -> Unit,
-    visible: Boolean = true, vm: EventViewModel = hiltViewModel()) {
+    visible: Boolean = true, vm: EventViewModel = hiltViewModel(), publicSlug: String? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(eventId, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-        vm.bind(eventId); vm.refresh(); try { awaitCancellation() } finally { vm.stopReading() }
+    LaunchedEffect(eventId, publicSlug, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+        vm.bind(publicSlug?.let { PublicEventReference.Slug(EventSlug(it)) } ?: PublicEventReference.Internal(EventId(eventId))); vm.refresh(); try { awaitCancellation() } finally { vm.stopReading() }
     } }
     DisposableEffect(vm) { onDispose { vm.stopReading(); vm.leaveForm() } }
     LaunchedEffect(state.action) { when (val action = state.action) {
@@ -154,12 +160,23 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
                     fun answer(value: Answer) { onEdit(f.copy(answers = f.answers + (q.id to value))) }
                     val title = if (q.required) stringResource(R.string.event_question_required, q.title) else q.title
                     when (q) {
-                        is RegistrationQuestion.Text -> FormField((answer as? Answer.Text)?.value.orEmpty(), { answer(Answer.Text(it)) }, title, enabled = !s.submitting, error = issue(RegistrationField.Question(q.id)))
+                        is RegistrationQuestion.Text -> FormField((answer as? Answer.Text)?.value.orEmpty(), { answer(Answer.Text(it)) }, title, enabled = !s.submitting, error = issue(RegistrationField.Question(q.id)), placeholder = q.placeholder.orEmpty(), supportingText = q.help, singleLine = q.format != TextFormat.TEXTAREA,
+                            keyboardOptions = KeyboardOptions(keyboardType = when(q.format) { TextFormat.EMAIL -> KeyboardType.Email; TextFormat.TEL -> KeyboardType.Phone; TextFormat.NUMBER -> KeyboardType.Decimal; else -> KeyboardType.Text }))
                         is RegistrationQuestion.Checkbox -> ConsentCheckbox((answer as? Answer.Checkbox)?.checked == true, { answer(Answer.Checkbox(it)) }, title, enabled = !s.submitting)
                         is RegistrationQuestion.SingleChoice -> { Text(title, style = EventPassTypography.label); q.options.forEach { option ->
-                            OptionCard(option.title, null, (answer as? Answer.SingleChoice)?.optionId == option.id, { answer(Answer.SingleChoice(option.id)) }, enabled = !s.submitting)
+                            OptionCard(option.title, option.hint, (answer as? Answer.SingleChoice)?.optionId == option.id, { answer(Answer.SingleChoice(option.id)) }, enabled = !s.submitting)
                         } }
+                        is RegistrationQuestion.MultipleChoice -> {
+                            Text(title, style = EventPassTypography.label)
+                            q.options.forEach { option ->
+                                val selected = (answer as? Answer.MultipleChoice)?.optionIds.orEmpty()
+                                ConsentCheckbox(option.id in selected, { checked -> answer(Answer.MultipleChoice(if(checked) (selected + option.id).distinct() else selected - option.id)) }, option.title, enabled = !s.submitting)
+                                option.hint?.let { Text(it, style = EventPassTypography.hint) }
+                            }
+                        }
+                        is RegistrationQuestion.Unsupported -> InlineError(stringResource(R.string.event_unsupported_question))
                     }
+                    if (q !is RegistrationQuestion.Text) q.help?.let { Text(it, style = EventPassTypography.hint) }
                     if (q !is RegistrationQuestion.Text) issue(RegistrationField.Question(q.id))?.let { InlineError(it) }
                 }
                 ConsentCheckbox(f.consent, { onEdit(f.copy(consent = it)) }, stringResource(R.string.auth_consent), Modifier.testTag("registration-consent"), enabled = !s.submitting)
