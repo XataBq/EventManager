@@ -25,8 +25,33 @@ import ru.eventpass.core.domain.registration.RegistrationPolicy
 import ru.eventpass.core.domain.registration.RegistrationQuestion
 import ru.eventpass.core.domain.registration.RegistrationValidation
 import ru.eventpass.core.domain.registration.RegistrationValidator
+import ru.eventpass.core.domain.registration.isCurrent
+import ru.eventpass.core.domain.registration.canDisplayQr
 
 class RegistrationRulesTest {
+    @Test fun ticketExpiryMatchesDefaultExplicitAndManualEventEnd() {
+        val e = event.copy(endsAt = null)
+        val snapshot = ru.eventpass.core.domain.registration.GuestTicketSnapshot(
+            ru.eventpass.core.domain.event.TicketId("ticket"), e.id, e.title, e.startsAt,
+            e.zoneId, e.venue, "Alex", "EVT-123456", "demo-qr",
+        )
+        val ticket = ru.eventpass.core.domain.registration.Ticket(snapshot, "registration",
+            ru.eventpass.core.domain.registration.TicketStatus.ACTIVE)
+        assertTrue(ticket.isCurrent(e, e.effectiveEndsAt.minusSeconds(1)))
+        assertFalse(ticket.isCurrent(e, e.effectiveEndsAt))
+        assertFalse(ticket.canDisplayQr(e, e.effectiveEndsAt.plusSeconds(1)))
+        val explicit = e.copy(endsAt = e.startsAt.plusSeconds(3600))
+        assertTrue(ticket.isCurrent(explicit, explicit.effectiveEndsAt.minusSeconds(1)))
+        assertFalse(ticket.isCurrent(explicit, explicit.effectiveEndsAt))
+        assertFalse(ticket.canDisplayQr(e.copy(finishedAt = now), now))
+        for (status in listOf(EventLifecycle.FINISHED, EventLifecycle.CANCELLED, EventLifecycle.DRAFT)) {
+            assertFalse(ticket.canDisplayQr(e.copy(lifecycle = status), e.startsAt))
+        }
+        for (status in listOf(ru.eventpass.core.domain.registration.TicketStatus.USED,
+            ru.eventpass.core.domain.registration.TicketStatus.CANCELLED)) {
+            assertFalse(ticket.copy(status = status).canDisplayQr(e, e.startsAt))
+        }
+    }
     private val now = Instant.parse("2026-10-27T09:00:00Z")
     private val owner = UserId("owner")
     private val guest = UserId("guest")

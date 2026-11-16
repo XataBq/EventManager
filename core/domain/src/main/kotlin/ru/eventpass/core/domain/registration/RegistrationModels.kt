@@ -163,7 +163,6 @@ sealed interface CancelTicketOutcome {
 }
 
 fun Ticket.isCurrent(event: Event, now: Instant): Boolean = status == TicketStatus.ACTIVE &&
-    event.lifecycle !in setOf(EventLifecycle.FINISHED, EventLifecycle.CANCELLED) &&
-    (event.endsAt == null || now < event.endsAt)
+    event.statusAt(now) in setOf(EventLifecycle.PUBLISHED, EventLifecycle.LIVE)
 
 fun Ticket.canDisplayQr(event: Event, now: Instant): Boolean = isCurrent(event, now)

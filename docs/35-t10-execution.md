@@ -1,5 +1,7 @@
 # T10: последовательное исполнение и передача контекста
 
+**16 ноября — M02 FIX_REVIEW_PENDING.** Ревью нашло P2 default окончания билета; исправление выполнено отдельным проходом, требуется повторное ревью узкого diff. M03 пока не начат. [Отчёт исправления](validation/t10-m02-fix-ticket-expiry.md). Субагенты запрещены; ручная приёмка после M09. Записи ниже описывают предыдущие состояния.
+
 С 15 ноября 2026 по прямому решению пользователя **субагенты запрещены**, включая помощников реализации и ревьюеров. Разрешение на делегирование от 13 ноября отменено. Этапы M00–M09 и архитектурные критерии [34](34-api-migration-plan.md) сохранены; ручная проверка остаётся только в конце. Историческая передача M02 15 ноября: [handoff](validation/t10-m02-handoff-2026-11-15.md), [промпт](prompts/t10-m02-resume-single-agent.md).
 
 Текущий M02 реализован 16 ноября, REVIEW_PENDING; [отчёт](validation/t10-m02-implementation.md). Самопроверка не заменяет отдельное ревью.
@@ -42,7 +44,7 @@ CODE_REVIEW.md: дата, M, base/target commit или точный манифе
 |---|---|---|---|
 | M00 | TECH_ACCEPTED | aa5050f; m00_review: NO_CONFIRMED_FINDINGS, CODE_REVIEW.md:1830 | 48 методов/12 портов/33 операции; исходники не менялись |
 | M01 | TECH_ACCEPTED | 918f78e + fix4091c97; повторное m00_review CODE_REVIEW.md:1912: NO_CONFIRMED_FINDINGS | Legacy email P2 закрыта; текущий demo APK hash в fix report, remote hash прежний; human не закрыт |
-| M02 | REVIEW_PENDING | Реализация на базе a24da31/переданного 8448db9; [отчёт](validation/t10-m02-implementation.md), [архитектура](architecture/t10-public-event.md) | Отдельное последовательное ревью implementation target; M03 не начинать |
+| M02 | FIX_REVIEW_PENDING | Реализация на базе a24da31/переданного 8448db9; [отчёт](validation/t10-m02-implementation.md), [архитектура](architecture/t10-public-event.md) | Отдельное последовательное ревью implementation target; M03 не начинать |
 | M03–M09 | TODO | Не запускались | Последовательно по плану |
 
 Все H-проверки нового remote и непроверенный новый T09a UX ожидают единой финальной приёмки. Обновление этого журнала не закрывает их автоматически.

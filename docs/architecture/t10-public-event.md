@@ -34,6 +34,10 @@ Reader v1/EPA2 auth-only восстанавливает auth + product seed. V2�
 
 Известные корректно прочитанные, но несовместимые legacy E (cancelled, неположительный/null published capacity, single-option published choice, новые storage bounds) требуют явного reset. До этого Unknown/StorageUnavailable, файл нетронут; reset сначала атомарно архивирует оригинал `demo-legacy-before-schema6.bin`, только затем пишет seed6. Ошибка backup не даёт reset. Truncated/corrupt/unknown version/trailing/oversized данные не объявляются известной несовместимостью и не перезаписываются автоматически. Downward migration не поддерживается.
 
+## Локальная актуальность билета
+
+Исправление P2 из ревью M02: Ticket.isCurrent для локальной модели использует Event.statusAt(now), поэтому default start+4h, explicit end и finishedAt согласованы с регистрацией/scanner. Активный QR допустим только для ACTIVE ticket при PUBLISHED/LIVE; тест RegistrationRulesTest.ticketExpiryMatchesDefaultExplicitAndManualEventEnd. [Результаты и границы исправления](../validation/t10-m02-fix-ticket-expiry.md); повторное ревью ожидается. Это не реализация server TicketEvent/policy будущего M03.
+
 ## Доказательства
 
 RemoteEventRepositoryTest — все wire types, Unicode/path, malformed/draft/null, server lifecycle/counts/viewer, >1 MiB формы, single-flight/logout/old 401. QuestionFormatsTest — typed validation/code points; ProductSchema6Test и fixtures v1–v5 — migration/large Unicode/history/backup/corruption; M02EventStateTest/EventViewModelTest/RefreshOwnersTest — owner/schema/accepted submit и поздние ответы. PublicEventLinkParserTest/PublicEventRestoreTest — allowlist и сохранение slug. Точные выполненные suites/device/live smoke/NOT_RUN, версии APK и ограничения — только в [отчёте](../validation/t10-m02-implementation.md). Самопроверка не является независимым ревью; человек принимает общий T10 только в конце M09.
