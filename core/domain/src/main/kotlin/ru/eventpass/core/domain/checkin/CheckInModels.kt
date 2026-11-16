@@ -22,6 +22,8 @@ object ManualCodePolicy {
     }
     fun parse(raw: String): ManualCode? {
         if (raw.length > 64) return null
+        val server = raw.trim().uppercase(Locale.ROOT)
+        if(server.matches(Regex("EVT-[A-Z0-9]{6}"))) return ManualCode(server)
         val normalized = raw.trim().replace("-", "").replace(" ", "").uppercase(Locale.ROOT)
         return normalized.takeIf { it.length == 12 && it.all(alphabet::contains) }?.let(::ManualCode)
     }

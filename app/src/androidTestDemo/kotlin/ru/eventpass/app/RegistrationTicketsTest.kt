@@ -20,7 +20,8 @@ class RegistrationTicketsTest {
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("event-$id").fetchSemanticsNodes().isNotEmpty() }
     }
     private fun form(email: String, authenticated: Boolean = false) {
-        compose.onNodeWithTag("registration-name").performScrollTo().performTextReplacement("Мария 李")
+        if(!authenticated) compose.onNodeWithTag("registration-name").performScrollTo().performTextReplacement("Мария 李")
+        else compose.onNodeWithTag("registration-name").performScrollTo().assertIsNotEnabled()
         if (!authenticated) compose.onNodeWithTag("registration-email").performScrollTo().performTextReplacement(email)
         compose.onNodeWithTag("registration-consent").performScrollTo().performClick()
         compose.onNodeWithTag("registration-submit").performScrollTo().performClick()
@@ -34,7 +35,7 @@ class RegistrationTicketsTest {
         val e = compose.backend().environment()
         val ticket = e.scenarios.outbox().single().ticketId
         compose.onNodeWithTag("ticket-manual-code").assertExists()
-        assertEquals(2, e.scenarios.accounts().size)
+        assertEquals(3, e.scenarios.accounts().size)
         compose.onNodeWithTag("open-fullscreen").performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("ticket-qr").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("close-fullscreen").performClick()
@@ -49,7 +50,7 @@ class RegistrationTicketsTest {
         open()
         compose.onNodeWithTag("guest-receipt").assertDoesNotExist()
         form(email)
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Заявка уже есть. Воспользуйтесь письмом либо создайте аккаунт и войдите. Повторная заявка не раскрывает QR.").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("login-screen").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("guest-receipt").assertDoesNotExist()
         assertEquals(1, e.scenarios.outbox().size)
     }
@@ -81,34 +82,31 @@ class RegistrationTicketsTest {
         compose.onNodeWithTag("auth-password").performScrollTo().performTextInput("DemoPass123!")
         compose.onNodeWithTag("auth-submit").performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("event-open-registration").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithTag("registration-name").performScrollTo().assertTextEquals("")
+        compose.onNodeWithTag("registration-name").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("registration-consent").performScrollTo().assertIsOff()
         assertTrue(compose.backend().environment().scenarios.outbox().isEmpty())
     }
 
-    @Test fun separateSignupFromReceiptKeepsQrOnBackAndManualLoginShowsIssuedTicket() {
+    @Test fun passwordSetupFromReceiptKeepsQrOnBackAndManualLoginShowsIssuedTicket() {
         runBlocking { compose.backend().environment().scenarios.reset() }
-        val email = "signup-receipt-${System.nanoTime()}@example.com"
+        val email = "setup-receipt-${System.nanoTime()}@example.com"
         open(); form(email)
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("guest-receipt").fetchSemanticsNodes().isNotEmpty() }
-        val ticket = compose.backend().environment().scenarios.outbox().single().ticketId
-        compose.onNodeWithText("Создать аккаунт").performScrollTo().performClick()
+        val e = compose.backend().environment()
+        val ticket = e.scenarios.outbox().single().ticketId
+        compose.onNodeWithText("Создать аккаунт").assertDoesNotExist()
+        compose.onNodeWithText("Войти").performScrollTo().performClick()
         compose.onNodeWithTag("auth-email").assertTextEquals(email)
-        compose.onNodeWithTag("auth-name").performTextInput("Мария 李")
-        compose.onNodeWithTag("auth-password").performScrollTo().performTextInput("GuestAccount123!")
-        compose.onNodeWithTag("auth-consent").performScrollTo().performClick()
-        compose.onNodeWithTag("auth-submit").performScrollTo().performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Отправить повторно").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Имитация почты").performScrollTo().performClick()
-        compose.onNodeWithText("Открыть подтверждение").performScrollTo().performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Email подтверждён. Войдите вручную.").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Понятно").performClick()
         compose.onNodeWithTag("back").performClick()
         compose.onNodeWithTag("guest-receipt").performScrollTo().assertIsDisplayed()
+        // Setup through the fake mail fixture; browser-link UI remains final manual acceptance.
+        val setup = e.scenarios.authOutbox().last { it.reset && it.challenge.email == email }
+        assertTrue(runBlocking { e.auth.completeEmailLink(setup.secret, ru.eventpass.core.domain.auth.AuthSecret("GuestAccount123!")) } is ru.eventpass.core.domain.auth.AuthResult.Success)
+        assertFalse(e.auth.currentSession().state is ru.eventpass.core.domain.auth.SessionState.Authenticated)
         compose.onNodeWithText("Войти").performScrollTo().performClick()
         compose.login(email, "GuestAccount123!", prepareGuest = false)
         compose.onNodeWithTag("ticket-${ticket.value}").performScrollTo().assertIsDisplayed()
-        val mine = runBlocking { compose.backend().environment().tickets.observeMyTickets().first() } as MyTicketsResult.Ready
+        val mine = runBlocking { e.tickets.observeMyTickets().first() } as MyTicketsResult.Ready
         assertEquals(listOf(ticket), mine.tickets.map { it.snapshot.ticketId })
     }
 

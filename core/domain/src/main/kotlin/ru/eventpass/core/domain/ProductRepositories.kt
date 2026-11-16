@@ -33,6 +33,8 @@ interface RegistrationRepository {
 }
 
 interface TicketRepository {
+    fun observeMyTickets(scope: ru.eventpass.core.domain.registration.TicketScope): Flow<MyTicketsResult> = observeMyTickets()
+    suspend fun refreshMyTickets(scope: ru.eventpass.core.domain.registration.TicketScope) = refreshMyTickets()
     fun observeMyTickets(): Flow<MyTicketsResult>
     fun observeOwnTicket(ticketId: TicketId): Flow<OwnTicketResult>
     suspend fun refreshMyTickets()

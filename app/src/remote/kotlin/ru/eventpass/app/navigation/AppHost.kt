@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.saveable.rememberSaveable
 import ru.eventpass.core.platform.PublicEventLinkParser
 import ru.eventpass.app.feature.event.EventRoute
+import ru.eventpass.app.feature.tickets.TicketsRoute
 
 /** M01 real auth/profile surface; every entry retains and clears its own ViewModel store. */
 @Composable fun EventPassApp(session: AppSessionViewModel = hiltViewModel()) {
@@ -75,6 +76,7 @@ import ru.eventpass.app.feature.event.EventRoute
     val state by vm.state.collectAsStateWithLifecycle()
     DisposableEffect(vm) { vm.start(); onDispose { vm.stop() } }
     AuthColumn {
+     EventPassButton(stringResource(R.string.tickets_title), { stack.add(TicketKey()) })
      PublicEventImport { stack.add(EventKey("", publicSlug = it)) }
      Text(stringResource(R.string.remote_profile_readonly))
      state.profile?.let { Text(it.fields.name); Text(it.account.email); Text(stringResource(if(it.account.emailVerified) R.string.auth_email_verified_status else R.string.auth_email_unverified_status)) }
@@ -82,7 +84,8 @@ import ru.eventpass.app.feature.event.EventRoute
      EventPassButton(stringResource(R.string.auth_logout_action),{session.signOut()})
     }
    }
-   entry<EventKey> { key -> EventRoute(key.eventId, { _, _, _ -> stack.add(RemoteUnavailableKey) }, { stack.add(RemoteUnavailableKey) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
+   entry<EventKey> { key -> EventRoute(key.eventId, { _, _, _ -> stack.add(RemoteUnavailableKey) }, { stack.add(TicketKey(it)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
+   entry<TicketKey> { key -> var initial by rememberSaveable { mutableStateOf(key.ticketId) }; TicketsRoute(initial, { initial = null }, { slug -> stack.add(EventKey("", publicSlug = slug)) }, {}, {}, {}, visible = stack.lastOrNull() == key) }
    entry<RemoteUnavailableKey> { AuthColumn { Text(stringResource(R.string.feature_unavailable)); TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()}) } }
    entry<VerificationKey> { AccountFlowRoute(false,session,{stack.removeLastOrNull()},{},verification=true,showTools=false) }
   })

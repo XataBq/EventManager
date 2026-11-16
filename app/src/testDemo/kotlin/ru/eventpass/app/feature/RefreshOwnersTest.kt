@@ -29,6 +29,8 @@ class RefreshOwnersTest {
         val values=MutableStateFlow(e.tickets.observeMyTickets().first())
         val pending=mutableListOf<Continuation<Unit>>();var calls=0
         val repo=object: TicketRepository by e.tickets {
+            override fun observeMyTickets(scope: TicketScope)=values
+            override suspend fun refreshMyTickets(scope: TicketScope) = refreshMyTickets()
             override fun observeMyTickets()=values
             override suspend fun refreshMyTickets() {calls++;suspendCoroutine<Unit>{pending+=it}}
         }

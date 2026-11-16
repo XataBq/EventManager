@@ -1,6 +1,7 @@
 package ru.eventpass.core.domain.registration
 
 import java.time.Instant
+import ru.eventpass.core.domain.event.EventSlug
 import ru.eventpass.core.domain.event.EventId
 import ru.eventpass.core.domain.event.RegistrationClosureReason
 import ru.eventpass.core.domain.event.TicketId
@@ -64,6 +65,7 @@ data class GuestRegistrationCommand(
     val phone: String? = null,
     val answers: Map<String, Answer> = emptyMap(),
     val consentAccepted: Boolean,
+    val operationId: String = java.util.UUID.randomUUID().toString(),
 )
 
 sealed interface RegistrationField {
@@ -77,6 +79,9 @@ enum class FieldIssue { REQUIRED, INVALID_NAME, INVALID_EMAIL, INVALID_PHONE, IN
 data class FieldError(val field: RegistrationField, val issue: FieldIssue)
 
 sealed interface RegistrationError {
+    data class RateLimited(val retryAt: Instant) : RegistrationError
+    data object RecoveryRequired : RegistrationError
+    data object PendingRetry : RegistrationError
     data object Protocol : RegistrationError
     data object Forbidden : RegistrationError
     data object ServerUnavailable : RegistrationError
@@ -96,6 +101,7 @@ sealed interface RegistrationError {
 data class AuthenticatedRegistrationCommand(
     val eventId: EventId, val localSchemaRevision: Int?, val name: String,
     val phone: String? = null, val answers: Map<String, Answer> = emptyMap(), val consentAccepted: Boolean,
+    val operationId: String = java.util.UUID.randomUUID().toString(),
 )
 sealed interface AuthenticatedRegistrationOutcome {
     data class Registered(val ticketId: TicketId, val existing: Boolean) : AuthenticatedRegistrationOutcome
@@ -114,12 +120,13 @@ data class GuestTicketSnapshot(
     val displayNumber: String,
     val qrPayload: String,
     val manualCode: ru.eventpass.core.domain.checkin.ManualCode = ru.eventpass.core.domain.checkin.ManualCodePolicy.fromQr(qrPayload),
+    val guestAccess: String? = null,
 ) {
     override fun toString() = "GuestTicketSnapshot(ticketId=$ticketId, eventId=$eventId, credentials=[redacted])"
 }
 
 sealed interface GuestRegistrationOutcome {
-    data class Issued(val ticket: GuestTicketSnapshot, val email: String) : GuestRegistrationOutcome
+    data class Issued(val ticket: GuestTicketSnapshot, val email: String, val accountCreated: Boolean = false) : GuestRegistrationOutcome
     data class RequiresLogin(val email: String) : GuestRegistrationOutcome
     data class ExistingRegistration(val email: String) : GuestRegistrationOutcome
     data class Failed(val error: RegistrationError) : GuestRegistrationOutcome
@@ -141,17 +148,25 @@ data class Registration(
     val questionSnapshot: List<RegistrationQuestion>? = null,
 )
 
-data class Ticket(val snapshot: GuestTicketSnapshot, val registrationId: String, val status: TicketStatus)
+enum class TicketScope { UPCOMING, PAST }
+data class TicketEventSummary(val id: EventId, val slug: EventSlug, val status: EventLifecycle,
+    val effectiveEndsAt: Instant, val finishedAt: Instant?, val endsAt: Instant? = null,
+    val capacity: Int? = null, val registeredCount: Int = 0, val checkedInCount: Int = 0, val category: String? = null)
+data class Ticket(val snapshot: GuestTicketSnapshot, val registrationId: String?, val status: TicketStatus,
+    val summary: TicketEventSummary? = null, val holderEmail: String? = null,
+    val category: String? = null, val zone: String? = null, val createdAt: Instant? = null,
+    val checkedInAt: Instant? = null)
 
 sealed interface MyTicketsResult {
     data object AuthenticationRequired : MyTicketsResult
     data object EmailVerificationRequired : MyTicketsResult
-    data class Ready(val tickets: List<Ticket>, val events: Map<EventId, Event> = emptyMap(), val now: Instant = Instant.EPOCH) : MyTicketsResult
+    data class Ready(val tickets: List<Ticket>, val events: Map<EventId, Event> = emptyMap(), val now: Instant = Instant.EPOCH,
+        val scope: TicketScope? = null, val counters: Map<TicketScope, Int> = emptyMap()) : MyTicketsResult
     data class Failed(val error: ProductReadError) : MyTicketsResult
 }
 
 sealed interface OwnTicketResult {
-    data class Found(val ticket: Ticket, val event: Event, val now: Instant) : OwnTicketResult
+    data class Found(val ticket: Ticket, val event: Event?, val now: Instant) : OwnTicketResult
     data object AuthenticationRequired : OwnTicketResult
     data object NotFound : OwnTicketResult
     data class Failed(val error: ProductReadError) : OwnTicketResult
@@ -162,7 +177,8 @@ sealed interface CancelTicketOutcome {
     data class Failed(val error: TicketError) : CancelTicketOutcome
 }
 
-fun Ticket.isCurrent(event: Event, now: Instant): Boolean = status == TicketStatus.ACTIVE &&
-    event.statusAt(now) in setOf(EventLifecycle.PUBLISHED, EventLifecycle.LIVE)
+fun Ticket.isCurrent(event: Event?, now: Instant): Boolean = status == TicketStatus.ACTIVE &&
+    (summary?.let { it.status in setOf(EventLifecycle.PUBLISHED, EventLifecycle.LIVE) && it.finishedAt == null }
+        ?: (event?.statusAt(now) in setOf(EventLifecycle.PUBLISHED, EventLifecycle.LIVE)))
 
-fun Ticket.canDisplayQr(event: Event, now: Instant): Boolean = isCurrent(event, now)
+fun Ticket.canDisplayQr(event: Event?, now: Instant): Boolean = isCurrent(event, now)

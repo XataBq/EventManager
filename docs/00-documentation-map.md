@@ -1,6 +1,6 @@
 # Как читать документацию
 
-**Текущий M02, 16 ноября:** реализация REVIEW_PENDING, M00/M01 приняты технически, M03–M09 TODO. После обязательного маршрута читать [отчёт M02](validation/t10-m02-implementation.md) → [public E/schema6](architecture/t10-public-event.md) → исходники; следующий шаг — отдельное ревью. [Handoff 15 ноября](validation/t10-m02-handoff-2026-11-15.md) исторический. Субагенты запрещены, человеческая приёмка после M09.
+**Текущий M03, 16 ноября:** IMPLEMENTED / REVIEW_PENDING. [Отчёт](validation/t10-m03-implementation.md) → [регистрации/билеты/PDF](architecture/t10-registration-tickets.md) → исходники. M02 fix-review не закрыт автоматически прямой командой начать M03; M04–M09 TODO. Субагенты запрещены, ручная приёмка в конце.
 
 Это точка входа в действующую спецификацию. Архитектура UI сверена по `c569152` (T01–T06), подключены [T07 UI/lifecycle](architecture/t07-ui-lifecycle.md) и [T08 attendance](architecture/t08-attendance.md), [T09 profile/files](architecture/t09-profile-files.md) на общем store; статусы задач/приёмок — в [плане](06-delivery-plan.md), сборка и команды — в [README](../README.md). Не определять текущее состояние по старому отчёту или порядку абзацев разных дат.
 

@@ -28,18 +28,19 @@ class TicketPersistenceTest {
     private suspend fun remaining(e: FakeEventPassEnvironment) =
         ((e.events.observePublicEvent(FakeFixtures.OPEN).first() as PublicEventResult.Found).availability as RegistrationAvailability.Open).places
 
-    @Test fun guestThenSeparateSignupAndRestartRestoresOnlyOwnTicketsAfterLogin() = runTest {
+    @Test fun guestThenSetupAndRestartRestoresOnlyOwnTicketsAfterManualLogin() = runTest {
         val storage = Storage(); val first = backend(storage)
         val receipt = first.registrations.submitGuest(guest()) as GuestRegistrationOutcome.Issued
-        assertEquals(2, first.scenarios.accounts().size)
-        val restarted = backend(storage)
+        assertEquals(3, first.scenarios.accounts().size)
+        val restarted = FakeEventPassEnvironment(clock = Clock.fixed(FakeFixtures.NOW.plusSeconds(61), ZoneOffset.UTC), authStorage = storage, authPolicy = policy)
         assertEquals(SessionState.Guest, restarted.auth.observeSession().first().state)
         assertTrue(restarted.scenarios.outbox().isEmpty())
-        assertEquals(GuestRegistrationOutcome.ExistingRegistration("guest@example.com"), restarted.registrations.submitGuest(guest()))
-        val challenge = (restarted.auth.signUp("李", "guest@example.com", AuthSecret("GuestPass123!"), true) as AuthResult.Success).value
+        assertEquals(GuestRegistrationOutcome.RequiresLogin("guest@example.com"), restarted.registrations.submitGuest(guest()))
+        assertEquals(AuthResult.Failed(AuthError.EmailTaken), restarted.auth.signUp("李", "guest@example.com", AuthSecret("GuestPass123!"), true))
+        assertTrue(restarted.auth.requestPasswordReset("guest@example.com") is AuthResult.Success)
         val mail = restarted.scenarios.authOutbox().last()
-        assertTrue(restarted.auth.completeEmailLink(mail.secret) is AuthResult.Success)
-        assertTrue(restarted.auth.currentSession().state is SessionState.Authenticated)
+        assertTrue(restarted.auth.completeEmailLink(mail.secret, AuthSecret("GuestPass123!")) is AuthResult.Success)
+        assertEquals(SessionState.Guest, restarted.auth.currentSession().state)
         login(restarted, "guest@example.com", "GuestPass123!")
         assertEquals(listOf(receipt.ticket), (restarted.tickets.observeMyTickets().first() as MyTicketsResult.Ready).tickets.map { it.snapshot })
         restarted.auth.signOut()
@@ -105,7 +106,7 @@ class TicketPersistenceTest {
         assertEquals(6, java.io.DataInputStream(java.io.ByteArrayInputStream(storage.bytes!!)).readInt())
         val restarted = backend(storage); login(restarted, password = "LegacyPass123!")
         assertTrue(restarted.auth.completeEmailLink(token) is AuthResult.Success)
-        assertEquals(GuestRegistrationOutcome.ExistingRegistration("guest@example.com"), restarted.registrations.submitGuest(guest()))
+        assertEquals(GuestRegistrationOutcome.RequiresLogin("guest@example.com"), restarted.registrations.submitGuest(guest()))
     }
 
     @Test fun corruptOrUnknownSnapshotIsNotOverwrittenByACommand() = runTest {

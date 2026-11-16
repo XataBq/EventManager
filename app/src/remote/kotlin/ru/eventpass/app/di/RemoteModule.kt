@@ -21,16 +21,13 @@ object RemoteModule {
  @Provides fun profiles(auth: RemoteAuthRepository): ProfileRepository = auth.profileRepository
  @Provides fun clock(): java.time.Clock = java.time.Clock.systemUTC()
  @Provides @Singleton fun events(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.EventRepository = RemoteEventRepository(http,auth,UnavailableRemoteFeatures)
- @Provides fun registrations(): ru.eventpass.core.domain.RegistrationRepository = UnavailableRemoteFeatures
- @Provides fun tickets(): ru.eventpass.core.domain.TicketRepository = UnavailableRemoteFeatures
+ @Provides @Singleton fun registrations(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.RegistrationRepository = RemoteRegistrations(http, auth)
+ @Provides @Singleton fun tickets(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.TicketRepository = RemoteTickets(http, auth)
  @Provides fun checkins(): ru.eventpass.core.domain.checkin.CheckInRepository = UnavailableRemoteFeatures
  @Provides fun volunteers(): ru.eventpass.core.domain.checkin.VolunteerRepository = UnavailableRemoteFeatures
  @Provides fun attendance(): ru.eventpass.core.domain.attendance.AttendanceRepository = UnavailableRemoteFeatures
- @Provides fun documents(): ru.eventpass.core.domain.documents.DocumentsRepository = UnavailableRemoteFeatures
- @Provides fun documentFiles(): ru.eventpass.core.domain.documents.DocumentFiles = object : ru.eventpass.core.domain.documents.DocumentFiles {
-  override suspend fun save(snapshot: ru.eventpass.core.domain.documents.DocumentSnapshot, destination: String, authorize: suspend () -> ru.eventpass.core.domain.documents.DocumentError?) = ru.eventpass.core.domain.documents.DocumentError.FEATURE_UNAVAILABLE
-  override suspend fun cleanup() = Unit
- }
+ @Provides @Singleton fun documents(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.documents.DocumentsRepository = RemoteTicketDocuments(http, auth)
+ @Provides @Singleton fun documentFiles(@ApplicationContext context: Context): ru.eventpass.core.domain.documents.DocumentFiles = ru.eventpass.core.platform.AndroidDocumentFiles(context)
  @Provides fun covers(): ru.eventpass.core.domain.event.CoverImporter = object : ru.eventpass.core.domain.event.CoverImporter { override suspend fun importCover(source: String) = ru.eventpass.core.domain.event.CoverImportResult.Unavailable }
  @Provides fun preview(): ru.eventpass.core.platform.EventCoverPreview = object : ru.eventpass.core.platform.EventCoverPreview { override suspend fun preview(cover: ru.eventpass.core.domain.event.EventCover): android.graphics.Bitmap? = null }
 }

@@ -25,6 +25,7 @@ class AndroidDocumentFiles(private val context: Context) : DocumentFiles {
             if(!directory.exists() && !directory.mkdirs()) return@withContext DocumentError.WRITE_FAILED
             val file=File(directory,UUID.randomUUID().toString()+".tmp"); temporary=file
             file.outputStream().use { output -> when(snapshot) {
+                is DocumentSnapshot.Remote -> snapshot.source.writeTo(output)
                 is DocumentSnapshot.Ticket -> TicketPdfWriter.write(snapshot,output) { contextJob.ensureActive() }
                 is DocumentSnapshot.Attendance -> AttendanceXlsxWriter.write(snapshot,output) { contextJob.ensureActive() }
             } }
@@ -34,6 +35,7 @@ class AndroidDocumentFiles(private val context: Context) : DocumentFiles {
             contextJob.ensureActive(); authorize()
         } catch(e: CancellationException) { throw e }
         catch(_: SecurityException) { DocumentError.PROVIDER_UNAVAILABLE }
+        catch(e: DocumentFailure) { e.error }
         catch(_: IOException) { DocumentError.WRITE_FAILED }
         catch(_: IllegalArgumentException) { DocumentError.WRITE_FAILED }
         catch(_: com.google.zxing.WriterException) { DocumentError.WRITE_FAILED }

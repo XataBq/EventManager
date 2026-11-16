@@ -38,7 +38,7 @@ internal object ProductSnapshotCodec {
             }
             out.writeInt(state.tickets.size)
             state.tickets.forEach { t ->
-                val s=t.snapshot; out.text(t.registrationId); out.text(t.status.name); out.text(s.ticketId.value); out.text(s.eventId.value)
+                val s=t.snapshot; out.text(requireNotNull(t.registrationId)); out.text(t.status.name); out.text(s.ticketId.value); out.text(s.eventId.value)
                 out.text(s.eventTitle); out.text(s.startsAt.toString()); out.text(s.zoneId); out.text(s.venue); out.text(s.attendeeName)
                 out.text(s.displayNumber); out.text(s.qrPayload); out.text(s.manualCode.value)
             }

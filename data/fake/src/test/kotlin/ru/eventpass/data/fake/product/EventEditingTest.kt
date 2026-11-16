@@ -270,11 +270,15 @@ class EventEditingTest {
             answers = mapOf("organization" to Answer.Text("Сохранить ответ")), consentAccepted = true)) as GuestRegistrationOutcome.Issued
         val challenge = (e.auth.signUp("Новый", "pending@example.com", AuthSecret("Pending123!"), true) as AuthResult.Success).value
         val secret = e.scenarios.authOutbox().last().secret
-        val state = ProductSnapshotCodec.restore(storage.bytes!!, seed())
+        val current = ProductSnapshotCodec.restore(storage.bytes!!, seed())
+        // V2 predates EVT manual codes: construct an actual legacy credential fixture first.
+        val state = current.copy(tickets = current.tickets.map { t -> t.copy(snapshot = t.snapshot.copy(
+            manualCode = ru.eventpass.core.domain.checkin.ManualCodePolicy.fromQr(t.snapshot.qrPayload))) })
         storage.bytes = LegacyV2Fixture.encode(state)
         val decodedV2 = ProductSnapshotCodec.restore(storage.bytes!!, seed())
         assertEquals(state.accounts, decodedV2.accounts); assertEquals(state.auth.passwords, decodedV2.auth.passwords)
-        assertEquals(state.auth.challenges, decodedV2.auth.challenges); assertEquals(state.auth.names, decodedV2.auth.names)
+        // Artificial downgrade to legacy retires reset links; verification proofs remain exact.
+        assertEquals(state.auth.challenges.filterValues { !it.reset }, decodedV2.auth.challenges); assertEquals(state.auth.names, decodedV2.auth.names)
         assertEquals(state.events.mapValues { (_,e) -> e.copy(sections = e.sections.mapIndexed { i,v -> v.copy(id = "legacy-$i") }) }, decodedV2.events.mapValues { (_,e) -> e.copy(sections = e.sections.mapIndexed { i,v -> v.copy(id = "legacy-$i") }) }); assertEquals(state.registrations.map { it.copy(questionSnapshot = null) }, decodedV2.registrations)
         assertEquals(state.tickets, decodedV2.tickets); assertEquals(state.grants, decodedV2.grants)
         assertEquals(state.policy, decodedV2.policy); assertEquals(state.nextId, decodedV2.nextId)
@@ -287,7 +291,7 @@ class EventEditingTest {
         assertEquals(6, java.io.DataInputStream(storage.bytes!!.inputStream()).readInt())
         assertEquals(state.registrations.map { it.copy(questionSnapshot = null) }, migrated.registrations); assertEquals(state.tickets, migrated.tickets)
         assertEquals(state.auth.passwords, migrated.auth.passwords)
-        assertEquals(state.auth.challenges.keys, migrated.auth.challenges.keys)
+        assertEquals(state.auth.challenges.filterValues { !it.reset }.keys, migrated.auth.challenges.keys)
         assertEquals(e.scenarios.registrationFor(receipt.ticket.ticketId)?.copy(questionSnapshot = null), restarted.scenarios.registrationFor(receipt.ticket.ticketId))
         assertEquals(1, migrated.drafts.size)
     }

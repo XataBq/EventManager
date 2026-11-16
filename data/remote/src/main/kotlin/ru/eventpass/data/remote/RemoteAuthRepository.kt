@@ -31,20 +31,26 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
  }
  internal fun isCurrentPublicRead(context: PublicReadContext): Boolean =
   mutable.value == context.snapshot && epoch.get() == context.epoch && (context.token == null || token === context.token)
- internal suspend fun requestPublic(path: String, context: PublicReadContext): String? {
+ internal suspend fun requestPublic(path: String, context: PublicReadContext): String? = requestScoped(path, context)
+ internal suspend fun requestScoped(path: String, context: PublicReadContext, body: String? = null, key: String? = null): String? {
   if(!isCurrentPublicRead(context)) return null
   try {
-   val body = api.request(path, token = context.token, responseLimit = 33_554_432)
+   val body = api.request(path, body = body, token = context.token, responseLimit = 33_554_432, idempotencyKey = key)
    return body.takeIf { isCurrentPublicRead(context) }
   } catch(e: RemoteFailure) {
-   if(e.error == AuthError.Unauthorized && context.token != null) lock.withLock {
-    if(isCurrentPublicRead(context)) {
-     epoch.incrementAndGet(); clearMemory(); publish(SessionState.Guest)
-     try { withContext(NonCancellable) { tokens.clear() } }
-     catch(_: IOException) { publish(SessionState.Recovery(AuthError.StorageUnavailable)) }
-    }
-   }
+   if(e.error == AuthError.Unauthorized) rejectUnauthorized(context)
    throw e
+  }
+ }
+
+ internal suspend fun rejectUnauthorized(context: PublicReadContext) {
+  if(context.token == null) return
+  lock.withLock {
+   if(isCurrentPublicRead(context)) {
+    epoch.incrementAndGet(); clearMemory(); publish(SessionState.Guest)
+    try { withContext(NonCancellable) { tokens.clear() } }
+    catch(_: IOException) { publish(SessionState.Recovery(AuthError.StorageUnavailable)) }
+   }
   }
  }
 

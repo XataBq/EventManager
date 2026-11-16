@@ -1,6 +1,6 @@
 # План разработки для агентов
 
-**16 ноября — M02 FIX_REVIEW_PENDING.** Ревью нашло P2 default окончания билета; исправление выполнено отдельным проходом, требуется повторное ревью узкого diff. M03 пока не начат. [Отчёт исправления](validation/t10-m02-fix-ticket-expiry.md). Субагенты запрещены; ручная приёмка после M09. Записи ниже описывают предыдущие состояния.
+**16 ноября — M03 IMPLEMENTED / REVIEW_PENDING.** Подключены remote guest/auth registration, idempotent retry, server ticket scopes/card/cancel и PDF/SAF; demo guest теперь создаёт passwordless account без session. M03 запущен прямой командой пользователя; M02 fix-review остаётся отдельным открытым пунктом. Субагенты не использовались, ручная приёмка после M09. [Отчёт](validation/t10-m03-implementation.md), [фактическая архитектура](architecture/t10-registration-tickets.md). Следующий шаг — отдельное ревью M03; M04–M09 не запускались. Предыдущие датированные записи сохраняют историю.
 
 **T09a — READY_FOR_HUMAN (7 ноября):** адресное обновление видимой поверхности жестом реализовано на code 20. 187 JVM / 26 device + 9 повторов с жестами, assemble/lint/DI/isolation прошли; [результаты и новый checklist](30-t09a-refresh-validation.md). Новый UX ждёт человека; предыдущая приёмка 6 ноября сохраняется, Q10/T10 отдельно.
 

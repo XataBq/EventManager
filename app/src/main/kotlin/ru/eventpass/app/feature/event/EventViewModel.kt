@@ -33,6 +33,7 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
     val state = mutable.asStateFlow()
     private var reference: PublicEventReference? = null
     private var submitJob: Job? = null
+    private var pendingCommand: GuestRegistrationCommand? = null
     // Invalidate commands on owner/actor/resource exit, never on a questions refresh.
     private var commandGeneration = 0L
     private var owner = 0L; private var observer: Job? = null; private var read: Job? = null
@@ -79,7 +80,7 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         active = false; owner++; observer?.cancel(); read?.cancel()
         mutable.value = state.value.copy(loading = false, refreshing = false)
     }
-    fun edit(form: RegistrationForm) { if (!mutable.value.submitting) mutable.value = mutable.value.copy(form = form, error = null, existingGuest = false) }
+    fun edit(form: RegistrationForm) { if (saved.get<Boolean>("registrationPending") == true && !mutable.value.submitting) { mutable.value = mutable.value.copy(error = RegistrationError.PendingRetry); return }; if (!mutable.value.submitting) mutable.value = mutable.value.copy(form = form, error = null, existingGuest = false) }
     fun refresh() {
         val id = reference ?: return
         if (!active || state.value.receipt != null || read?.isActive == true) return
@@ -91,12 +92,12 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         read = job; job.start()
     }
     fun leaveForm() {
-        commandGeneration++; submitJob?.cancel()
+        commandGeneration++; submitJob?.cancel(); pendingCommand = null
         val contact = mutable.value.data?.contact
         mutable.value = mutable.value.copy(form = RegistrationForm(contact?.name.orEmpty(), contact?.email.orEmpty(), contact?.phone.orEmpty()), submitting = false, error = null)
     }
     fun fullscreen(value: Boolean) { saved["guestFullscreen"] = value; mutable.value = mutable.value.copy(fullscreen = value) }
-    fun close() { leaveForm(); receipt.clear(); mutable.value = mutable.value.copy(receipt = null, fullscreen = false) }
+    fun close() { leaveForm(); saved.remove<Boolean>("registrationPending"); receipt.clear(); mutable.value = mutable.value.copy(receipt = null, fullscreen = false) }
     fun consume(id: String) { if (mutable.value.action?.id == id) mutable.value = mutable.value.copy(action = null) }
     fun openOwnTicket() = viewModelScope.launch {
         val generation = owner; if (!active) return@launch
@@ -124,10 +125,12 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         val s = mutable.value; val data = s.data ?: return
         if (s.submitting || s.receipt != null || s.readError != null) return
         val f = s.form
-        val command = GuestRegistrationCommand(data.event.id, data.event.localSchemaRevision, f.name,
+        if(saved.get<Boolean>("registrationPending") == true && pendingCommand == null) { mutable.value = s.copy(error = RegistrationError.RecoveryRequired); return }
+        val command = pendingCommand ?: GuestRegistrationCommand(data.event.id, data.event.localSchemaRevision, f.name,
             data.contact?.email ?: f.email, f.phone, f.answers, f.consent)
         val validation = RegistrationValidator.validate(command, data.event.questions, data.policy)
         if (validation is RegistrationValidation.Invalid) { mutable.value = s.copy(error = RegistrationError.Validation(validation.errors)); return }
+        pendingCommand = command; saved["registrationPending"] = true
         val version = commandGeneration
         mutable.value = s.copy(submitting = true, error = null)
         submitJob = viewModelScope.launch {
@@ -138,20 +141,21 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
                     if (version != commandGeneration) return@launch
                     when (result) {
                         is GuestRegistrationOutcome.Issued -> {
-                            receipt.write(result.ticket, result.email) // Commit saved state before publishing the receipt.
+                            pendingCommand = null; saved.remove<Boolean>("registrationPending")
+                            receipt.write(result.ticket, result.email, result.accountCreated) // Commit saved state before publishing the receipt.
                             mutable.value = mutable.value.copy(receipt = receipt.read(), form = RegistrationForm())
                         }
-                        is GuestRegistrationOutcome.RequiresLogin -> { leaveForm(); mutable.value = mutable.value.copy(action = EventAction.Login(result.email)) }
-                        is GuestRegistrationOutcome.ExistingRegistration -> mutable.value = mutable.value.copy(existingGuest = true)
+                        is GuestRegistrationOutcome.RequiresLogin -> { saved.remove<Boolean>("registrationPending"); leaveForm(); mutable.value = mutable.value.copy(action = EventAction.Login(result.email)) }
+                        is GuestRegistrationOutcome.ExistingRegistration -> { pendingCommand = null; saved.remove<Boolean>("registrationPending"); mutable.value = mutable.value.copy(existingGuest = true) }
                         is GuestRegistrationOutcome.Failed -> fail(result.error)
                     }
                 } else {
                     val result = registrations.submitAuthenticated(AuthenticatedRegistrationCommand(command.eventId, command.localSchemaRevision,
-                        command.name, command.phone, command.answers, command.consentAccepted))
+                        command.name, command.phone, command.answers, command.consentAccepted, command.operationId))
                     currentCoroutineContext().ensureActive()
                     if (version != commandGeneration) return@launch
                     when (result) {
-                        is AuthenticatedRegistrationOutcome.Registered -> mutable.value = mutable.value.copy(action = EventAction.Ticket(result.ticketId.value), form = RegistrationForm())
+                        is AuthenticatedRegistrationOutcome.Registered -> { pendingCommand = null; saved.remove<Boolean>("registrationPending"); mutable.value = mutable.value.copy(action = EventAction.Ticket(result.ticketId.value), form = RegistrationForm()) }
                         is AuthenticatedRegistrationOutcome.Failed -> fail(result.error)
                     }
                 }
@@ -162,6 +166,9 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         }
     }
     private fun fail(error: RegistrationError) {
+        if(error !is RegistrationError.RateLimited && error !in listOf(RegistrationError.Network, RegistrationError.Timeout, RegistrationError.ServerUnavailable, RegistrationError.Protocol, RegistrationError.PendingRetry, RegistrationError.RecoveryRequired)) {
+            pendingCommand = null; saved.remove<Boolean>("registrationPending")
+        }
         mutable.value = mutable.value.copy(error = error)
         if (error == RegistrationError.StaleForm) { leaveForm(); mutable.value = mutable.value.copy(error = error); refresh() }
     }

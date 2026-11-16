@@ -1,6 +1,6 @@
 # Текущая навигация и mobile-frame
 
-M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
+M03: private remote host открывает общий TicketsRoute через TicketKey(ticketId?), public Event — через EventKey(publicSlug); guest capability в NavKey отсутствует. Receipt/Event VM owns saved QR, guest PDF/SAF shares entry. [Текущие ownership/cleanup](architecture/t10-registration-tickets.md). M02 fix-review и M03 review ожидаются; прежние demo routes ниже сохраняются.
 
 **Целевые auth/guest links после решения 13 ноября:** применять [32](32-backend-final-requirements.md): server slug/web links, immediate signup session и setup/reset по ссылке. Ниже — фактически реализованная demo-навигация; она ещё не адаптирована. Прежние обязательные VerifyEmail/code-reset маршруты не являются требованием к новому backend.
 

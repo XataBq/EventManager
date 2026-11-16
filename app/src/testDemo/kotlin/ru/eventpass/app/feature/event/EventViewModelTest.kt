@@ -34,7 +34,7 @@ class EventViewModelTest {
             assertEquals(issued, restored.read())
             vm.close()
             assertNull(GuestReceiptState(saved).read())
-            assertEquals(GuestRegistrationOutcome.ExistingRegistration("flow@example.com"), e.registrations.submitGuest(
+            assertEquals(GuestRegistrationOutcome.RequiresLogin("flow@example.com"), e.registrations.submitGuest(
                 GuestRegistrationCommand(ru.eventpass.core.domain.event.EventId("open-registration"), 1, "李", "flow@example.com", consentAccepted = true)))
             assertNull(vm.state.value.receipt)
         } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
@@ -131,7 +131,8 @@ class EventViewModelTest {
             vm.edit(form()); vm.submit(); runCurrent()
             assertEquals(1, pending.size)
 
-            vm.leaveForm(); runCurrent()
+            // A fresh explicitly closed flow may start a new command; mere form exit may not.
+            vm.close(); runCurrent()
             vm.edit(form()); vm.submit(); runCurrent()
             assertEquals(2, pending.size)
             assertTrue(vm.state.value.submitting)

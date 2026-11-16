@@ -57,6 +57,9 @@ fun registrationErrorText(error: RegistrationError): String = when (error) {
     is RegistrationError.Unavailable -> closureText(error.reason)
     is RegistrationError.Validation -> stringResource(R.string.event_validation)
     else -> stringResource(when (error) {
+        is RegistrationError.RateLimited -> R.string.auth_cooldown
+        RegistrationError.PendingRetry -> R.string.m03_pending_retry
+        RegistrationError.RecoveryRequired -> R.string.m03_recovery_required
         RegistrationError.Protocol -> R.string.auth_protocol
         RegistrationError.Forbidden -> R.string.auth_forbidden
         RegistrationError.ServerUnavailable -> R.string.m02_server_unavailable
@@ -154,12 +157,12 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
                     stringResource(if (it.issue == FieldIssue.REQUIRED) R.string.event_field_required else R.string.event_field_invalid)
                 }
                 val f = s.form
-                FormField(f.name, { onEdit(f.copy(name = it)) }, stringResource(R.string.auth_name), Modifier.testTag("registration-name"), enabled = !s.submitting, error = issue(RegistrationField.Name))
+                FormField(f.name, { onEdit(f.copy(name = it)) }, stringResource(R.string.auth_name), Modifier.testTag("registration-name"), enabled = data.contact == null && !s.submitting, error = issue(RegistrationField.Name))
                 FormField(data.contact?.email ?: f.email, { onEdit(f.copy(email = it)) }, stringResource(R.string.auth_email), Modifier.testTag("registration-email"),
                     enabled = data.contact == null && !s.submitting, error = issue(RegistrationField.Email), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
                 if (data.policy.phone != FieldRequirement.HIDDEN) FormField(f.phone, { onEdit(f.copy(phone = it)) },
                     stringResource(if (data.policy.phone == FieldRequirement.REQUIRED) R.string.event_phone_required else R.string.event_phone_optional),
-                    Modifier.testTag("registration-phone"), enabled = !s.submitting, error = issue(RegistrationField.Phone), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                    Modifier.testTag("registration-phone"), enabled = data.contact == null && !s.submitting, error = issue(RegistrationField.Phone), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
                 e.questions.forEach { q ->
                     val answer = f.answers[q.id]
                     fun answer(value: Answer) { onEdit(f.copy(answers = f.answers + (q.id to value))) }
@@ -204,7 +207,7 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
 fun GuestReceiptScreen(receipt: GuestReceipt, onQr: () -> Unit, onLogin: () -> Unit, onSignUp: () -> Unit, onClose: () -> Unit) {
     AuthColumn(Modifier.semantics { testTagsAsResourceId = true }) {
         Text(stringResource(R.string.ticket_sent), style = EventPassTypography.heading, modifier = Modifier.testTag("guest-receipt"))
-        Text(stringResource(R.string.ticket_demo_mail, receipt.email))
+        Text(stringResource(if(receipt.ticket.guestAccess == null) R.string.ticket_demo_mail else R.string.m03_mail_sent, receipt.email))
         EventPassSection {
             Text(receipt.ticket.eventTitle, style = EventPassTypography.cardTitle)
             KeyValueRow(stringResource(R.string.event_date), formatEventTime(receipt.ticket.startsAt, receipt.ticket.zoneId))
@@ -214,8 +217,11 @@ fun GuestReceiptScreen(receipt: GuestReceipt, onQr: () -> Unit, onLogin: () -> U
             Text(stringResource(R.string.ticket_manual_code, receipt.ticket.manualCode.value), Modifier.testTag("ticket-manual-code"))
             EventPassButton(stringResource(R.string.ticket_open_qr), onQr, Modifier.testTag("open-fullscreen"))
         }
+        if (receipt.ticket.guestAccess != null) ru.eventpass.app.feature.documents.DocumentActions(
+            ru.eventpass.core.domain.documents.DocumentRequest.TicketPdf(receipt.ticket.ticketId, receipt.ticket.guestAccess))
         Text(stringResource(R.string.ticket_guest_hint))
-        EventPassButton(stringResource(R.string.auth_signup), onSignUp)
+        if(!receipt.accountCreated) EventPassButton(stringResource(R.string.auth_signup), onSignUp)
+        else Text(stringResource(R.string.m03_guest_account_hint))
         TextAction(stringResource(R.string.auth_login), onLogin)
         TextAction(stringResource(R.string.ticket_close_flow), onClose, Modifier.testTag("close-guest-flow"))
     }

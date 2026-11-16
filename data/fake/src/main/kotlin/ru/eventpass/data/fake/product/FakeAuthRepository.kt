@@ -210,6 +210,15 @@ internal class FakeAuthRepository(
         }
     }
 
+    internal fun createGuestAccount(s: FakeProductState, name: String, email: String, phone: String?): Pair<FakeProductState, Account> {
+        val account = Account(UserId(secrets.id()), normalizedEmail(email), false)
+        val next = s.copy(accounts = s.accounts + (account.id to account),
+            auth = s.auth.copy(names = s.auth.names + (account.id to name)),
+            profileDetails = s.profileDetails + (account.id to ProfileDetails(phone, null, true)))
+        // A setup/reset link, no password proof and no session.
+        return issue(next, account, reset = true).first to account
+    }
+
     private fun issue(s: FakeProductState, account: Account, reset: Boolean): Pair<FakeProductState, AuthResult<EmailDispatch>> {
         val token = AuthSecret(secrets.token())
         val challenge = EmailChallenge(secrets.id(), account.email, clock.instant().plus(policy.challengeLifetime), clock.instant().plus(policy.resendCooldown))

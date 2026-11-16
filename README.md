@@ -1,6 +1,6 @@
 # EventPass — Android
 
-**16 ноября — M02 FIX_REVIEW_PENDING.** Ревью нашло P2 default окончания билета; исправление выполнено отдельным проходом, требуется повторное ревью узкого diff. M03 пока не начат. [Отчёт исправления](docs/validation/t10-m02-fix-ticket-expiry.md). Субагенты запрещены; ручная приёмка после M09. Записи ниже описывают предыдущие состояния.
+**16 ноября — M03 IMPLEMENTED / REVIEW_PENDING.** Подключены remote guest/auth registration, idempotent retry, server ticket scopes/card/cancel и PDF/SAF; demo guest теперь создаёт passwordless account без session. M03 запущен прямой командой пользователя; M02 fix-review остаётся отдельным открытым пунктом. Субагенты не использовались, ручная приёмка после M09. [Отчёт M03](docs/validation/t10-m03-implementation.md), [архитектура](docs/architecture/t10-registration-tickets.md). APK code23: demo/remote; hashes и точные проверки — в отчёте. M04–M09 TODO.
 
 **Backend 1.1.1 проверен на staging, 13 ноября.** Сегодняшние изменения `6960209` → `def6565` покрывают BK01–BK09; публичные API/OpenAPI доступны, 55 сценарных проверок + 3 cleanup прошли. Для начала T10 ручек достаточно. Осталось настроить ссылки документов согласия и обеспечить доступ к тестовой почте для полного auth smoke; `guest.phone` без значения передавать как `""`. Android App Links отложены пользователем. [Результаты и границы проверки](docs/33-backend-update-2026-11-13.md). Android-интеграция этим не реализована.
 

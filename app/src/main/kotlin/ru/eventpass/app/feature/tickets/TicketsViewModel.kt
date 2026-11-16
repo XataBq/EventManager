@@ -22,34 +22,60 @@ class TicketsViewModel @Inject constructor(private val repository: TicketReposit
     private val mutable = MutableStateFlow(TicketsUiState(selected = saved["ticketSelection"], history = saved["history"] ?: false))
     val state = mutable.asStateFlow()
     private var active = false; private var owner = 0L
+    private var ownObserver: Job? = null
     private var observer: Job? = null; private var read: Job? = null; private var command: Job? = null
     fun start() {
         if (active) return
         active = true; val generation = owner
         mutable.value = state.value.copy(loading = state.value.data == null)
-        observer = viewModelScope.launch { repository.observeMyTickets().collect { result -> if (generation == owner) {
+        observer = viewModelScope.launch { repository.observeMyTickets(if(state.value.history) TicketScope.PAST else TicketScope.UPCOMING).collect { result -> if (generation == owner) {
             val s = mutable.value
             mutable.value = when (result) {
                 is MyTicketsResult.Ready -> {
-                    val selected = s.selected?.takeIf { id -> result.tickets.any { it.snapshot.ticketId.value == id } }
+                    val selected = s.selected?.takeIf { id -> result.tickets.any { it.snapshot.ticketId.value == id } || ownObserver?.isActive == true }
                     val ticket = result.tickets.firstOrNull { it.snapshot.ticketId.value == selected }
-                    val qr = ticket?.let { t -> result.events[t.snapshot.eventId]?.let { t.canDisplayQr(it, result.now) } } == true
+                    val qr = ticket?.let { t -> t.canDisplayQr(result.events[t.snapshot.eventId], result.now) } == true
                     if (selected == null) saved.remove<String>("ticketSelection")
-                    s.copy(loading = false, data = result, error = null, authenticationRequired = false,
+                    s.copy(loading = false, data = if(selected != null && result.tickets.none { it.snapshot.ticketId.value == selected }) {
+                        val old = s.data?.tickets?.firstOrNull { it.snapshot.ticketId.value == selected }
+                        if(old != null) result.copy(tickets = result.tickets + old) else result
+                    } else result, error = null, authenticationRequired = false,
                         selected = selected, fullscreen = s.fullscreen && qr)
                 }
-                is MyTicketsResult.Failed -> s.copy(loading = false, error = result.error, fullscreen = false)
+                is MyTicketsResult.Failed -> if(result.error == ProductReadError.FORBIDDEN) s.copy(loading = false, data = null, selected = null, error = result.error, fullscreen = false) else s.copy(loading = false, error = result.error, fullscreen = false)
                 else -> TicketsUiState(loading = false, authenticationRequired = true)
             }
         } } }
+        state.value.selected?.let { observeSelected(it) }
     }
     fun stop() {
-        active = false; owner++; observer?.cancel(); read?.cancel(); command?.cancel()
+        active = false; owner++; ownObserver?.cancel(); observer?.cancel(); read?.cancel(); command?.cancel()
         mutable.value = state.value.copy(loading = false, refreshing = false, cancelling = false, confirming = false, fullscreen = false)
     }
-    fun select(id: String?) { saved["ticketSelection"] = id; mutable.value = mutable.value.copy(selected = id, fullscreen = false, cancelError = null) }
+    fun select(id: String?) { ownObserver?.cancel(); saved["ticketSelection"] = id; mutable.value = mutable.value.copy(selected = id, fullscreen = false, cancelError = null); if(id != null && active) observeSelected(id) }
+    private fun observeSelected(id: String) {
+        ownObserver?.cancel(); val generation = owner
+        ownObserver = viewModelScope.launch { repository.observeOwnTicket(TicketId(id)).collect { result ->
+            if(generation != owner || state.value.selected != id) return@collect
+            when(result) {
+                is OwnTicketResult.Found -> {
+                    val data = state.value.data ?: MyTicketsResult.Ready(emptyList(), now = result.now)
+                    mutable.value = state.value.copy(data = data.copy(tickets = if(data.tickets.any { it.snapshot.ticketId.value == id }) data.tickets.map { if(it.snapshot.ticketId.value == id) result.ticket else it } else data.tickets + result.ticket,
+                        events = result.event?.let { data.events + (it.id to it) } ?: data.events), loading = false)
+                }
+                OwnTicketResult.NotFound -> {
+                    mutable.value = state.value.copy(data = state.value.data?.let { it.copy(tickets = it.tickets.filterNot { t -> t.snapshot.ticketId.value == id }) })
+                    select(null)
+                }
+                OwnTicketResult.AuthenticationRequired -> mutable.value = TicketsUiState(loading = false, authenticationRequired = true)
+                is OwnTicketResult.Failed -> mutable.value = if(result.error == ProductReadError.FORBIDDEN) state.value.copy(
+                    data = state.value.data?.let { it.copy(tickets = it.tickets.filterNot { t -> t.snapshot.ticketId.value == id }) },
+                    selected = null, error = result.error, fullscreen = false) else state.value.copy(error = result.error, fullscreen = false)
+            }
+        } }
+    }
     fun selectIssued(id: String) { history(false); select(id) }
-    fun history(value: Boolean) { saved["history"] = value; saved.remove<String>("ticketSelection"); mutable.value = mutable.value.copy(history = value, selected = null, fullscreen = false) }
+    fun history(value: Boolean) { val restart = active; if(value != state.value.history && restart) stop(); saved["history"] = value; saved.remove<String>("ticketSelection"); mutable.value = mutable.value.copy(history = value, selected = null, fullscreen = false); if(restart) start() }
     fun fullscreen(value: Boolean) { mutable.value = mutable.value.copy(fullscreen = value) }
     fun confirm(value: Boolean) { if (!mutable.value.cancelling) mutable.value = mutable.value.copy(confirming = value, cancelError = null) }
     fun refresh() {
@@ -57,7 +83,24 @@ class TicketsViewModel @Inject constructor(private val repository: TicketReposit
         val generation = owner
         mutable.value = state.value.copy(refreshing = !state.value.loading)
         val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
-            try { repository.refreshMyTickets() }
+            try {
+                val selected = state.value.selected
+                if(selected != null && state.value.data?.tickets?.any { it.snapshot.ticketId.value == selected && it.summary != null } == true) {
+                    val result = repository.observeOwnTicket(TicketId(selected)).first()
+                    if(generation == owner) when(result) {
+                        is OwnTicketResult.Found -> {
+                            val data = state.value.data
+                            if(data != null) mutable.value = state.value.copy(data = data.copy(tickets = data.tickets.map { if(it.snapshot.ticketId.value == selected) result.ticket else it }), error = null,
+                                fullscreen = state.value.fullscreen && result.ticket.canDisplayQr(result.event, result.now))
+                        }
+                        OwnTicketResult.NotFound -> select(null)
+                        OwnTicketResult.AuthenticationRequired -> mutable.value = TicketsUiState(loading = false, authenticationRequired = true)
+                        is OwnTicketResult.Failed -> mutable.value = if(result.error == ProductReadError.FORBIDDEN) state.value.copy(
+                            data = state.value.data?.let { it.copy(tickets = it.tickets.filterNot { t -> t.snapshot.ticketId.value == selected }) },
+                            selected = null, error = result.error, fullscreen = false) else state.value.copy(error = result.error, fullscreen = false)
+                    }
+                } else repository.refreshMyTickets(if(state.value.history) TicketScope.PAST else TicketScope.UPCOMING)
+            }
             finally { if (generation == owner) mutable.value = state.value.copy(loading = false, refreshing = false) }
         }
         read = job; job.start()
@@ -72,8 +115,8 @@ class TicketsViewModel @Inject constructor(private val repository: TicketReposit
                 if (generation != owner) return@launch
                 when (result) {
                 is CancelTicketOutcome.Cancelled -> {
-                    saved["history"] = true
-                    mutable.value = mutable.value.copy(confirming = false, history = true, fullscreen = false)
+                    mutable.value = mutable.value.copy(confirming = false, fullscreen = false)
+                    history(true)
                 }
                 is CancelTicketOutcome.Failed -> mutable.value = mutable.value.copy(cancelError = result.error, confirming = false)
             } } finally { if (generation == owner) mutable.value = mutable.value.copy(cancelling = false) }

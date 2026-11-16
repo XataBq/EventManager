@@ -1,10 +1,10 @@
 # Фактическая архитектура EventPass Android
 
-M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
+M01 auth/session, M02 public E и M03 registration/tickets/PDF реализованы за общими ports. M03 REVIEW_PENDING; M02 fix-review остаётся открытым. [M03: модели, ownership и ADR](architecture/t10-registration-tickets.md); оставшиеся M04–M09 product adapters remote ещё недоступны.
 
-Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
+Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 реализован/REVIEW_PENDING; M04–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
 
-Текущий срез M01/M02: remote auth/profile и public GET по slug, общие Event/Question models/renderer и demo schema 6. M03–M09 остаются недоступными в remote; demo product adapters сохранены. [M02 public E/schema6](architecture/t10-public-event.md). Прежняя demo-приёмка не является финальной приёмкой T10.
+Текущий срез M01–M03: remote auth/profile, public GET по slug, регистрации/билеты/PDF, общие Event/Question models/renderer и demo schema 6. M04–M09 остаются недоступными в remote; demo product adapters сохранены. [M02 public E/schema6](architecture/t10-public-event.md). Прежняя demo-приёмка не является финальной приёмкой T10.
 
 ## Модули и зависимости исходников
 

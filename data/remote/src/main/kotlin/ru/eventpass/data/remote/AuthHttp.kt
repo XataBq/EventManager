@@ -39,13 +39,14 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
  private val base = baseUrl.toHttpUrlStrict()
  private val http = client.newBuilder().retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false).build()
  init { require(base.encodedPath.endsWith("/")); require(base.scheme == "https" || base.host in setOf("localhost", "127.0.0.1", "::1")) }
- internal suspend fun request(path: String, body: String? = null, token: AuthSecret? = null, method: String? = null, responseLimit: Int = 1_048_576): String = withContext(Dispatchers.IO) {
+ internal suspend fun request(path: String, body: String? = null, token: AuthSecret? = null, method: String? = null, responseLimit: Int = 1_048_576, idempotencyKey: String? = null): String = withContext(Dispatchers.IO) {
   require(responseLimit in 1..33_554_432)
   require(!path.startsWith("/") && !path.contains(":") && path.split('/').none { it == "." || it == ".." })
   val target = requireNotNull(base.resolve(path))
   require(target.scheme == base.scheme && target.host == base.host && target.port == base.port)
   require(target.encodedPath.startsWith(base.encodedPath))
   val builder = Request.Builder().url(target).header("Accept", "application/json")
+  if (idempotencyKey != null) { require(idempotencyKey.matches(Regex("[A-Za-z0-9._:-]{16,128}"))); builder.header("Idempotency-Key", idempotencyKey) }
   if (token != null) builder.header("Authorization", "Bearer " + token.value)
   if (body != null) builder.post(body.toRequestBody("application/json; charset=utf-8".toMediaType()))
   if(method != null) builder.method(method, null)
@@ -57,6 +58,36 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
      override fun onResponse(call: Call, response: Response) {
       try { val text = decodeResponse(response, responseLimit); if(c.isActive) c.resume(text) }
       catch(e: Exception) { if(c.isActive) c.resumeWithException(e) }
+     }
+    })
+   }
+  } catch(e: SocketTimeoutException) { throw RemoteFailure(AuthError.Timeout) }
+    catch(e: RemoteFailure) { throw e }
+    catch(e: IOException) { throw RemoteFailure(AuthError.Network) }
+ }
+ internal suspend fun downloadPdf(path: String, token: AuthSecret?): ByteArray = withContext(Dispatchers.IO) {
+  require(!path.startsWith("/") && !path.contains(":") && path.split('/').none { it == "." || it == ".." })
+  val target = requireNotNull(base.resolve(path))
+  require(target.scheme == base.scheme && target.host == base.host && target.port == base.port && target.encodedPath.startsWith(base.encodedPath))
+  val builder = Request.Builder().url(target).header("Accept", "application/pdf")
+  token?.let { builder.header("Authorization", "Bearer " + it.value) }
+  try {
+   suspendCancellableCoroutine<ByteArray> { c ->
+    val call = http.newCall(builder.build()); c.invokeOnCancellation { call.cancel() }
+    call.enqueue(object : Callback {
+     override fun onFailure(call: Call, e: IOException) { if(c.isActive) c.resumeWithException(e) }
+     override fun onResponse(call: Call, response: Response) {
+      try {
+       val bytes = response.use {
+        if(!it.isSuccessful) { decodeResponse(it, 1_048_576); throw RemoteFailure(AuthError.Protocol) }
+        if(it.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase() != "application/pdf") throw RemoteFailure(AuthError.Protocol)
+        val source = it.body?.source() ?: throw RemoteFailure(AuthError.Protocol)
+        source.request(16_777_217); val raw = source.buffer.readByteArray()
+        if(raw.size > 16_777_216 || raw.size < 5 || raw.copyOfRange(0,5).toString(Charsets.US_ASCII) != "%PDF-") throw RemoteFailure(AuthError.Protocol)
+        raw
+       }
+       if(c.isActive) c.resume(bytes)
+      } catch(e: Exception) { if(c.isActive) c.resumeWithException(e) }
      }
     })
    }

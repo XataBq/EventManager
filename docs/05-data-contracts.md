@@ -1,6 +1,6 @@
 # Текущие порты, remote и fake storage
 
-M01/M02 реализованы; M02 ожидает отдельного ревью. Remote auth/profile и public EventRepository используют backend 1.1.1; M03–M09 пока FeatureUnavailable. Demo adapters продолжают работать на общем fake store/schema 6 и имеют явно указанные оставшиеся старые product rules. [M02 public E/schema6](architecture/t10-public-event.md).
+M01–M03 реализованы за общими ports; M03 REVIEW_PENDING, M02 fix-review открыт. Remote registration/tickets/PDF работают с backend 1.1.1; M04–M09 пока FeatureUnavailable. [M03: новые projections, retry, PDF](architecture/t10-registration-tickets.md). Demo schema6 сохраняет passwordless accounts и старые credentials.
 
 ## Реализованные порты
 
@@ -39,8 +39,8 @@ flowchart LR
 
 ## Результаты и политики
 
-- Demo Guest (remote submit — M03): Issued(snapshot/email), RequiresLogin, ExistingRegistration без старого credential, Failed. В demo User ещё не создаётся; target autoaccount без session реализуется в M03. Повторный guest submit не является lookup по email/ID. Только результат успешной новой заявки даёт saved guest receipt.
-- Auth submit: актор/контакт из сессии, не из доверенного email/userId UI; результат Registered содержит собственный ticketId. M01 signup/login создаёт Session без verify gate. Непереносимость анкеты/no autosubmit сохраняются; remote tickets реализуются в M03.
+- Guest Issued(snapshot/email/accountCreated) создаёт passwordless account без session; EMAIL_TAKEN очищает анкету и ведёт во вход. Успешный remote результат содержит guestAccess только для текущего receipt; повторная заявка не является lookup произвольного QR. Unknown retry сохраняет body/key в памяти, process restore без тела не отправляет новый POST.
+- Auth submit берёт actor/contact из проверенной session/server profile; name/phone в server body не отправляются. ALREADY_REGISTERED разрешается через собственные upcoming/past tickets, ID не угадывается. Нет переноса анкеты или autosubmit после login.
 - Active cancel освобождает место один раз, Used отклоняется; новая заявка после cancel получает новый токен при доступной регистрации. Количество мест выводится из неотменённых tickets; серверную гонку Android не реализует.
 - PublicEventResult/OwnTicketResult/MyTicketsResult различают отсутствие/доступ/typed read failure. Error не равен пустому списку или Unlimited. Refresh/observe используют общие данные, не отдельные числа на экран.
 - SaveDraft допускает неполные fields; publish валидирует. Fake owner/session/local revisions проверяются под Mutex; remote PATCH preconditions API не даёт. Вопросы после регистрации редактируются, новые registrations сохраняют questionSnapshot; прежние answers/labels не переписываются.
@@ -131,3 +131,9 @@ TicketRepository.refreshMyTickets и EventRepository.refreshMyEvents/refreshPubl
 ## Public GET M02
 
 EventRepository.observe/refreshPublicEvent принимает Slug или явный Internal reference; remote Internal возвращает FeatureUnavailable без сети. Data-local stamped viewer/token context, single-flight, consumer-edge sanitize и cache release защищают logout/late/queued reply. Различаются notfound/network/timeout/forbidden/server/protocol. Auth bodies ≤1 MiB, public form bodies ≤32 MiB (включая escaped Unicode). DTO не выходят в VM/Compose. [M02 public E/schema6](architecture/t10-public-event.md).
+
+## M03: server ticket/document projection
+
+TicketRepository имеет scope-aware observe/refresh overloads (upcoming/past), сохраняет server counters. Legacy no-arg методы для demo consumers остаются совместимыми. Ticket.summary — TicketEventSummary, не полный Event; registrationId remote=null. OwnTicketResult.Found.event nullable для server summary. Remote ticket metadata/guestAccess не persist в fake snapshot; ProductSnapshotCodec требует настоящий registrationId для fake записи.
+
+DocumentSnapshot.Remote/DocumentSource — transient PDF download; DocumentStamp.accountId=null только для живого guest capability request. AndroidDocumentFiles сохраняет источник через private temporary и SAF с generation/cancellation guards. Request/источник/bytes не сериализуются в VM; SavedState guest исключение содержит только компактный QR/capability текущего flow. [Подробные инварианты и ограничения](architecture/t10-registration-tickets.md).

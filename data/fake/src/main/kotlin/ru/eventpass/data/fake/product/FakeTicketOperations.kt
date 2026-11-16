@@ -53,18 +53,36 @@ internal class FakeTicketOperations(
             it.copy(eventErrors = if (it.nextReadError == null) it.eventErrors - eventId else it.eventErrors + (eventId to it.nextReadError), nextReadError = null, revision = it.revision + 1)
         } }
     }
+    // This is fake server replay state, not an Android guest receipt lookup/cache.
+    private val replayLock = Mutex()
+    private val guestReplay = linkedMapOf<String, Triple<List<Byte>, java.time.Instant, GuestRegistrationOutcome.Issued>>()
     val registrations = object : RegistrationRepository {
-        override suspend fun submitGuest(command: GuestRegistrationCommand): GuestRegistrationOutcome =
-            transaction<GuestRegistrationOutcome>(GuestRegistrationOutcome.Failed(RegistrationError.StorageUnavailable)) { s ->
+        override suspend fun submitGuest(command: GuestRegistrationCommand): GuestRegistrationOutcome = replayLock.withLock {
+            val digest = java.security.MessageDigest.getInstance("SHA-256").digest(command.toString().toByteArray()).toList()
+            guestReplay[command.operationId]?.let { (body, at, issued) ->
+                return@withLock if(body == digest && clock.instant() < at.plusSeconds(86400)) issued
+                    else GuestRegistrationOutcome.Failed(RegistrationError.RecoveryRequired)
+            }
+            val outcome = transaction<GuestRegistrationOutcome>(GuestRegistrationOutcome.Failed(RegistrationError.StorageUnavailable)) { s ->
                 s.nextSubmissionError?.let { return@transaction s.copy(nextSubmissionError = null) to GuestRegistrationOutcome.Failed(it) }
                 validate(s, command)?.let { return@transaction s to GuestRegistrationOutcome.Failed(it) }
                 val contact = validated(s, command)
                 when {
-                    s.accounts.values.any { it.email == contact.email } -> s to GuestRegistrationOutcome.RequiresLogin(contact.email)
+                    s.accounts.values.any { it.email.equals(contact.email, ignoreCase = true) } -> s to GuestRegistrationOutcome.RequiresLogin(contact.email)
                     existing(s, command.eventId, contact.email) != null -> s to GuestRegistrationOutcome.ExistingRegistration(contact.email)
-                    else -> { val (next, ticket) = issue(s, command, contact, null); next to GuestRegistrationOutcome.Issued(ticket.snapshot, contact.email) }
+                    else -> {
+                        val (created, account) = auth.createGuestAccount(s, contact.name, contact.email, contact.phone)
+                        val (next, ticket) = issue(created, command, contact.copy(email = account.email), account.id)
+                        next to GuestRegistrationOutcome.Issued(ticket.snapshot, account.email, accountCreated = true)
+                    }
                 }
             }
+            if(outcome is GuestRegistrationOutcome.Issued) {
+                if(guestReplay.size >= 128) guestReplay.remove(guestReplay.keys.first())
+                guestReplay[command.operationId] = Triple(digest, clock.instant(), outcome)
+            }
+            outcome
+        }
         override suspend fun submitAuthenticated(command: AuthenticatedRegistrationCommand): AuthenticatedRegistrationOutcome {
             auth.initialize(); val generation = state.value.auth.generation
             return transaction<AuthenticatedRegistrationOutcome>(AuthenticatedRegistrationOutcome.Failed(RegistrationError.StorageUnavailable)) { s ->
@@ -114,7 +132,7 @@ internal class FakeTicketOperations(
         }
     }
     private fun own(s: FakeProductState, account: Account): List<Ticket> {
-        val ids = s.registrations.filter { it.attendeeEmail == account.email }.map { it.id }.toSet()
+        val ids = s.registrations.filter { it.userId == account.id || (it.userId == null && it.attendeeEmail.equals(account.email, true) && s.accounts.values.count { a -> a.email.equals(account.email, true) } == 1) }.map { it.id }.toSet()
         return s.tickets.filter { it.registrationId in ids }
     }
     private fun existing(s: FakeProductState, eventId: EventId, email: String): Ticket? {
@@ -131,7 +149,7 @@ internal class FakeTicketOperations(
     private fun issue(s: FakeProductState, command: GuestRegistrationCommand, contact: ValidatedRegistration, userId: UserId?): Pair<FakeProductState, Ticket> {
         val event = s.events.getValue(command.eventId); val number = s.nextId
         val registration = Registration("registration-$number", event.id, userId, contact.email, contact.name, contact.phone, event.localSchemaRevision, contact.answers.toMap(), clock.instant(), questionSnapshot = EventEditingPolicy.questions(EventFields(questions = event.questions.map { it.toDraftQuestion() })))
-        val snapshot = GuestTicketSnapshot(TicketId("ticket-$number"), event.id, event.title, event.startsAt, event.zoneId, event.venue, contact.name, "DEMO-$number", "eventpass-demo-ticket:${UUID.randomUUID()}")
+        val snapshot = GuestTicketSnapshot(TicketId("ticket-$number"), event.id, event.title, event.startsAt, event.zoneId, event.venue, contact.name, "EVT-${number.toString(16).uppercase().padStart(6, '0')}", "eventpass-demo-ticket:${UUID.randomUUID()}", ru.eventpass.core.domain.checkin.ManualCode("EVT-${number.toString(16).uppercase().padStart(6, '0')}"))
         val ticket = Ticket(snapshot, registration.id, TicketStatus.ACTIVE)
         return s.copy(registrations = s.registrations + registration, tickets = s.tickets + ticket, outbox = s.outbox + FakeTicketEmail(contact.email, snapshot.ticketId), nextId = number + 1) to ticket
     }

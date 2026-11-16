@@ -1,6 +1,6 @@
 # T10: сравнение, миграция правил и интеграция API
 
-**16 ноября — M02 FIX_REVIEW_PENDING.** Ревью нашло P2 default окончания билета; исправление выполнено отдельным проходом, требуется повторное ревью узкого diff. M03 пока не начат. [Отчёт исправления](validation/t10-m02-fix-ticket-expiry.md). Субагенты запрещены; ручная приёмка после M09. Записи ниже описывают предыдущие состояния.
+**16 ноября — M03 IMPLEMENTED / REVIEW_PENDING.** Подключены remote guest/auth registration, idempotent retry, server ticket scopes/card/cancel и PDF/SAF; demo guest теперь создаёт passwordless account без session. M03 запущен прямой командой пользователя; M02 fix-review остаётся отдельным открытым пунктом. Субагенты не использовались, ручная приёмка после M09. [Отчёт](validation/t10-m03-implementation.md), [фактическая архитектура](architecture/t10-registration-tickets.md). Следующий шаг — отдельное ревью M03; M04–M09 не запускались. Предыдущие датированные записи сохраняют историю.
 
 Основание: Android `0493dbd2e328796cd963689cc25cf3d4d2bd40e1` плюс существующие незакоммиченные документы; backend `def65653b9e1f22dce8bc2d6f266b23ace6cd1d5`, OpenAPI/staging 1.1.1. Согласованные правила — [08](08-decisions.md), задание backend — [32](32-backend-final-requirements.md), проверка сервера — [33](33-backend-update-2026-11-13.md). Старое предложение 44 URL и B01–B08 не отменяют более поздних решений пользователя.
 
@@ -93,7 +93,7 @@ Domain document port допускает server download и demo generation бе�
 
 ## 4. Последовательность этапов
 
-M00 подготовлен к ревью; M01–M09 пока TODO. В каждой строке обязательны отдельный завершённый diff, релевантные проверки, обновление текущих страниц и ревью. Коммит фиксировать перед ревью, рабочую базу/посторонние изменения явно перечислить; не коммитить весь текущий dirty tree автоматически. Push не входит в план без команды.
+Текущий срез: M00/M01 TECH_ACCEPTED, M02 FIX_REVIEW_PENDING, M03 IMPLEMENTED/REVIEW_PENDING по прямой команде пользователя 16 ноября, M04–M09 TODO. В каждой строке обязательны отдельный завершённый diff, релевантные проверки, обновление текущих страниц и ревью. Коммит фиксировать перед ревью, рабочую базу/посторонние изменения явно перечислить; не коммитить весь текущий dirty tree автоматически. Push не входит в план без команды.
 
 | Этап | Цельный результат / область | Минимальные доказательства выхода |
 |---|---|---|
@@ -153,3 +153,10 @@ M00 подготовлен к ревью; M01–M09 пока TODO. В каждо
 - [Android security guidance](https://developer.android.com/privacy-and-security/security-tips): приватное хранение и защита сетевых данных. Политики TokenStore/backup/cleanup выше — решения нашего плана, не утверждение об уже существующей защите demo.
 
 M00 актуализирует инструкции и [mapping](api/migration-mapping.md) по исходному плану. В M00 исходники, Gradle, зависимости и CODE_REVIEW.md не изменялись; тесты приложения не запускались, результаты [33](33-backend-update-2026-11-13.md) не выдаются за новый прогон.
+
+
+### ADR-T10-08: отдельная сводка билета и transient document source (M03)
+
+TicketEvent не содержит organizerId/questions/permissions: введён TicketEventSummary, регистрационный ID remote отсутствует (null), OwnTicketResult не требует фиктивного Event. Server scope/counters/status определяют группировку и QR; client clock применяется только к demo Event. DocumentSnapshot.Remote содержит transient DocumentSource; bounded PDF bytes существуют только внутри data-download, platform пишет private temporary и затем SAF с повторными owner checks. Не сериализовать источник или токены. Guest capability — только текущий receipt owner. Подробности/ответственность — [M03](architecture/t10-registration-tickets.md).
+
+Прямое поручение пользователя 16 ноября «приступай к м03» отменило ожидание повторного M02 fix-review для этого запуска. Это не подтверждение приёмки M02, не отмена последующего ревью M03 и не разрешение агенту закрыть ручные H-пункты.

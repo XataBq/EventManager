@@ -30,7 +30,7 @@ class DocumentsViewModel @Inject constructor(private val repository: DocumentsRe
     fun unbind(recreating: Boolean) { if(!recreating) clear() }
     fun begin(request: DocumentRequest) {
         if(state.value.busy) return
-        val current=auth.currentSession(); if(current.state !is SessionState.Authenticated) { mutable.value=DocumentsUiState(error=DocumentError.AUTHENTICATION_REQUIRED); return }
+        val current=auth.currentSession(); if(current.state !is SessionState.Authenticated && (request as? DocumentRequest.TicketPdf)?.guestAccess == null) { mutable.value=DocumentsUiState(error=DocumentError.AUTHENTICATION_REQUIRED); return }
         resource=request; session=current; mutable.value=DocumentsUiState(busy=true,picker=DocumentPicker(UUID.randomUUID().toString(),request))
     }
     fun launched(id: String) { state.value.picker?.takeIf { it.id==id }?.let { mutable.value=state.value.copy(picker=it.copy(launched=true)) } }

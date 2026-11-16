@@ -36,15 +36,18 @@ class FakeEventPassEnvironmentTest {
         consentAccepted = true,
     )
 
-    @Test fun guestTicketUpdatesPublicAvailabilityWithoutCreatingAnAccount() = runTest {
+    @Test fun guestTicketCreatesPasswordlessAccountWithoutSession() = runTest {
         val environment = FakeEventPassEnvironment()
         val updates = async(start = CoroutineStart.UNDISPATCHED) {
             environment.events.observePublicEvent(FakeFixtures.OPEN).drop(1).first()
         }
         val accountsBefore = environment.scenarios.accounts()
         val issued = environment.registrations.submitGuest(command()) as GuestRegistrationOutcome.Issued
-        assertEquals(accountsBefore, environment.scenarios.accounts())
-        assertNull(environment.scenarios.registrationFor(issued.ticket.ticketId)?.userId)
+        assertTrue(issued.accountCreated)
+        assertEquals(accountsBefore.size + 1, environment.scenarios.accounts().size)
+        val created = environment.scenarios.accounts().single { it.email == "new@example.com" }
+        assertFalse(created.emailVerified)
+        assertEquals(created.id, environment.scenarios.registrationFor(issued.ticket.ticketId)?.userId)
         assertEquals(listOf(FakeTicketEmail("new@example.com", issued.ticket.ticketId)), environment.scenarios.outbox())
         assertFalse(issued.ticket.qrPayload.contains("new@example.com"))
         assertFalse(issued.ticket.qrPayload.contains("李"))
@@ -56,8 +59,7 @@ class FakeEventPassEnvironmentTest {
     @Test fun separateAccountOnSameEmailSeesEarlierTicketsWithUnverifiedSession() = runTest {
         val environment = FakeEventPassEnvironment()
         val issued = environment.registrations.submitGuest(command()) as GuestRegistrationOutcome.Issued
-        val newAccount = Account(UserId("new-account"), "new@example.com", false)
-        environment.scenarios.putAccount(newAccount)
+        val newAccount = environment.scenarios.accounts().single { it.email == "new@example.com" }
         assertEquals(MyTicketsResult.AuthenticationRequired, environment.tickets.observeMyTickets().first())
         environment.scenarios.signInAs(newAccount.id)
         assertTrue(environment.tickets.observeMyTickets().first() is MyTicketsResult.Ready)
@@ -79,7 +81,7 @@ class FakeEventPassEnvironmentTest {
         val environment = FakeEventPassEnvironment()
         environment.registrations.submitGuest(command()) as GuestRegistrationOutcome.Issued
         val duplicate = environment.registrations.submitGuest(command())
-        assertEquals(GuestRegistrationOutcome.ExistingRegistration("new@example.com"), duplicate)
+        assertEquals(GuestRegistrationOutcome.RequiresLogin("new@example.com"), duplicate)
         assertEquals(1, environment.scenarios.outbox().size)
         val event = environment.events.observePublicEvent(FakeFixtures.OPEN).first() as PublicEventResult.Found
         assertEquals(RegistrationAvailability.Open(AvailablePlaces.Limited(19)), event.availability)

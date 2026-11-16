@@ -1,6 +1,6 @@
 # M00: карта миграции Kotlin ports → backend 1.1.1
 
-M00/M01 TECH_ACCEPTED; M02 реализован/REVIEW_PENDING 16 ноября. Фактический [public-read срез и schema6](../architecture/t10-public-event.md), [evidence](../validation/t10-m02-implementation.md). Остальные M03–M09 ниже — target, не готовые adapters. Исходный Android baseline `0493dbd2e328796cd963689cc25cf3d4d2bd40e1`; действующий demo ещё не изменён. Это target mapping для M01–M09, не описание готовых remote adapters. Согласования [08](../08-decisions.md)/[34](../34-api-migration-plan.md) имеют приоритет над историческим OpenAPI v0.1.0 и заменёнными B01–B08.
+M01–M03 реализованы, M03 REVIEW_PENDING и M02 fix-review открыт. [Фактический M03 mapping/ownership](../architecture/t10-registration-tickets.md), [evidence](../validation/t10-m03-implementation.md). Остальные строки M04–M09 — target; старые 44 URL остаются историей, backend 1.1.1 и решения 08/34 имеют приоритет.
 
 ## Источник и обозначения
 

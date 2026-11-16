@@ -59,11 +59,15 @@ class FakeAuthRepositoryTest {
         assertEquals(2, e.scenarios.accounts().size); assertTrue(e.scenarios.authOutbox().isEmpty())
         assertEquals(SessionState.Guest, e.auth.currentSession().state)
     }
-    @Test fun guestTicketsBecomeVisibleAfterSeparateSignupWithoutVerification() = runTest {
+    @Test fun guestTicketsBecomeVisibleAfterSetupAndManualLogin() = runTest {
         val e = env()
         val ticket = (e.registrations.submitGuest(GuestRegistrationCommand(FakeFixtures.OPEN, 1, "Name", "new@example.com", consentAccepted = true)) as GuestRegistrationOutcome.Issued).ticket
-        assertEquals(2, e.scenarios.accounts().size) // Guest autoaccount migration belongs to M03.
-        create(e)
+        assertEquals(3, e.scenarios.accounts().size)
+        assertFalse(e.auth.currentSession().state is SessionState.Authenticated)
+        failure(AuthError.EmailTaken, e.auth.signUp("Name", "new@example.com", password, true))
+        value(e.auth.completeEmailLink(e.scenarios.authOutbox().last().secret, password))
+        assertFalse(e.auth.currentSession().state is SessionState.Authenticated)
+        value(e.auth.signIn("new@example.com", password))
         assertEquals(listOf(ticket.ticketId), (e.tickets.observeMyTickets().first() as MyTicketsResult.Ready).tickets.map { it.snapshot.ticketId })
         e.auth.signOut(); assertEquals(MyTicketsResult.AuthenticationRequired, e.tickets.observeMyTickets().first())
         create(e, "other@example.com")

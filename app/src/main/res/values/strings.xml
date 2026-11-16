@@ -76,4 +76,11 @@
     <string name="demo_legacy_reset_required">Старые demo-данные несовместимы с новыми правилами. Сброс сохранит их приватную резервную копию.</string>
     <string name="auth_protocol">Не удалось прочитать ответ сервера</string>
     <string name="m02_server_unavailable">Сервис временно недоступен. Повторите позже.</string>
+    <string name="m03_pending_retry">Исход отправки ещё не известен. Повторите отправку прежних данных или проверьте билеты после входа.</string>
+    <string name="m03_recovery_required">Проверьте свои билеты после входа. Гостевой билет ищите в письме; новая заявка автоматически не отправляется.</string>
+    <string name="m03_mail_sent">Билет отправлен на %1$s</string>
+    <string name="m03_guest_account_hint">Аккаунт создан без пароля. Установите пароль по ссылке из письма, затем войдите, чтобы увидеть все билеты.</string>
+    <string name="m03_category">Категория</string>
+    <string name="m03_zone">Зона</string>
+    <string name="m03_checked_at">Вход отмечен</string>
 </resources>
