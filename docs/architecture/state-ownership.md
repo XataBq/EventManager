@@ -76,8 +76,8 @@ Receipt и fullscreen сейчас — состояния **того же** Even
 | Счётчик/версия | Где | Что защищает |
 |---|---|---|
 | SessionSnapshot.generation / PrivateScope | Auth/session coordinator/host | Старый аккаунт и недействительная сессия не возвращают приватный UI |
-| `formVersion` локального EventViewModel | UI, Long, не сохраняется | Ответ/finally старой отменённой отправки не меняет новую форму |
-| Event.formVersion | Domain + persisted registration | Схема вопросов и StaleForm при submit |
+| `commandGeneration` EventViewModel | UI, Long, только память | Exit/actor/resource/denial инвалидируют старые result/finally; questions refresh не теряет принятый submit |
+| Event.localSchemaRevision/revision | Nullable, fake-only локальные preconditions | Remote = null, backend formVersion/write precondition отсутствуют |
 | Event/Draft.revision | Domain + persisted editor | Lost update между устаревшими редакторами |
 | `generation` EditorViewModel | UI, не сохраняется | Поздние save/cover/finally не меняют новую привязку entry |
 
@@ -102,3 +102,7 @@ ScannerController принадлежит ScannerViewModel конкретной S
 ## Read lifecycle T09a
 
 Tickets/MyEvents/Event, как Dashboard/Volunteers/Profile, запускают чтение только для visible + RESUMED. Read job/refreshing/owner/observation — transient память VM, без восстановления business-команды из saved state. Stop отменяет/инвалидирует старое чтение; Tickets/MyEvents сохраняют read-model текущей private scope для selection/scroll, остальные очищают transient state по своей прежней политике. Refresh сохраняет выбранный ticket/сегмент/query/форму при той же схеме, dirty profile и volunteers input. Private scope смена уничтожает старые owners. [T09a](t09a-refresh.md).
+
+## M02: public resource и типизированная анкета
+
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Старые demo guest/idempotency/manual-code/resend paths вне миграции M03–M09 не объявляются remote реализацией.

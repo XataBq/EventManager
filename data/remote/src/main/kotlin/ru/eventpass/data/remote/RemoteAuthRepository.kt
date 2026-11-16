@@ -34,7 +34,7 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
  internal suspend fun requestPublic(path: String, context: PublicReadContext): String? {
   if(!isCurrentPublicRead(context)) return null
   try {
-   val body = api.request(path, token = context.token, responseLimit = 16_777_216)
+   val body = api.request(path, token = context.token, responseLimit = 33_554_432)
    return body.takeIf { isCurrentPublicRead(context) }
   } catch(e: RemoteFailure) {
    if(e.error == AuthError.Unauthorized && context.token != null) lock.withLock {

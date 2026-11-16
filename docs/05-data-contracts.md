@@ -1,14 +1,6 @@
-# Текущие порты, fake и хранение
+# Текущие порты, remote и fake storage
 
-**Срез передачи 15 ноября:** M00/M01 TECH_ACCEPTED, M02 WIP_HANDOFF и ещё без итогового ревью. В коде M02 уже меняются EventRepository/PublicEventReference, типизированные ответы и fake product schema 6 с legacy decoder; описания прежней schema 5 ниже относятся к принятому срезу до M02. При чтении учитывать [актуальный handoff M02](validation/t10-m02-handoff-2026-11-15.md), решения 08/34 и исходники; следующий исполнитель должен синхронизировать затронутые разделы перед REVIEW_PENDING. Наличие описания здесь не подтверждает завершение WIP.
-
-M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
-
-**Уточнение текущего целевого контракта:** после последнего ответа пользователя endsAt по умолчанию = startsAt+4 часа, ticket resend исключён. Перечень для backend — [32](32-backend-final-requirements.md); он не содержит Android-планов. Отдельный будущий offline draft: server snapshot + local pending в Room за repository, явная синхронизация без потери dirty данных; детали решения — в 08. Текущее demo этим документом не меняется.
-
-**Целевой backend после решения 13 ноября — [32](32-backend-final-requirements.md).** Ниже описано фактическое demo, которое пока не переписано: его verified-only/code-reset/guest-without-account/manual-code/freeze/unlimited defaults расходятся с новым целевым поведением. Не требовать возврата backend к старому demo; адаптацию ports/fake/VM выполнять отдельным согласованным срезом. Старое OpenAPI — историческое предложение.
-
-UI T01–T09 demo, общий snapshot schema 5. Это мобильные порты и локальный fake backend, не согласованный REST/OpenAPI. [T09 операции/границы файлов](architecture/t09-profile-files.md), решения — [08](08-decisions.md).
+M01/M02 реализованы; M02 ожидает отдельного ревью. Remote auth/profile и public EventRepository используют backend 1.1.1; M03–M09 пока FeatureUnavailable. Demo adapters продолжают работать на общем fake store/schema 6 и имеют явно указанные оставшиеся старые product rules. [M02 public E/schema6](architecture/t10-public-event.md).
 
 ## Реализованные порты
 
@@ -17,7 +9,7 @@ UI T01–T09 demo, общий snapshot schema 5. Это мобильные по�
 | Порт | Чтение | Команды и исходы |
 |---|---|---|
 | AuthRepository | observeSession/currentSession | refreshSession, signUp/signIn/signOut, requestVerification/requestPasswordReset/completeEmailLink, consentDocuments; AuthResult<Auth Session/EmailDispatch/Unit>, AuthError; SessionState.Recovery |
-| EventRepository | observePublicEvent, observeMyEvents, observeEditor | refreshPublicEvent/refreshMyEvents, saveDraft/publishDraft/updateEvent/closeRegistration/finishEvent; typed read/edit outcomes |
+| EventRepository | observePublicEvent(PublicEventReference), observeMyEvents, observeEditor | refreshPublicEvent/refreshMyEvents, saveDraft/publishDraft/updateEvent/finishEvent; typed read/edit outcomes |
 | RegistrationRepository | Через event/tickets reads | submitGuest / submitAuthenticated, разные допустимые результаты |
 | TicketRepository | observeMyTickets / observeOwnTicket | refreshMyTickets / cancelOwnTicket; own access и typed error |
 | AttendanceRepository | owner-only observeDashboard / attendees(revision cursor) | refreshDashboard / cancelRegistration(eventId,registrationId); totals из tickets, без credentials |
@@ -37,7 +29,7 @@ flowchart LR
     ports["Repository ports через demo DI"] --> ops["Auth, ticket, editor, grants, check-in и attendance operations"]
     ops --> shared["Initialize и общий Mutex на IO"]
     shared --> proposed["Следующий полный FakeProductState"]
-    proposed --> codec["ProductSnapshotCodec schema 5"]
+    proposed --> codec["ProductSnapshotCodec schema 6"]
     codec --> atomic["AtomicFile adapter"]
     atomic --> published["StateFlow после успешной записи"]
     published --> observers["Общие event, tickets, editor и attendance observers"]
@@ -47,12 +39,12 @@ flowchart LR
 
 ## Результаты и политики
 
-- Guest: Issued(snapshot/email), RequiresLogin, ExistingRegistration без старого credential, Failed. User не создаётся. Повторный guest submit не является lookup по email/ID. Только результат успешной новой заявки даёт saved guest receipt.
-- Auth submit: актор/контакт из сессии, не из доверенного email/userId UI; результат Registered содержит собственный ticketId. После signup/confirm нужен явный Login, список выдаёт прежние билеты на email этого аккаунта.
+- Demo Guest (remote submit — M03): Issued(snapshot/email), RequiresLogin, ExistingRegistration без старого credential, Failed. В demo User ещё не создаётся; target autoaccount без session реализуется в M03. Повторный guest submit не является lookup по email/ID. Только результат успешной новой заявки даёт saved guest receipt.
+- Auth submit: актор/контакт из сессии, не из доверенного email/userId UI; результат Registered содержит собственный ticketId. M01 signup/login создаёт Session без verify gate. Непереносимость анкеты/no autosubmit сохраняются; remote tickets реализуются в M03.
 - Active cancel освобождает место один раз, Used отклоняется; новая заявка после cancel получает новый токен при доступной регистрации. Количество мест выводится из неотменённых tickets; серверную гонку Android не реализует.
 - PublicEventResult/OwnTicketResult/MyTicketsResult различают отсутствие/доступ/typed read failure. Error не равен пустому списку или Unlimited. Refresh/observe используют общие данные, не отдельные числа на экран.
-- SaveDraft допускает неполные fields; publish валидирует. Owner/current session/revision/formVersion проверяются заново при мутации. История registrations навсегда фиксирует вопросы после первого участника; callback UI не заменяет guard.
-- Event metadata update меняет server ticket snapshot title/date/venue/zone, не credential/status. Guest receipt остаётся снимком выдачи. Started metadata допустима по EventEditingPolicy, даты/zone не меняются; terminal update запрещён. Это текущий demo default, не серверный договор.
+- SaveDraft допускает неполные fields; publish валидирует. Fake owner/session/local revisions проверяются под Mutex; remote PATCH preconditions API не даёт. Вопросы после регистрации редактируются, новые registrations сохраняют questionSnapshot; прежние answers/labels не переписываются.
+- Event metadata update меняет server ticket snapshot title/date/venue/zone, не credential/status. Guest receipt остаётся снимком выдачи. LIVE update допускает даты/metadata по текущей policy; terminal update запрещён. Это текущий demo default, не серверный договор.
 - Expected errors представлены отдельными семействами AuthError, ProductReadError, RegistrationError, TicketError, EventEditError и CoverImportResult; общего реализованного AppError-framework нет. CancellationException не превращать в Network; UI mapping — resources.
 
 ## Profile и документы T09
@@ -64,9 +56,9 @@ ProfileRepository.observeProfile/refreshProfile перечитывает про�
 | Что | Где/срок жизни |
 |---|---|
 | Accounts/proofs/names/auth mail links и полный product state | Один AtomicFile `noBackupFilesDir/demo-auth-v1.bin`; legacy имя сохранено для совместимости |
-| Events/registrations/tickets/status/scan grants/phone policy/nextId | ProductSnapshotCodec schema 5; данные fake-сервера |
-| Manual codes / first check-in records | Schema 4, в том же server snapshot; UI scanner result не persist |
-| Drafts, publication receipts, revisions, cover descriptors | Та же schema 5; сохранённый draft переживает новый процесс |
+| Events/registrations/tickets/status/scan grants/phone policy/nextId | ProductSnapshotCodec schema 6; данные fake-сервера |
+| Manual codes / first check-in records | Legacy v4 → schema 6, в том же server snapshot; UI scanner result не persist |
+| Drafts, publication receipts, revisions, cover descriptors | Та же schema 6; сохранённый draft переживает новый процесс |
 | Cover bytes | Managed app-private files через AndroidEventCoverStore, не в snapshot/route |
 | Session/auth mail/ticket outbox/fail-next/read errors/Clock offsets | Память; новый процесс не восстанавливает их как действующую сессию/очередь писем |
 | Незавершённая анкета, raw auth secrets | Не сохраняются в постоянное хранилище/SavedStateHandle |
@@ -74,7 +66,18 @@ ProfileRepository.observeProfile/refreshProfile перечитывает про�
 
 Фактический список полей encode/decode — [ProductSnapshotCodec](../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/ProductSnapshotCodec.kt); не считать все поля FakeProductState persisted. Session/outbox/управляемые ошибки намеренно не сериализуются. В файле server ticket есть payload, но guest UI не получает к нему произвольный доступ: это разные уровни хранения.
 
-Reader понимает legacy auth-only v1, новый auth EPA2 magic 0x45504132 и product v2/v3/v4/v5; legacy reset code/grants отзываются, verify links/proofs/names сохраняются. Product schema 5 не менялась. V1 дополняется seed product data, v2 получает editor metadata/defaults; v1–v3 сохраняют QR/ID и получают стабильный ManualCode из opaque payload, legacy Used не получает выдуманный first record. Текущий writer выдаёт schema 5: неизменённый v4 payload (auth/names/proofs/challenges, E/drafts/covers/registrations/answers/tickets/grants/manual/checkIns) дополнен map profileDetails userId→optional phone/organization/notifications. Имя остаётся только в AuthData.names. У старых v1–v4 phone/organization=null, reminders=true; signup name сохраняется. Все writers auth/editor/ticket/grants/check-in/attendance/profile используют один codec и сохраняют соседние данные. Session/outbox/cooldown/faults не persist. Downgrade v5→v4 не поддерживается: старый APK не должен читать записанный v5 snapshot как seed. Corrupt/truncated/unsupported файл оставляется нетронутым, auth unhealthy/Unknown и StorageUnavailable. Явный demo Reset — отдельное действие; он не является удалением аккаунта.
+Writer — ProductSnapshotCodec v6: bounded UTF-8, optional local revisions, explicit section/slug IDs, all Question/Answer formats/metadata, price/remote cover descriptors и historical questionSnapshot. Полный snapshot ≤32 MiB; строка ≤200000 bytes, questions/options/sections ≤50. Android reader ограничен тем же общим размером до неограниченного чтения файла. Все writers используют один codec/Mutex/IO; session/outbox/cooldown/faults не persist.
+
+| Вход | Миграция / инвариант |
+|---|---|
+| v1 / auth EPA2 | Auth proofs/names/accounts сохраняются, legacy reset grants отозваны; product seed |
+| v2–v3 | Event/ticket/answers/QR сохраняются; стабильный manual code выводится из прежнего opaque payload, неизвестный first checker/time не выдумывается |
+| v4–v5 | Mapping manual codes/first check-ins/profile сохраняются; historical question labels без snapshot не выдумываются |
+| v6 | UTF-8/metadata/all formats/local references/nullable local versions/history round-trip; downgrade отсутствует |
+| Известный несовместимый legacy | Только после полного корректного decode: cancelled/null-or-zero published capacity/single option/новые field bounds. Явный reset сначала архивирует original, затем пишет seed6; backup failure запрещает reset |
+| Corrupt/truncated/oversized/unsupported/trailing | Unknown/StorageUnavailable; не классифицировать как разрешённый legacy reset, не перезаписывать автоматически |
+
+Политика, точные файлы и регрессии — [M02](architecture/t10-public-event.md). Старый QR/Used proof не меняется из-за расширения формата; исходные APK и исходники v1–v5 fixtures остаются evidence, а не текущим writer.
 
 AndroidFakeAuthStorage — синхронный adapter AtomicFile; вызывающие backend operations делают IO вне main. JVM использует изолированный/volatile storage. DataStore/Room для текущего snapshot не применяются. Auth proofs salted, secrets/hash/deadlines — demo contract, не production storage design.
 
@@ -96,7 +99,7 @@ Demo письмо — запись прежнего outbox, не настоящ�
 | S01 | u-alex: owner A, volunteer B, participant C, participant+volunteer D | Все связи видны одновременно; права не переносятся между событиями |
 | S02 | Anonymous + submit → G02 → соседний экран/Back → закрытие flow → signUp/confirm/signIn | QR доступен в сохранённом flow и после пересоздания Activity, но не после закрытия/нового запуска; User не создан submit-ом; после входа билет доступен по email |
 | S03 | Anonymous + существующая почта | RequiresLogin; ответы теряются, после входа форму заполняют заново; автоотправки нет |
-| S04 | Ответы сервера: без лимита / remaining=0 / CapacityReached при submit | Безлимит доступен, 0 блокирует кнопку; отказ отправки показывается как «мест нет», без теста гонки |
+| S04 | Published capacity>0, remaining=0/full, LIVE/FINISHED | Server status/counts определяют доступность; LIVE допускает submit, full/finished — нет. Null только draft, ошибки не unlimited |
 | S05 | Active / Used / Cancelled / чужой event / неизвестный QR | Пять детерминированных исходов проверки |
 | S06 | Отзыв grant при открытой камере | Следующая операция Forbidden, выход из сканера; свой билет остаётся |
 | S07 | Двойной тап во время отправки | Один клиентский запрос, кнопка в loading; протокол server retry не выдумывать |
@@ -106,30 +109,25 @@ Demo письмо — запись прежнего outbox, не настоящ�
 | S11 | Нет разрешения камеры / постоянный отказ | Ручной ввод остаётся доступен |
 | S12 | Email retry failure, export failure, grant user missing | Честная ошибка, билет не исчезает, повтор возможен |
 | S13 | Длинные данные, font scaling, большие списки | Нет обрезания действий; поиск работает |
-| S14 | Смена формы до первой регистрации / попытка правки после неё | Устаревшую форму показать как ошибку с перезагрузкой; после первой регистрации вопросы не редактируются; переноса ответов не обещаем |
+| S14 | Rename/type/option change до/после регистрации и во время submit | Совместимые ответы остаются, несовместимые объясняются; вопросы редактируемы, исторические snapshots сохраняются; принятый submit не теряет ticket из-за local schema change |
 
 Debug ScenarioController умеет выбрать seed, сменить тестовую личность, изменить сетевой сценарий и воспроизвести внешнее событие (отзыв, проход другим пользователем). Не включать его в production release. Смена debug-личности не равна глобальному переключению роли.
 
 
-## Будущие порты и API
+## Граница следующей миграции M03–M09
 
-Backend предоставлен для исследования 13 ноября: `EgorDikanskiy/eventpass`, снимок `94af06f`. [Сравнение с Android](31-backend-gap-analysis-2026-11-13.md) фиксирует предметные несовпадения и mapping всех 44 операций. Это ещё не согласованный контракт/работающий Android staging: текущие domain/fake rules не заменяются ранними Figma autoaccount/pending-flow. T10 начинать по согласованному вертикальному срезу после исправления или явного пересогласования соответствующих расхождений.
+Backend 1.1.1 и решения 13 ноября приняты; [mapping](api/migration-mapping.md) и [34](34-api-migration-plan.md) задают остаток. M01 auth/profile и M02 public GET работают; remote registration/tickets/editor/scan/grants/attendance/files/delete ещё не реализованы и возвращают FeatureUnavailable. Demo product сценарии сохранены, guest пока без autoaccount, manual code и resend ещё старые до своих M. Room вводится в M05. Старые 22/OpenAPI v0.1.0 — история; они не определяют новый HTTP-клиент.
 
-Полный предложенный HTTP-контракт для backend подготовлен отдельно: [22 — API MVP](22-backend-api-contract.md), [OpenAPI](api/openapi.json), [mapping и отличия fake](api/coverage.md). Он включает T08–T10, но не объявляет их реализованными. Сроки сессии, guest existing-email branch, idempotency, manual code, polling и каскад удаления пока предложения к согласованию. Текущие порты/поведение этой страницы не изменены автоматически; изменения Android выполнять отдельным согласованным срезом.
+Реализованный независимый check-in: Active → Used, повтор AlreadyUsed, WrongEvent/Cancelled/Unknown → Invalid; связь/Timeout/Forbidden не Invalid/успех. Только после ответа repository можно разрешать проход. Offline admission не предусмотрен. Remote 24h idempotency/EVT-code приняты в 34, адаптация соответствующих команд — M03/M06; текущий demo manual credential отдельно от displayNumber/qrPayload. Сохранение/ошибки/владение state и ограничения — [независимая основа T07](architecture/t07-checkin-foundation.md). UI и CameraX/ZXing подключены к прежним портам; успешный JVM contract не означает допуск без ответа repository или production API.
 
-| Этап | Остаток |
-|---|---|
-| T07 | UI/camera подключены, ручная camera/UI-приёмка ожидается; grants/check-in contracts прежние, payload сохранён в общей schema 5 |
-| T08 | Dashboard/attendance/search/pages/owner cancel реализованы, camera/UI/H3 ожидаются; [семантика](architecture/t08-attendance.md) |
-| T09 | Профиль/notifications, PDF/XLSX/SAF и resend реализованы; остаток — Q10/deletion, ручные H3/H4 |
-| T10 | data:remote, transport DTO/error mapping, production session protocol/storage, контролируемый App Links host/signing |
-
-Реализованный независимый check-in: Active → Used, повтор AlreadyUsed, WrongEvent/Cancelled/Unknown → Invalid; связь/Timeout/Forbidden не Invalid/успех. Только после ответа repository можно разрешать проход. Offline admission не предусмотрен. RequestId/idempotency пока не согласован; Q11/B11 manual credential отдельно от displayNumber/qrPayload. Сохранение/ошибки/владение state и ограничения — [независимая основа T07](architecture/t07-checkin-foundation.md). UI и CameraX/ZXing подключены к прежним портам; успешный JVM contract не означает допуск без ответа repository или production API.
-
-Для настоящего API сначала согласовать auth/session, DTO/errors, timezone, права, credentials/check-in, файлы и observe protocol. Затем data:remote через build variant/DI, transport и общие contract tests, повтор H2–H4 на staging/двух устройствах. UI/VM сохраняются насколько совместимы реальные контракты; интеграция не сводится к смене URL. Fake остаётся demo/test, не fallback при HTTP-ошибке.
+Продолжение: отдельное ревью M02 → закрытие находок → M03. Финальная человеческая проверка только после M09; локальные tests/optional live smoke не закрывают её.
 
 История прежних контрактов — [архив](history/2026-10-30-architecture/README.md). При новом порте/snapshot изменить эту страницу и [операции/инварианты](architecture/operations.md) в том же изменении.
 
 ## Адресные read-команды T09a
 
-TicketRepository.refreshMyTickets и EventRepository.refreshMyEvents/refreshPublicEvent сохраняют прежний observer-путь. AttendanceRepository.refreshDashboard согласуется с attendees текущих E/query/revision. Добавлены VolunteerRepository.refreshVolunteers(eventId): VolunteersResult (authenticated owner E) и ProfileRepository.refreshProfile(): ProfileResult (текущий authenticated actor). Это чтение общего state под прежним Mutex/IO с проверкой session generation/cancellation; transient Network/Timeout/Storage не вызывает запись snapshot, save/grant/revoke или смену identity. Observer priority и UI owner generations защищают поздние replies. Порты не определяют новый HTTP API, schema 5 прежняя. [Адресное обновление T09a](architecture/t09a-refresh.md).
+TicketRepository.refreshMyTickets и EventRepository.refreshMyEvents/refreshPublicEvent сохраняют прежний observer-путь. AttendanceRepository.refreshDashboard согласуется с attendees текущих E/query/revision. Добавлены VolunteerRepository.refreshVolunteers(eventId): VolunteersResult (authenticated owner E) и ProfileRepository.refreshProfile(): ProfileResult (текущий authenticated actor). Это чтение общего state под прежним Mutex/IO с проверкой session generation/cancellation; transient Network/Timeout/Storage не вызывает запись snapshot, save/grant/revoke или смену identity. Observer priority и UI owner generations защищают поздние replies. Порты не определяют новый HTTP API, schema 6 прежняя. [Адресное обновление T09a](architecture/t09a-refresh.md).
+
+## Public GET M02
+
+EventRepository.observe/refreshPublicEvent принимает Slug или явный Internal reference; remote Internal возвращает FeatureUnavailable без сети. Data-local stamped viewer/token context, single-flight, consumer-edge sanitize и cache release защищают logout/late/queued reply. Различаются notfound/network/timeout/forbidden/server/protocol. Auth bodies ≤1 MiB, public form bodies ≤32 MiB (включая escaped Unicode). DTO не выходят в VM/Compose. [M02 public E/schema6](architecture/t10-public-event.md).

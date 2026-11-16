@@ -184,12 +184,16 @@ private fun QuestionEditor(q: DraftQuestion, enabled: Boolean, edit: (DraftQuest
         QuestionKind.entries.filter { it != QuestionKind.UNSUPPORTED }.forEach { kind -> if (kind != q.kind) TextAction(stringResource(questionKindResource(kind)),
             { edit(q.copy(kind = kind, options = emptyList())) }, enabled = enabled) }
         FormField(q.title, { edit(q.copy(title = it)) }, stringResource(questionKindResource(q.kind)), enabled = enabled)
+        FormField(q.placeholder.orEmpty(), { edit(q.copy(placeholder = it.takeIf(String::isNotEmpty))) }, stringResource(R.string.question_placeholder), enabled = enabled)
+        FormField(q.help.orEmpty(), { edit(q.copy(help = it.takeIf(String::isNotEmpty))) }, stringResource(R.string.question_help), enabled = enabled)
         SettingsSwitch(q.required, { edit(q.copy(required = it)) }, stringResource(R.string.editor_required), enabled = enabled)
         if (q.kind in setOf(QuestionKind.SINGLE_CHOICE, QuestionKind.SELECT, QuestionKind.MULTIPLE)) {
             q.options.forEachIndexed { index, option -> FormField(option.title, { text -> edit(q.copy(options = q.options.map { if (it.id == option.id) it.copy(title = text) else it })) },
                 stringResource(R.string.editor_option), enabled = enabled, trailingContent = {
                     TextAction(stringResource(R.string.editor_remove), { edit(q.copy(options = q.options.filterNot { it.id == option.id })) }, enabled = enabled)
                 })
+                FormField(option.hint.orEmpty(), { text -> edit(q.copy(options = q.options.map { if (it.id == option.id) it.copy(hint = text.takeIf(String::isNotEmpty)) else it })) },
+                    stringResource(R.string.question_option_hint), enabled = enabled)
                 Row {
                     fun move(direction: Int) { val items = q.options.toMutableList(); val target = index + direction
                         if (target in items.indices) { java.util.Collections.swap(items, index, target); edit(q.copy(options = items)) } }

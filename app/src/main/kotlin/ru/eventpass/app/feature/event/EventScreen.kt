@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -75,10 +76,14 @@ fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTi
     visible: Boolean = true, vm: EventViewModel = hiltViewModel(), publicSlug: String? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val activity = LocalActivity.current
     LaunchedEffect(eventId, publicSlug, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
         vm.bind(publicSlug?.let { PublicEventReference.Slug(EventSlug(it)) } ?: PublicEventReference.Internal(EventId(eventId))); vm.refresh(); try { awaitCancellation() } finally { vm.stopReading() }
     } }
-    DisposableEffect(vm) { onDispose { vm.stopReading(); vm.leaveForm() } }
+    DisposableEffect(vm, activity) { onDispose {
+        vm.stopReading()
+        if (activity?.isChangingConfigurations != true) vm.leaveForm()
+    } }
     LaunchedEffect(state.action) { when (val action = state.action) {
         is EventAction.Login -> { onAuth(action.email, false, true); vm.consume(action.id) }
         is EventAction.Ticket -> { onTicket(action.ticketId); vm.consume(action.id) }
@@ -108,7 +113,7 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
             Row(horizontalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
                 StatusDot(if (data.availability is RegistrationAvailability.Open) stringResource(R.string.event_open)
                     else closureText((data.availability as RegistrationAvailability.Closed).reason), StatusTone.Neutral)
-                StatusBadge(stringResource(R.string.event_free), StatusTone.Neutral)
+                StatusBadge(stringResource(if (e.priceType == PriceType.FREE) R.string.event_free else R.string.event_paid), StatusTone.Neutral)
             }
             Text(e.title, style = EventPassTypography.heading, modifier = Modifier.testTag("event-$eventId"))
             Text(e.description)
@@ -176,7 +181,10 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
                         }
                         is RegistrationQuestion.Unsupported -> InlineError(stringResource(R.string.event_unsupported_question))
                     }
-                    if (q !is RegistrationQuestion.Text) q.help?.let { Text(it, style = EventPassTypography.hint) }
+                    if (q !is RegistrationQuestion.Text) {
+                        q.placeholder?.takeIf { it.isNotBlank() && answer == null }?.let { Text(it, style = EventPassTypography.hint) }
+                        q.help?.let { Text(it, style = EventPassTypography.hint) }
+                    }
                     if (q !is RegistrationQuestion.Text) issue(RegistrationField.Question(q.id))?.let { InlineError(it) }
                 }
                 ConsentCheckbox(f.consent, { onEdit(f.copy(consent = it)) }, stringResource(R.string.auth_consent), Modifier.testTag("registration-consent"), enabled = !s.submitting)

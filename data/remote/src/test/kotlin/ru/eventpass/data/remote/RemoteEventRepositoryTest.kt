@@ -70,6 +70,32 @@ class RemoteEventRepositoryTest {
             assertEquals(0, s.requestCount)
         }
     }
+    @Test fun supplementarySlugAndLiteralEscapesRemainOneApiPathSegment() = runTest {
+        for (slug in listOf("😀".repeat(300), "one..two", "one%2Ftwo")) MockWebServer().use { s ->
+            s.start(); s.enqueue(response(changed(fixture(), "slug", JsonPrimitive(slug))))
+            val result=repo(s).observePublicEvent(PublicEventReference.Slug(EventSlug(slug))).first() as PublicEventResult.Found
+            assertEquals(slug,result.event.slug!!.value)
+            val url=request(s).url
+            assertEquals(listOf("api","events",slug),url.pathSegments)
+            if(slug.contains('%')) assertTrue(url.encodedPath.contains("%252F"))
+        }
+    }
+    @Test fun latePublic401FromOldActorCannotClearNewLogin() = runTest {
+        MockWebServer().use { s -> s.start()
+            s.enqueue(response("""{"token":"first","user":$user}"""))
+            s.enqueue(response("{\"code\":\"UNAUTHORIZED\"}",401,delay=300))
+            s.enqueue(response("""{"token":"second","user":$user}"""))
+            val store=Store();val api=AuthHttp(s.url("/api/").toString());val auth=RemoteAuthRepository(api,store)
+            auth.signIn("user@example.com",AuthSecret("p"));request(s)
+            val context=auth.capturePublicRead()
+            val old=async { try {auth.requestPublic("events/old",context);null} catch(e:RemoteFailure){e.error} }
+            assertEquals("Bearer first",request(s).headers["Authorization"])
+            auth.signIn("user@example.com",AuthSecret("p"))
+            assertEquals(AuthError.Unauthorized,withContext(Dispatchers.Default) {withTimeout(5000){old.await()}})
+            assertTrue(auth.currentSession().state is SessionState.Authenticated)
+            assertEquals("second",store.value?.value)
+        }
+    }
     @Test fun allWireTypesAndUnsupportedPreserveMetadata() = runTest {
         val types = listOf("text", "textarea", "email", "tel", "number", "date", "choice", "select", "multiple", "checkbox", "future")
         val questions = buildJsonArray { types.forEach { type -> add(buildJsonObject {
@@ -110,6 +136,22 @@ class RemoteEventRepositoryTest {
             val found = repo(s).observePublicEvent(reference).first() as PublicEventResult.Found
             assertEquals(40, found.event.questions.size)
             assertEquals(50, (found.event.questions.first() as RegistrationQuestion.SingleChoice).options.size)
+        }
+    }
+    @Test fun legalEscapedUnicodeFormLargerThanSixteenMiBIsAccepted() = runTest {
+        val label="😀".repeat(300)
+        val questions=buildJsonArray { repeat(50) { q -> add(buildJsonObject {
+            put("id","q-$q");put("label",label);put("type","select");put("required",false)
+            put("options",buildJsonArray {repeat(50) { i -> add(buildJsonObject {
+                put("value","option-$i");put("label",label);put("hint",label)
+            })}})
+        })}}
+        val body=fixture(questions=questions).replace("😀","\\ud83d\\ude00")
+        assertTrue(body.length>16_777_216);assertTrue(body.length<33_554_432)
+        MockWebServer().use {s -> s.start();s.enqueue(response(body))
+            val result=repo(s).observePublicEvent(reference).first() as PublicEventResult.Found
+            assertEquals(50,result.event.questions.size)
+            assertEquals(label,(result.event.questions.last() as RegistrationQuestion.SingleChoice).options.last().hint)
         }
     }
     @Test fun notFoundForbiddenAndServerErrorRemainDifferent() = runTest {

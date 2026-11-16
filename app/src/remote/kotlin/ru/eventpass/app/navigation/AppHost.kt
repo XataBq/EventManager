@@ -30,11 +30,12 @@ import ru.eventpass.app.feature.event.EventRoute
  val gate by session.gate.collectAsStateWithLifecycle()
  val lifecycle=LocalLifecycleOwner.current.lifecycle
  LaunchedEffect(session,lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { session.coordinator.refreshSession() } }
- when(val g=gate) {
+ Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) { when(val g=gate) {
   SessionGate.Loading -> AuthColumn { Text(stringResource(R.string.loading)) }
   is SessionGate.Recovery -> AuthColumn { AuthErrorText(g.error); EventPassButton(stringResource(R.string.remote_retry_session),{ scope.launch { session.coordinator.refreshSession() } }); TextAction(stringResource(R.string.auth_login),{ session.signOut() }) }
   is SessionGate.Shell -> key(g.scope) { RemoteProfileNavigation(session,g) }
   SessionGate.Login -> RemotePublicNavigation(session)
+ }
  }
 }
 

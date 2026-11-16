@@ -1,0 +1,287 @@
+{
+  "base": "a24da313ea20366bf0da53d25a8492d220b78bbc",
+  "handoff": "8448db9",
+  "description": "Final M02 code/test raw bytes and normalized git blobs; reports/status are excluded to avoid self-reference",
+  "files": {
+    "app/build.gradle.kts": {
+      "raw_sha256": "3f1240f14d58b609db5342ab452c054879974a7235e2083f9aebecd7ecfc2a44",
+      "git_blob": "e6936e096bf13750d141da3f5ae8671c21d5cf97"
+    },
+    "app/src/androidTestDemo/kotlin/ru/eventpass/app/M02EventRecreationTest.kt": {
+      "raw_sha256": "c3ff07dd54dc66da0dbe51d810049bd8edb2cb35d356e25f0ea8b5da97767fd4",
+      "git_blob": "80621b39a21741cb48eceafb2a297dada3c66658"
+    },
+    "app/src/androidTestDemo/kotlin/ru/eventpass/app/M02QuestionPresentationTest.kt": {
+      "raw_sha256": "14536d6106c8a974180040e6acc3c57e5ec6402b9baa7b5c4ad6ffc30713dd97",
+      "git_blob": "4b76d2e4de45d21db0740ea3004981dffd0dcdec"
+    },
+    "app/src/androidTestDemo/kotlin/ru/eventpass/app/RefreshRoutesTest.kt": {
+      "raw_sha256": "8682db6f9923b8079efb5547f66e6e9e4ba8d34acc8a55b8397a77da32aadf71",
+      "git_blob": "ca698fb6196100320f0942f5a5d2d469a571b6b9"
+    },
+    "app/src/androidTestRemote/kotlin/ru/eventpass/app/RemoteRootInsetsTest.kt": {
+      "raw_sha256": "c645fbebe4e14b66577cfea4e29c7d48a835dbf88ee693e98074feed2fca094d",
+      "git_blob": "8a3744f7d5a95347202d4f9fc697e6867fe5155b"
+    },
+    "app/src/demo/kotlin/ru/eventpass/app/di/AndroidFakeAuthStorage.kt": {
+      "raw_sha256": "6b01b5a47b3eba4eb863c0152f6997802b0c35647087a48e189c1859c823596a",
+      "git_blob": "9ea35fc70d6dc94220f04ceca1f095a3b3143d95"
+    },
+    "app/src/demo/kotlin/ru/eventpass/app/feature/tools/DemoTools.kt": {
+      "raw_sha256": "6fbed2d1670796042d1f90ff247f05cdc5701259affa862ada037c119a47f505",
+      "git_blob": "fc50032f476f5ed4aef8756d23ff5e164cf511a9"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/checkin/ScannerScreen.kt": {
+      "raw_sha256": "ca9bfd7cf19c7087aa8a5074e438691d97997774ccb55831aceb08509fc3c2c4",
+      "git_blob": "529e95889703ec0df466a5b3f5f3e1ddbef81c12"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/dashboard/DashboardScreen.kt": {
+      "raw_sha256": "61670e2bf7525c3608d8f146dd3b6b053cad33f92420140d9eaf1ec1071d93bc",
+      "git_blob": "ad5cfcec6a6ef87d1cc3bdff92449201c8b6b8b8"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/documents/DocumentActions.kt": {
+      "raw_sha256": "fbacd2cba347c8d6045c85d93c6420ec8e9a26fc7d39580d461dd8b9520466e3",
+      "git_blob": "893cba0f833adf847bb700243f46ae29fb26a3e6"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/editor/EditorScreen.kt": {
+      "raw_sha256": "578d405316f849e5690c281a17000b9c3e124ab188cb55c3f4a9457b630cd6a9",
+      "git_blob": "1eee10d00e7d46627e5e4eac51da71d9e78ea55f"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/editor/EditorViewModel.kt": {
+      "raw_sha256": "bb114dcfd790bb67bfd1ae2222e47056beeec4081b344cb38e766f40d5900935",
+      "git_blob": "ad5788abde4c459ba66dd2024e3e4ba79d64898d"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/event/EventScreen.kt": {
+      "raw_sha256": "70abd51cabf795728ec0ba9fe7eeb7f793ec4b05af57b8a3ed6be97006801679",
+      "git_blob": "65e8bd7e8ca6c4585b3847cf664b114b6b0c89e6"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/event/EventViewModel.kt": {
+      "raw_sha256": "af7638198685233fd810d0614da70f7bb5681787d472357c4707defb1d5109ad",
+      "git_blob": "8082ee7118d98ee1a8641de9ff1cb68827a77ba7"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/profile/ProfileScreen.kt": {
+      "raw_sha256": "74cdf55bd5ade1135434e1e220a43244f10b4d9cad7217abf88d82c3ea44d9f5",
+      "git_blob": "b7bb87377ff6021111cf723340c35c4d31ece261"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/tickets/TicketsScreen.kt": {
+      "raw_sha256": "5550f701380027aea9cd6954554ecdddb0eba461b27f8816e7b6504b88f8d8be",
+      "git_blob": "b40e563c028c28655f0a6820cee8491cb66d8a9f"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/feature/volunteers/VolunteersScreen.kt": {
+      "raw_sha256": "bc15c248a66104332145a2a48acd98673cbe45eee1545ad374c6bbdea923e9a3",
+      "git_blob": "5842f6e94a6f68bd8345a4a7cdc248ad66ec91a2"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/navigation/NavigationState.kt": {
+      "raw_sha256": "6d3274616cf0e72bfe584d8404bcd56be02c9db41855bb2affa8288b15faeedf",
+      "git_blob": "11d0a6a4b13c019b700e55bb86db4e90b49b41fe"
+    },
+    "app/src/main/kotlin/ru/eventpass/app/navigation/auth/SessionCoordinator.kt": {
+      "raw_sha256": "4fd1ac7c81f0c07067c330e1224f870bff503b5a71e73d7175e2d096ad21d616",
+      "git_blob": "70cc4a34aa262aea963774d2d2918ea3cb1c9509"
+    },
+    "app/src/main/res/values/strings.xml": {
+      "raw_sha256": "4ebe2d5b35888dd94104f7f288eb5f3017f1090e7276ef820fe54f3f96fbe5f3",
+      "git_blob": "3cb56c08cb1759ea941fdc92c54a45537c6cf432"
+    },
+    "app/src/main/res/values/ticket_strings.xml": {
+      "raw_sha256": "c3caf99268c40527c6755015baeefb41761e6423b832933e2e30692333312792",
+      "git_blob": "96b5ba0e3186bbd46bd0120c6c1d746731aa1fc8"
+    },
+    "app/src/remote/kotlin/ru/eventpass/app/di/RemoteModule.kt": {
+      "raw_sha256": "7a256ef1ae958bef65593075c8e6c8c67f48c09e7786c4559966a571738675ec",
+      "git_blob": "92c63f79484e9bf031c6cfbdbcbbef1edc2895cc"
+    },
+    "app/src/remote/kotlin/ru/eventpass/app/di/UnavailableRemoteFeatures.kt": {
+      "raw_sha256": "b24fdbc9de6a78a5a6e5dd369ff89032be7a9dcf4ba7df43b6776a83c84bbdee",
+      "git_blob": "d62d7ba555fbe0872cf1cb2ed1f5e5a2bb343c8e"
+    },
+    "app/src/remote/kotlin/ru/eventpass/app/navigation/AppHost.kt": {
+      "raw_sha256": "7b782e8251a0f7cec7cc64a525bfc94352c9d07c0fc3ab76098b0282d550fd4e",
+      "git_blob": "2373ea6e05efb89fad180b9e25df6284d200bd88"
+    },
+    "app/src/test/kotlin/ru/eventpass/app/navigation/PublicEventRestoreTest.kt": {
+      "raw_sha256": "b3baf45f092d5b039aafb965a888a15f96861cebfa9ffb99c1c3dbf73674fd69",
+      "git_blob": "8f93b3f63a8aa2ec37f735bc892a5aeb916da0c5"
+    },
+    "app/src/testDemo/kotlin/ru/eventpass/app/feature/RefreshOwnersTest.kt": {
+      "raw_sha256": "a3f4ebc15d54981c8bce078b80a137b6c68fb77d772611e1022888365298fbfb",
+      "git_blob": "73c5e9a1c0e906bbd41301d719e09048017e5ee0"
+    },
+    "app/src/testDemo/kotlin/ru/eventpass/app/feature/editor/EditorViewModelTest.kt": {
+      "raw_sha256": "94e10c4ccd993d48179b89abe0bda90a036a8fc3ed9beb3f5a727f834f90e421",
+      "git_blob": "9a0017ae22a2c215e5f0872ef14d9de7d10a1a0a"
+    },
+    "app/src/testDemo/kotlin/ru/eventpass/app/feature/event/EventViewModelTest.kt": {
+      "raw_sha256": "7e386fede6717bd999220c1bbbac5924efeff5a680dfc6e98723711daf87652a",
+      "git_blob": "399f1536925653cb75b25c8cfc92f3b402ace258"
+    },
+    "app/src/testDemo/kotlin/ru/eventpass/app/feature/event/M02EventStateTest.kt": {
+      "raw_sha256": "7c4b290bb1426514cbc993b38e4981589a191ab1084f565c711eb772f6affe93",
+      "git_blob": "0bf3eb90b404c360cc228b8c3a99785288f80b1e"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/ProductRepositories.kt": {
+      "raw_sha256": "1a950d88cf6d1fb4e32f206d70a76deecb9b80f6e70a3ddd8b8efc83cf6b9e15",
+      "git_blob": "3fcf127374c576542d37da48c5f74461cdacc1c3"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/attendance/AttendanceModels.kt": {
+      "raw_sha256": "487c1e3949f54ebac76623c425cd9377352365a29b798971c2695532e6b21772",
+      "git_blob": "c89b726c4b7391bdd417aa7368c3b6fb762c1c0f"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/checkin/CheckInModels.kt": {
+      "raw_sha256": "864630f84e1a90c9f4ddbdc7ce52b11d7648c7ad5559f3a978155e0bc1411168",
+      "git_blob": "6d1c5cc9b6669641309d20ad95c702c1972fc382"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/documents/DocumentModels.kt": {
+      "raw_sha256": "0efc283fb5d5c729fbb1bde6e7f2b6c8f55448c3f9ff7c2d75e1e310c9fb1bd0",
+      "git_blob": "5b0759d4e181a4d1bce6b4ee665dea3f06e24998"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/event/EventEditing.kt": {
+      "raw_sha256": "ed015a569b57a98c46cada0ba0ba9472819e00bf59f70015e080ffbe574d66ec",
+      "git_blob": "0e6af3f0734b675f4c88e0fa579963f1bd59f957"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/event/EventModels.kt": {
+      "raw_sha256": "b0e9962702c91a276b5edfd8f13dfa54b333c4506e91d61e561f277a4e8b2cb1",
+      "git_blob": "04301a0fbb3d140df96db34948801e196cb3a9b5"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/profile/ProfileModels.kt": {
+      "raw_sha256": "25d9e0ab4586545080e50316876ad63fe7ed82a2902a0a9df06aea87fdc13461",
+      "git_blob": "58bda379bffa30c8e07a370615cde29cbcb78923"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/registration/RegistrationModels.kt": {
+      "raw_sha256": "348b1e21e41a508ed10bed29b8824e00b1cc12b2182c69f01aa67d6e75742d43",
+      "git_blob": "983106af82c4a970381fa9fb5cc1fb8e9fa8dbbd"
+    },
+    "core/domain/src/main/kotlin/ru/eventpass/core/domain/registration/RegistrationValidator.kt": {
+      "raw_sha256": "8a6181c224b626979db9681b86614c6c0218e0cd02de162856f461af91564c04",
+      "git_blob": "82d5b96dad54ed92dc500cc4cf072026a7e1e58d"
+    },
+    "core/domain/src/test/kotlin/ru/eventpass/core/domain/QuestionFormatsTest.kt": {
+      "raw_sha256": "72a7534c362aa2abe250b6fe344c138fb3657eb4ca10cc601524c6f433bdef9c",
+      "git_blob": "0ca40bd921c56f1171e127746fb538c09de48ca3"
+    },
+    "core/domain/src/test/kotlin/ru/eventpass/core/domain/RegistrationRulesTest.kt": {
+      "raw_sha256": "7da033e0b56b6004d93628c8b162213e8d56c4b3fa31acb77bea2bf55b49af2f",
+      "git_blob": "50ce51cfb0b89ffd656569862bded4777de35d03"
+    },
+    "core/domain/src/test/kotlin/ru/eventpass/core/domain/event/EventEditingPolicyTest.kt": {
+      "raw_sha256": "207e55ecc5e39ec3058b0b55aa8ab2ebfd429c1bd2eb0a0188f33f43c9ba3be4",
+      "git_blob": "b43fb559735c9eb3bc30f2ed49744eafab1c0dbe"
+    },
+    "core/platform/src/main/kotlin/ru/eventpass/core/platform/AttendanceXlsxWriter.kt": {
+      "raw_sha256": "8a98215b59f65c3619c5077019a328ba726e89b18dcabb59b1a3bb3cb9b24fac",
+      "git_blob": "0e8ffe15ff72a4212e893c0602cdb1cf0b2aa6c0"
+    },
+    "core/platform/src/main/kotlin/ru/eventpass/core/platform/PublicEventLinkParser.kt": {
+      "raw_sha256": "5b2be0bcc282e9a7d5510e566f23b8b7fc9f77853d3d35d8897164f14260340e",
+      "git_blob": "0cf40145e2bd4f3d42c5e5cce122bddebf3078ba"
+    },
+    "core/platform/src/test/kotlin/ru/eventpass/core/platform/PublicEventLinkParserTest.kt": {
+      "raw_sha256": "8db424f27557b45b9e4efd60fba2a4a45f4f9cdf5ae75e242a6aefaac1396f0c",
+      "git_blob": "a0348e05d8a1cbde7cf81b1adcf95a120e22ce39"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeAttendanceOperations.kt": {
+      "raw_sha256": "eadad1e41b32f4f217d4fde7a828331c1d5bff4e1bc186e2cae12792495934b6",
+      "git_blob": "b8ef8522fc1699055cf6dcac91e9d0f476acddf9"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeAuthRepository.kt": {
+      "raw_sha256": "251729e00752d153aa14d34a7e37cd7963a4fd7ad8283d9f2b0c8237c69a78cf",
+      "git_blob": "a63d60898c41348f1253754915f5640d5f05b26d"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeAuthStorage.kt": {
+      "raw_sha256": "9edc8e07c9b2427564fd454e11555aee4fd14c1862ea291a3765bac4aabba26b",
+      "git_blob": "3bf7f01f02349226f9fa5da610cb043d3a673560"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeCheckInOperations.kt": {
+      "raw_sha256": "612712c06e492f2a057caf5f507940b133d1f1bc104f87f7bc4ff94df687910b",
+      "git_blob": "cefddb37daea1b1f2667d590e055b1c3ccc906bc"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeEventEditingOperations.kt": {
+      "raw_sha256": "9ba1cce6d026e9bcbefe49aaacc4220408cfae5b7e23774b1e46e15f1aa13ef1",
+      "git_blob": "08f30476d195585063e7ba5c78a77b779cb57a89"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeEventPassEnvironment.kt": {
+      "raw_sha256": "3099e5b11de854ac9eab089c6bd0563c8886e6b86d17b8ff8e32c9f12be2dbd7",
+      "git_blob": "6967f00d3c7e60b50fa27dd3de9d3d4749ff9b9d"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeFixtures.kt": {
+      "raw_sha256": "64e00c696954605a433c653fd9a98882885ce2f6648483cebdee748db19a708e",
+      "git_blob": "d39b1134f4cfbc75d2ff89aa1e1a49a43e2d4372"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeTicketOperations.kt": {
+      "raw_sha256": "7000586ce09f1d1e10399f78217a3ca337558231034a2e0f906a370e7f0e4c02",
+      "git_blob": "b07325e914c4fb61ed561b981002ad031045ed46"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/LegacyProductSnapshotCodec.kt": {
+      "raw_sha256": "58b13fcf2977dc55cc16151ef20d7647faa90757b5387b852b558a5831aaec6a",
+      "git_blob": "bc1aab9fc865848b92513aede581b0e53659a21f"
+    },
+    "data/fake/src/main/kotlin/ru/eventpass/data/fake/product/ProductSnapshotCodec.kt": {
+      "raw_sha256": "85a99f093ba4aaf78adf1a68774e71495685246da232d8f87686268db8a25d4a",
+      "git_blob": "d1d2e2dd368e8f9e4d5ca9f6c66e62d3a56d5b54"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/AttendanceTest.kt": {
+      "raw_sha256": "89230ea04f0bf02f3822ad8659464e6c12df1c4dc3cbe1dc44338796c1933e24",
+      "git_blob": "aae5ae2bb75d354eda00ea69b5efad5445e5ac67"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/CheckInTest.kt": {
+      "raw_sha256": "bd6168aedb5c2cac6097834f2761966d040cda47916c92da568c7a8a25657a4c",
+      "git_blob": "811d24b99a13ff500d85d57211275ad7559ab172"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/EventEditingTest.kt": {
+      "raw_sha256": "0d08b9b1b1863985f8d675e48be8cd844f697d7f7368af6961c3a5079ab2ab8d",
+      "git_blob": "3afb27b50c10331344c4dc4222efb30558aaa362"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/FakeEventPassEnvironmentTest.kt": {
+      "raw_sha256": "0e0f712186ed04c7377c2b191809a4e0ddfffdf88973a8df148454ae757e4fd4",
+      "git_blob": "dd6fb233b7067a9da085a9394547fe9d42172f4f"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/LegacyV2Fixture.kt": {
+      "raw_sha256": "7265e74984224ad0a787d17e2390abc3dd163284568f9d91bd8741f821d5a8cf",
+      "git_blob": "688ee419fd268c38480a16818453309e63d6b0c4"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/LegacyV3Fixture.kt": {
+      "raw_sha256": "06c5035c4eaf68a2fb9630b710e74af971ad175951e0de4019a5699012bfba27",
+      "git_blob": "10786d9f4984e2cd1a88491f486c57831c6adebe"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/LegacyV4Fixture.kt": {
+      "raw_sha256": "6c628cf494e92c2d9296924be6c3cc77b26be525f29084c2d4f88b36e8683b3a",
+      "git_blob": "92da8325ece7c0418130d79ec36b5cfc37e80dd7"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/LegacyV5Fixture.kt": {
+      "raw_sha256": "e81cc3d52803987f006477b285fd903caadd294355d4656f8ab60738d66f3572",
+      "git_blob": "72f78a418416d454d168084174ff81b2775b3641"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/ProductSchema6Test.kt": {
+      "raw_sha256": "92f724596618da79530e00216950cdef866091755d520c50c87422239a2ee986",
+      "git_blob": "6825e1f1cc8436cea3072d2399d3af1fa90f72ce"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/ProfileDocumentsTest.kt": {
+      "raw_sha256": "e2af6bd1e3ebaa67d54d41df696a9865a2ad2cffe496fd5fae55f48dfd66837d",
+      "git_blob": "985918983105da041f74cd507c696c38e17adec5"
+    },
+    "data/fake/src/test/kotlin/ru/eventpass/data/fake/product/TicketPersistenceTest.kt": {
+      "raw_sha256": "ce14ac1b6af2f13b99f60deda897fee3a779921bae18f9b8793019f8b56073cd",
+      "git_blob": "ded66988dc5e2678d0c001363d381da51d73dd6b"
+    },
+    "data/remote/src/main/kotlin/ru/eventpass/data/remote/AuthHttp.kt": {
+      "raw_sha256": "273320c52e5f911d8f270d4af9c273f4ea6c9d1a279e36996fc9efe5441fdfc7",
+      "git_blob": "34c4615821a24df952c88f9b965f9aa9659f9ef5"
+    },
+    "data/remote/src/main/kotlin/ru/eventpass/data/remote/RemoteAuthRepository.kt": {
+      "raw_sha256": "623728977a138834fae12910436669dc59cb6b83cd62881bc0aa5a431d0c41d2",
+      "git_blob": "4a6a375bdeb33b45cfe9705d27d255bf78151a6f"
+    },
+    "data/remote/src/main/kotlin/ru/eventpass/data/remote/RemoteEventRepository.kt": {
+      "raw_sha256": "aea09a3b8572c229a63d16b1b686fbe50caaa4dfa94cedbec90e1eb3e0e907d2",
+      "git_blob": "405bcf2ef7a58aff6b976bdc7c23b51f8691e2c6"
+    },
+    "data/remote/src/test/kotlin/ru/eventpass/data/remote/RemoteEventRepositoryTest.kt": {
+      "raw_sha256": "d945ff82fffcdbca10b461c57c100c905e32d82850713c850e9ccaf9f8dd5e29",
+      "git_blob": "c86386fe0804a782069fdd77f5ed625d5e4637d1"
+    },
+    "data/remote/src/test/kotlin/ru/eventpass/data/remote/StagingPublicEventSmokeTest.kt": {
+      "raw_sha256": "18a5b48d39866050de467bdb5dad11770a15f76e9bef8933c6cc6a0b5f294d9d",
+      "git_blob": "07df5c1b5bb73fcaf27163b9a1fee861ffc6b9c3"
+    }
+  }
+}

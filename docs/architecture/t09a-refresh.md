@@ -1,6 +1,6 @@
 # T09a: обновление видимой поверхности
 
-Текущая реализация: один [EventPassRefresh](../../core/designsystem/src/main/kotlin/ru/eventpass/core/designsystem/EventPassRefresh.kt) в `core:designsystem`, адресная команда в VM конкретной entry, прежние repository ports/общий store. Backend/API/schema 5 не менялись. Матрица исходного кода, запуски и приёмка — [30](../30-t09a-refresh-validation.md).
+Текущая реализация: один [EventPassRefresh](../../core/designsystem/src/main/kotlin/ru/eventpass/core/designsystem/EventPassRefresh.kt) в `core:designsystem`, адресная команда в VM конкретной entry, прежние repository ports/общий store. Общий компонент сохранён; public read мигрирован в [M02](t10-public-event.md), остальные remote поверхности ещё FeatureUnavailable до своих M. Матрица исходного кода, запуски и приёмка — [30](../30-t09a-refresh-validation.md).
 
 ## Владельцы и команды
 
@@ -8,7 +8,7 @@
 |---|---|---|
 | Tickets root, список current/history и выбранная карточка | TicketRepository.refreshMyTickets | history/selectedTicketId, родитель/позиция; observer применяет прежнюю политику статуса/QR и удаления исчезнувшего выбора |
 | MyEvents root, три сегмента | EventRepository.refreshMyEvents, одна коллекция | Сегмент и имеющийся контент/scroll, без трёх запросов |
-| EventKey/flowId | EventRepository.refreshPublicEvent(eventId) | Локальная анкета при той же formVersion; новая схема явно очищает ответы/consent и показывает StaleForm |
+| EventKey/flowId | EventRepository.refreshPublicEvent(PublicEventReference) | Совместимые ответы при обновлении questions сохраняются; несовместимые исключаются с пояснением, consent остаётся; remote schema version не выдумывается |
 | DashboardKey | AttendanceRepository.refreshDashboard(eventId) + attendees текущего query | Query/totals/строки до ответа; та же revision перечитывает страницу без предварительного удаления строк, новая revision инвалидирует старые страницы |
 | VolunteersKey | VolunteerRepository.refreshVolunteers(eventId) → VolunteersResult | Input/target, разрешённый список; grant/revoke не вызываются |
 | Root Profile | ProfileRepository.refreshProfile → ProfileResult | Чистая форма принимает профиль; dirty fields сохраняются, baseline обновляется; несовпавшее изменение baseline показывает конфликт перед явным save |

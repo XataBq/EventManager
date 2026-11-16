@@ -49,17 +49,17 @@ Route получает ViewModel и lifecycle-aware UiState, связывает 
 | [ProductRepositories](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/ProductRepositories.kt) | Event/Registration/Ticket ports; check-in/grants — в CheckInModels | Только реализованные мобильные операции; будущие порты отдельно |
 | [AuthRepository](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/auth/AuthRepository.kt) | Сессия, команды auth, typed errors/input policy | Это не протокол JWT/OAuth/refresh настоящего сервера |
 | [EventModels](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/event/EventModels.kt) | ID, Event, availability, capabilities на eventId | Unknown/ошибка не Unlimited; startsAt не Finished |
-| [EventEditing](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/event/EventEditing.kt) | Incomplete draft, EventFields, revision, validation/edit policy | formVersion и revision решают разные задачи |
+| [EventEditing](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/event/EventEditing.kt) | Incomplete draft, EventFields, revision, validation/edit policy | localSchemaRevision и revision — fake-only локальные preconditions; remote null |
 | [RegistrationValidator](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/registration/RegistrationValidator.kt) | Поля/consent/типизированные ответы, phone policy | Optional phone, Unicode-имя, без Gmail-like нормализации |
 | [FakeEventPassEnvironment](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeEventPassEnvironment.kt) | Composition root общего fake: один StateFlow/FakeProductState и Mutex, порты, ScenarioController | Debug методы не owner API; reset не logout |
 | [FakeAuthRepository](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeAuthRepository.kt) | Initialization/auth commands, proofs/challenges, session generation/acceptance | IO и durable commit отличаются от принятия transient session на caller |
 | [FakeTicketOperations](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeTicketOperations.kt) | Public event/own tickets, issue/cancel, typed outcomes | Guest не получает старый QR по повторному submit |
 | [FakeEventEditingOperations](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeEventEditingOperations.kt) | MyEvents/editor reads и guarded mutations | Actor/revision/form lock перепроверяются внутри мутации |
-| [FakeAttendanceOperations](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeAttendanceOperations.kt) | Owner dashboard/страницы/cancel из общего state, revision-bound cursor, общий snapshot schema 5 | Не второй store/counters и не remote cursor protocol |
+| [FakeAttendanceOperations](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeAttendanceOperations.kt) | Owner dashboard/страницы/cancel из общего state, revision-bound cursor, общий snapshot schema 6 | Не второй store/counters и не remote cursor protocol |
 | [FakeCheckInOperations](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeCheckInOperations.kt) | Owner grants и event-scoped check-in в том же store/Mutex | Не camera/decoder/UI и не многосерверный протокол |
 | [ScannerController](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/checkin/ScannerController.kt) | Чистое entry-owned состояние, single-flight, scope/generation, permission/foreground inputs | Android binding принадлежит ScannerRoute/QrCameraPreview, а не controller |
 | [CheckInModels](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/checkin/CheckInModels.kt) | Новые порты/outcomes, ManualCode отдельно от QrToken/номера, первый record | Actor определяется внутри adapter, не caller ID |
-| [ProductSnapshotCodec](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/ProductSnapshotCodec.kt) | Общая server schema 5 и чтение старых версий | Это данные fake-сервера, не UI saved state |
+| [ProductSnapshotCodec](../../data/fake/src/main/kotlin/ru/eventpass/data/fake/product/ProductSnapshotCodec.kt) | Общая server schema 6 и чтение старых версий | Это данные fake-сервера, не UI saved state |
 | [AndroidFakeAuthStorage](../../app/src/demo/kotlin/ru/eventpass/app/di/AndroidFakeAuthStorage.kt) | AtomicFile adapter общего snapshot | Имя legacy, файл содержит не только auth |
 | [DemoModule](../../app/src/demo/kotlin/ru/eventpass/app/di/DemoModule.kt) | Singleton environment, порты, два Clock, cover adapters | Изменение bindings здесь, не в ViewModel |
 | [AndroidEventCoverStore](../../core/platform/src/main/kotlin/ru/eventpass/core/platform/AndroidEventCoverStore.kt) | Content validation/copy/preview/EXIF/GC managed assets | Нет произвольного disk path в domain, bytes вне snapshot |
@@ -72,7 +72,7 @@ Route получает ViewModel и lifecycle-aware UiState, связывает 
 | Новое поле E | EventFields/Event/EventEditing, публичное представление | Codec/migration, editor/EventDetails/ticket metadata, contracts tests |
 | Новая команда repository | Domain port/outcome и actor policy | Shared state → storage → Flow → ViewModel/result; без fake-знаний в UI |
 | Новая entry/переход | Public/private доступ и owner lifetime | Key/host/decorators/Back, saved-state и cleanup test |
-| Изменение схемы вопросов | Stable IDs/formVersion/first registration | Editor guard и submit StaleForm, миграция ответов |
+| Изменение схемы вопросов | Stable IDs/type/options и исторический questionSnapshot | Совместимые answers остаются; несовместимые объясняются, принятый submit не теряется |
 | Новый тип persisted data | Codec/read validation/compatibility | Старые fixtures, auth/ticket/editor writes сохраняют всё состояние |
 | Камера/check-in | Независимые contracts/state реализованы; Android часть после T06 | Отдельный platform lifecycle: CameraX/permission/decoder ещё отсутствуют |
 
@@ -85,3 +85,7 @@ Route получает ViewModel и lifecycle-aware UiState, связывает 
 ## Refresh T09a
 
 EventPassRefresh (core:designsystem) отвечает за nested-scroll/indicator/custom semantic action. Feature Route выбирает callback своего видимого owner, ViewModel — single-flight/поколения/read-model retention. ProfileRepository.refreshProfile и VolunteerRepository.refreshVolunteers реализованы в прежних FakeProfileDocumentsOperations/FakeCheckInOperations; новый store/navigation dispatcher не создаётся. [T09a](t09a-refresh.md).
+
+## M02: public resource и типизированная анкета
+
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Старые demo guest/idempotency/manual-code/resend paths вне миграции M03–M09 не объявляются remote реализацией.

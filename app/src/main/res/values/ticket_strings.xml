@@ -21,7 +21,11 @@
     <string name="event_phone_required">Российский телефон</string>
     <string name="event_get_ticket">Получить QR-билет</string>
     <string name="event_ticket_hint">QR появится сразу. В demo отправка билета на почту имитируется.</string>
-    <string name="event_stale">Форма изменилась. Заполните обновлённую анкету заново.</string>
+    <string name="event_stale">Анкета изменилась. Совместимые ответы сохранены. Проверьте обновлённые вопросы.</string>
+    <string name="event_paid">Платное</string>
+    <string name="question_placeholder">Подсказка до ввода</string>
+    <string name="question_help">Пояснение к вопросу</string>
+    <string name="question_option_hint">Пояснение к варианту</string>
     <string name="event_existing">Заявка уже есть. Воспользуйтесь письмом либо создайте аккаунт и войдите. Повторная заявка не раскрывает QR.</string>
     <string name="event_validation">Проверьте выделенные поля.</string>
     <string name="event_field_required">Обязательное поле</string>

@@ -1,6 +1,6 @@
 # EventPass — Android
 
-**15 ноября — передача текущей версии, без субагентов.** M00 и M01 TECH_ACCEPTED; M02 — **WIP_HANDOFF**, реализация частичная, итоговые проверки и ревью не завершены; M03–M09 TODO. Продолжение — [промпт M02](docs/prompts/t10-m02-resume-single-agent.md), фактический срез и ограничения — [handoff](docs/validation/t10-m02-handoff-2026-11-15.md). Последовательность и ADR — [34](docs/34-api-migration-plan.md), порядок работы одним агентом — [35](docs/35-t10-execution.md). Ревью каждого этапа — отдельная последовательная задача; ручная приёмка только после всего цикла. Прежние отчёты и APK не являются проверкой текущего WIP. [Принятая архитектура M01](docs/architecture/t10-session-transport.md), [отчёт](docs/validation/t10-m01-implementation.md), [исправление legacy email](docs/validation/t10-m01-fix-email.md).
+**16 ноября — M02 реализован, REVIEW_PENDING.** M00/M01 TECH_ACCEPTED; public EventSlug/GET/анкета и demo schema6 завершены, M03–M09 TODO. [Отчёт реализации](docs/validation/t10-m02-implementation.md), [фактическая архитектура](docs/architecture/t10-public-event.md). Следующий шаг — отдельное последовательное ревью M02, не M03; субагенты/push/межэтапная ручная приёмка не запускались. Исторический [handoff 15 ноября](docs/validation/t10-m02-handoff-2026-11-15.md) сохранён. APK code22: demo и remote, точные hashes/проверки в отчёте; прежние APK ниже — архив.
 
 **Backend 1.1.1 проверен на staging, 13 ноября.** Сегодняшние изменения `6960209` → `def6565` покрывают BK01–BK09; публичные API/OpenAPI доступны, 55 сценарных проверок + 3 cleanup прошли. Для начала T10 ручек достаточно. Осталось настроить ссылки документов согласия и обеспечить доступ к тестовой почте для полного auth smoke; `guest.phone` без значения передавать как `""`. Android App Links отложены пользователем. [Результаты и границы проверки](docs/33-backend-update-2026-11-13.md). Android-интеграция этим не реализована.
 
@@ -20,7 +20,7 @@
 
 **T06 — DONE.** Back/H2 и T06 приняты пользователем на code 13; устройство/Android не сообщены. H3/H4 приняты в общей demo-приёмке 6 ноября. [Отчёт](docs/20-t06-validation.md).
 
-**Текущий APK T09a:** [code 20](artifacts/apk/eventpass-0.9.2-t09a-demo-code20.apk), **0.9.2-t09a-demo**, **44871450 байт**, SHA-256 `a5a89fabffd084955d12b8658ae755ef30d4e3c3b3aa19efe47ebf7485f30d02`. [Точные проверки/ограничения](docs/30-t09a-refresh-validation.md). Schema 5/стек прежние; архив code 19 и более ранние APK сохранены. Новая ручная приёмка жеста ещё не пройдена.
+**Архивный APK T09a:** [code 20](artifacts/apk/eventpass-0.9.2-t09a-demo-code20.apk), **0.9.2-t09a-demo**, **44871450 байт**, SHA-256 `a5a89fabffd084955d12b8658ae755ef30d4e3c3b3aa19efe47ebf7485f30d02`. [Точные проверки/ограничения](docs/30-t09a-refresh-validation.md). Schema 5/стек прежние; архив code 19 и более ранние APK сохранены. Новая ручная приёмка жеста ещё не пройдена.
 
 Мобильный MVP по Figma. Все подготовленные ручные проверки реализованного demo приняты пользователем. Остаток полной T09 — Q10/удаление после согласования; T10 требует backend. Файлы и письма — demo defaults, не утверждённый API.
 

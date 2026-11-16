@@ -1,6 +1,6 @@
 # M00: карта миграции Kotlin ports → backend 1.1.1
 
-Статус: REVIEW_PENDING, 13 ноября 2026. Android baseline `0493dbd2e328796cd963689cc25cf3d4d2bd40e1`; действующий demo ещё не изменён. Это target mapping для M01–M09, не описание готовых remote adapters. Согласования [08](../08-decisions.md)/[34](../34-api-migration-plan.md) имеют приоритет над историческим OpenAPI v0.1.0 и заменёнными B01–B08.
+M00/M01 TECH_ACCEPTED; M02 реализован/REVIEW_PENDING 16 ноября. Фактический [public-read срез и schema6](../architecture/t10-public-event.md), [evidence](../validation/t10-m02-implementation.md). Остальные M03–M09 ниже — target, не готовые adapters. Исходный Android baseline `0493dbd2e328796cd963689cc25cf3d4d2bd40e1`; действующий demo ещё не изменён. Это target mapping для M01–M09, не описание готовых remote adapters. Согласования [08](../08-decisions.md)/[34](../34-api-migration-plan.md) имеют приоритет над историческим OpenAPI v0.1.0 и заменёнными B01–B08.
 
 ## Источник и обозначения
 
@@ -36,15 +36,15 @@ Session DTO bearer — секрет, local Session.id — несекретный
 
 | Метод | Решение / API | Input/output и семантика |
 |---|---|---|
-| observePublicEvent | CHANGE M02, GET `/events/{slug}` | EventSlug/PublicEventReference, не EventId в URL; `{event,viewer}`; viewer.ticketId/isOrganizer/isVolunteer — независимые связи, permission не глобальная роль |
-| refreshPublicEvent | CHANGE M02, тот же GET | Single-flight видимого resource; stale response не обновляет другой E/owner |
+| observePublicEvent | IMPLEMENTED M02, GET `/events/{slug}` | EventSlug/PublicEventReference, не EventId в URL; `{event,viewer}`; viewer.ticketId/isOrganizer/isVolunteer — независимые связи, permission не глобальная роль |
+| refreshPublicEvent | IMPLEMENTED M02, тот же GET | Single-flight видимого resource; stale response не обновляет другой E/owner |
 | observeMyEvents | CHANGE M04, GET `/me/events?tab=organizing\|volunteering\|drafts` | API отдаёт один tab/items/counters/roles, текущий MyEventsResult ждёт три массива; в target хранить per-tab readiness, не выдавать незагруженный tab за пустой |
 | observeEditor | CHANGE M04, GET `/events/by-id/{event_id}` | Owner-only, EventDetails со status draft nullable start/capacity; questionsLocked сервер не даёт |
 | refreshMyEvents | CHANGE M04, GET текущего tab | Не три фоновых запроса скрытым tab без причины |
 | saveDraft | CHANGE M04, POST `/events` / PATCH `/events/{event_id}` | Создание `{publish:false,...fields}` с idempotency key, update — только изменённые поля; stable local DraftId→server id/slug mapping; expectedRevision не серверная precondition |
 | publishDraft | CHANGE M04, POST `/events/{event_id}/publish` | Существующий id, без ожидаемой server revision; EventDetails, повтор стабилен |
 | updateEvent | CHANGE M04, PATCH `/events/{event_id}` | Удалить expectedFormVersion/write-revision обещания; исторические ответы не меняются от текущей анкеты |
-| closeRegistration | REMOVE M02–M04 | Ни ручки, ни отдельной target кнопки нет; live registration допустима |
+| closeRegistration | REMOVED M02 | Ни ручки, ни отдельной target кнопки нет; live registration допустима |
 | finishEvent | CHANGE M04, POST `/events/{event_id}/finish` | Owner-only; finishedAt сохраняется, повтор не оживляет событие; returned EventDetails |
 
 EventInput: title/description/startsAt/endsAt/location/capacity/priceType/questions/sections/coverAssetId. Непереданное поле PATCH сохраняет старое, `endsAt:null` = startsAt+4h, `coverAssetId:null` = detach. Draft допускает null startsAt/capacity; published требует capacity>0 и заполненные поля. Server статусы draft/published/live/finished; manual finishedAt приоритетен. Нет произвольного zoneId в API — UI форматирует Instant в выбранной app timezone, не объявляет её server field.

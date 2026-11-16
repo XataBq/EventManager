@@ -6,7 +6,8 @@ import ru.eventpass.core.domain.registration.RegistrationPolicy
 
 @JvmInline value class EventId(val value: String)
 @JvmInline value class EventSlug(val value: String) {
-    init { require(value.isNotBlank() && value.length <= 300 && value.none { it.isISOControl() || it in "/?#\\" }) }
+    init { require(value.isNotBlank() && value.codePointCount(0, value.length) <= 300 &&
+        value !in setOf(".", "..") && value.none { it.isISOControl() || it in "/?#\\" }) }
 }
 sealed interface PublicEventReference {
     data class Slug(val slug: EventSlug) : PublicEventReference

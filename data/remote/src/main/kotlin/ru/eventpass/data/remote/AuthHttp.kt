@@ -40,10 +40,11 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
  private val http = client.newBuilder().retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false).build()
  init { require(base.encodedPath.endsWith("/")); require(base.scheme == "https" || base.host in setOf("localhost", "127.0.0.1", "::1")) }
  internal suspend fun request(path: String, body: String? = null, token: AuthSecret? = null, method: String? = null, responseLimit: Int = 1_048_576): String = withContext(Dispatchers.IO) {
-  require(responseLimit in 1..16_777_216)
-  require(!path.startsWith("/") && !path.contains(":") && !path.contains(".."))
+  require(responseLimit in 1..33_554_432)
+  require(!path.startsWith("/") && !path.contains(":") && path.split('/').none { it == "." || it == ".." })
   val target = requireNotNull(base.resolve(path))
   require(target.scheme == base.scheme && target.host == base.host && target.port == base.port)
+  require(target.encodedPath.startsWith(base.encodedPath))
   val builder = Request.Builder().url(target).header("Accept", "application/json")
   if (token != null) builder.header("Authorization", "Bearer " + token.value)
   if (body != null) builder.post(body.toRequestBody("application/json; charset=utf-8".toMediaType()))

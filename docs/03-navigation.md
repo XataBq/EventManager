@@ -1,7 +1,5 @@
 # Текущая навигация и mobile-frame
 
-**Срез передачи 15 ноября:** M00/M01 TECH_ACCEPTED, M02 WIP_HANDOFF и ещё без итогового ревью. В коде M02 уже меняются публичная ссылка/slug и remote host; App Links остаются отложенными. При чтении учитывать [актуальный handoff M02](validation/t10-m02-handoff-2026-11-15.md), решения 08/34 и исходники; следующий исполнитель должен синхронизировать затронутые разделы перед REVIEW_PENDING. Наличие описания здесь не подтверждает завершение WIP.
-
 M01 auth/session уже реализован: [фактические ports, ownership, transport и cleanup](architecture/t10-session-transport.md). Остальные ещё не мигрированные product-разделы описывают demo, не remote.
 
 **Целевые auth/guest links после решения 13 ноября:** применять [32](32-backend-final-requirements.md): server slug/web links, immediate signup session и setup/reset по ссылке. Ниже — фактически реализованная demo-навигация; она ещё не адаптирована. Прежние обязательные VerifyEmail/code-reset маршруты не являются требованием к новому backend.
@@ -14,7 +12,7 @@ M01 auth/session уже реализован: [фактические ports, own
 |---|---|
 | LoginKey / SignUpKey / VerificationKey / ResetKey | Public stack; auth flow VM, без нижних табов |
 | RootTab Tickets/Events/Profile | PrivateScope shell, отдельный stack/parent owner на таб; Profile: read/edit/save/notification preference/copy ID/logout; dirty Back/tab leave |
-| EventKey(eventId, flowId) | Public/private common EventRoute; отдельный UUID flow на новый визит |
+| EventKey(eventId, flowId, publicSlug?) | Public/private common EventRoute; отдельный UUID flow на новый визит |
 | EventAuthKey(flowId, screen, entryId) | Public auth поверх E/receipt; связывает возврат с flow, не несёт secret/анкеты |
 | EditorKey(draftId/eventId/create/entryId) | Private Events stack, owner read/commands; create нормализуется host к draft ID |
 | DashboardKey(eventId,entryId) | Owner-only private entry в исходном табе; query saveable, PII/страницы/confirmation только память |
@@ -110,3 +108,7 @@ Scanner Result Back → ready, затем Back → прежний родител
 ## Обновление видимого экрана T09a
 
 Pull принадлежит текущей видимой entry: Tickets/list/card, MyEvents/выбранный сегмент, public Event текущего eventId, Dashboard/Volunteers того же E, Profile. Tickets/MyEvents/Event больше не запускают read из скрытого STARTED owner; host передаёт visible по tab + верхнему ключу, lifecycle — RESUMED. Обновление не меняет стек/parent/выбор/query. Fullscreen/confirmation блокируют underlying gesture; auth/editor/Scanner/guest receipt не получают reload. SAF pending при configuration change сохраняется по прежнему c75ce56. [Адресное обновление T09a](architecture/t09a-refresh.md).
+
+## Публичный slug в M02
+
+Remote host открывает общий EventRoute через явный импорт HTTPS `/e/{slug}` с allowlist; OS App Links остаются отключены. EventKey/ReturnDestination хранят publicSlug отдельно от internal eventId, без raw URI/token. Remote public/internal references не подменяются друг другом. Observe/refresh только у visible + RESUMED entry; back/dispose останавливает read. Root safeDrawing/IME защищают новые public поверхности. Login возвращает только к безопасному publicSlug, не к сохранённой анкете и не к autosubmit. Private M01 scope уничтожает старые owners; remote ticket/action ведёт к честной FeatureUnavailable до M03. Подробный lifetime и constraints — [M02 public E/schema6](architecture/t10-public-event.md).

@@ -9,6 +9,21 @@ import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.*
 
 class ProductSchema6Test {
+    @Test fun largestUnicodeOptionFormAndHistoricalSnapshotFitBoundedSchema6() {
+        val before=seed();val event=before.events.getValue(FakeFixtures.OPEN)
+        val text="😀".repeat(300)
+        val questions=List(50) { q -> RegistrationQuestion.SingleChoice("q-$q",text,false,
+            List(50) { i -> RegistrationQuestion.Option("$i"+"😀".repeat(295),text,text) }) }
+        val revised=event.copy(questions=questions)
+        val registration=before.registrations.first().copy(questionSnapshot=questions)
+        val state=before.copy(events=before.events+(event.id to revised),registrations=listOf(registration)+before.registrations.drop(1))
+        val bytes=ProductSnapshotCodec.encode(state)
+        assertTrue(bytes.size>16_777_216); assertTrue(bytes.size<ProductSnapshotCodec.MAX)
+        val result=ProductSnapshotCodec.restore(bytes,seed())
+        assertEquals(questions,result.events.getValue(event.id).questions)
+        assertEquals(questions,result.registrations.first().questionSnapshot)
+        try {ProductSnapshotCodec.restore(ByteArray(ProductSnapshotCodec.MAX+1),seed());fail("oversized input")}catch(_:IllegalArgumentException){}
+    }
     private fun seed():FakeProductState {
         val events=FakeFixtures.events()
         return FakeProductState(FakeFixtures.accounts().associateBy{it.id},events.associateBy{it.id},FakeFixtures.registrations(),FakeFixtures.tickets(events),FakeFixtures.grants())

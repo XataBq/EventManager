@@ -120,7 +120,7 @@ internal object LegacyProductSnapshotCodec {
             require(grants.all { it.userId in accounts && events.any { e -> e.id == it.eventId } })
             require(grants.map { it.eventId to it.userId }.distinct().size == grants.size)
             if (drafts.any { EventEditingPolicy.storageErrors(it.fields).isNotEmpty() }) incompatible = true
-            if (events.any { it.title.length > 300 || it.venue.length > 300 || it.questions.size > 50 }) incompatible = true
+            if (events.any { EventEditingPolicy.storageErrors(it.toFields()).isNotEmpty() }) incompatible = true
             if (incompatible) throw LegacyProductIncompatible(bytes.copyOf())
             return seed.copy(accounts = accounts, auth = auth, events = events.associateBy { it.id },
                 registrations = registrations, tickets = tickets, grants = grants, policy = policy, nextId = nextId,

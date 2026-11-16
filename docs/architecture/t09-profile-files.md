@@ -39,7 +39,7 @@ Android принимает только content URI, открывает ContentR
 
 ## Snapshot и resend
 
-Единое описание schema 5 и v1–v4 migrations — [05](../05-data-contracts.md). Сессия/outbox/cooldown/faults остаются transient; downgrade на code 17 после первой записи v5 не поддерживается. Старые APK сохранены, автоматического reset нет.
+Единое описание schema 6 и v1–v4 migrations — [05](../05-data-contracts.md). Сессия/outbox/cooldown/faults остаются transient; downgrade на code 17 после первой записи v5 не поддерживается. Старые APK сохранены, автоматического reset нет.
 
 Resend использует тот же own/current ACTIVE guard, recipient из Registration, auth generation под общим Mutex. Новый FakeTicketEmail добавляется в прежний outbox; ticket/registration/места/QR не меняются. FakeDocumentsPolicy задаёт минутный cooldown по auth Clock, retryAt возвращается в Queued/Cooldown; event Clock не двигается. UI показывает честный demo-result и сервероподобный retryAt; нажатие до него получает Cooldown, отдельного UI таймера/авто-retry нет. Cooldown в памяти общего store, хранить его между процессами как backend гарантию не обещаем.
 

@@ -10,7 +10,8 @@ import ru.eventpass.core.domain.checkin.*
 
 /** Product schema 6: bounded UTF-8, explicit local references and all supported answer types. */
 internal object ProductSnapshotCodec {
-    private const val MAX = 8_388_608
+    // A legal 50 x 50 option form with 300-code-point Unicode fields exceeds 8 MiB.
+    internal const val MAX = 33_554_432
     fun encode(state: FakeProductState): ByteArray = ByteArrayOutputStream().also { bytes ->
         DataOutputStream(bytes).use { out ->
             out.writeInt(6)
