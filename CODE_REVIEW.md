@@ -1938,3 +1938,32 @@ Source/статусы/документы не исправлялись, commit/p
 Новый Gradle/device/staging/build/lint прогон ревьюером не выполнялся. Root/исполнитель выполнили адресный fake+demo unit/build, их результаты проверены по сохранённому evidence; они не выданы за новый полный прогон 232 invocations/5 device. OS-kill remote UI, реальные письма/legal, полноценная ручная/Figma/IME/TalkBack приёмка остаются ожидающими после M09. Для доступа к неоднозначным legacy demo identities потребуется отдельное явное разрешение конфликта/сброс demo; текущее исправление не обещает угадать правильный аккаунт.
 
 Код/статусы/документы не исправлялись, commit/push не выполнялись. Решение TECH_ACCEPTED и запуск M02 принимает главный агент. Все предыдущие байты CODE_REVIEW.md сохранены; SHA-256 до append `56513dffb507123ea9d1da4b63557d6561f716459240648b0f0c55a941dd91fb`.
+
+
+---
+
+## 16 ноября 2026 — T10 M02, c44dab9 (передача 9cb007d)
+
+**VERDICT: CHANGES_REQUIRED.** Одна подтверждённая P2; новых P0/P1/P3 в проверенной области не найдено. Субагенты не использовались. Область: реализация M02 от `a24da31` до `c44dab9`, с документационной передачей `9cb007d`. В diff также включён исторический контекст из WIP `8448db9`; он не считается новым кодом M02. Tracked дерево при старте чистое, untracked gradle/gradle-daemon-jvm.properties сохранён.
+
+### P2 — билет без явного endsAt остаётся актуальным после default окончания
+
+**Файл:** `core/domain/src/main/kotlin/ru/eventpass/core/domain/registration/RegistrationModels.kt:165–167`; вызывающие места `app/src/main/kotlin/ru/eventpass/app/feature/tickets/TicketsScreen.kt:40,68,74,97`; фактические Event/now приходят из `data/fake/src/main/kotlin/ru/eventpass/data/fake/product/FakeTicketOperations.kt:93`.
+
+Сценарий: опубликованное событие с endsAt=null, активный билет; наступает startsAt + 4 часа. Новая Event.registrationAvailability/statusAt закрывает событие, но Ticket.isCurrent проверяет только lifecycle и nullable endsAt. При сохранённом PUBLISHED/LIVE и null endsAt выражение остаётся true. Fake отдаёт исходный Event из store и текущий Clock без нормализации lifecycle, поэтому это достижимое UI-поведение: билет остаётся в актуальной вкладке и показывает QR, хотя регистрация и scanner считают событие завершённым. Аналогично finishedAt сам по себе не проверяется. Это рассогласование введённого M02 default/effective окончания с существующим потребителем общих моделей, а не требование подключить будущий remote tickets.
+
+Направление исправления: согласовать локальную проверку актуальности/QR с effectiveEndsAt/finishedAt и terminal lifecycle; проверить точную границу, explicit end, ручное завершение и Used/Cancelled. При M03 server ticket policy не подменять клиентским вычислением полного Event из неполного TicketEvent.
+
+### Проверенная область и доказательства
+
+Прочитаны public DTO/mapping/read coordination, AuthHttp/публичный контекст RemoteAuthRepository, Event/ViewModel/Route и remote host, типизированная validation, fake read/submit projections, schema6 codec и initialization, модель/потребители tickets, текущая архитектура M02 и отчёт. Проверены per-event viewer, private cleanup/late response guards, absence выдуманных formVersion/IDs, редактируемые вопросы и accepted-submit generation, bounded snapshot/legacy fail-closed. Остальная кодовая база не объявляется полностью проверенной.
+
+Новый адресный прогон (PowerShell/JBR21): `.\gradlew.bat :data:remote:testDebugUnitTest --tests 'ru.eventpass.data.remote.RemoteEventRepositoryTest' :app:testDemoDebugUnitTest --tests 'ru.eventpass.app.feature.event.M02EventStateTest' --tests 'ru.eventpass.app.feature.event.EventViewModelTest' -I .gradle/m01-verified-google.init.gradle --offline --console=plain --max-workers=2`. **Exit 0, BUILD SUCCESSFUL 7s, 88 задач (2 executed)**. XML: RemoteEventRepositoryTest 14, M02EventStateTest 3, EventViewModelTest 8 — **25 passed, 0 failures/errors/skipped**. Лог `.gradle/m02-review-targeted.log`. Эти тесты не проверяют найденную границу default окончания.
+
+Сохранённый отчёт M02/verified-summary и evidence просмотрены как прежние результаты исполнителя, а не новый полный прогон. Полные build/lint/device/staging повторно не запускались: код с момента отчёта не менялся, для найденной ошибки достаточно детерминированного анализа функции и её фактического UI call path. Ручная приёмка остаётся после M09; проверки process death/TalkBack/визуального соответствия человеком не приписываются.
+
+### Допущения и следующий шаг
+
+Более поздние решения 08/32/34 имеют приоритет над историческими запретами guest autoaccount/unverified и прежней заморозкой вопросов. Незавершённые remote submit/ticket/document операции относятся к M03 и не являются дефектом M02. До технического принятия M02 зависимый M03 не запускать. Исправление P2 выполняется отдельным реализационным проходом в пределах действующей авторизации, затем требуется повторное ревью исправления. Во время этого ревью изменён только CODE_REVIEW.md.
+
+SHA-256 прежнего CODE_REVIEW.md до добавления записи: `b7b7d1cdf63ad3d395a68a068a29e9f8dd9452367d2c5e638cb73a5f8edec148`.
