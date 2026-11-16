@@ -128,8 +128,12 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         if(saved.get<Boolean>("registrationPending") == true && pendingCommand == null) { mutable.value = s.copy(error = RegistrationError.RecoveryRequired); return }
         val command = pendingCommand ?: GuestRegistrationCommand(data.event.id, data.event.localSchemaRevision, f.name,
             data.contact?.email ?: f.email, f.phone, f.answers, f.consent)
-        val validation = RegistrationValidator.validate(command, data.event.questions, data.policy)
-        if (validation is RegistrationValidation.Invalid) { mutable.value = s.copy(error = RegistrationError.Validation(validation.errors)); return }
+        // A pending operation must replay its original body/key even if the questionnaire has changed.
+        // Only a new logical command is validated against the currently displayed schema.
+        if (pendingCommand == null) {
+            val validation = RegistrationValidator.validate(command, data.event.questions, data.policy)
+            if (validation is RegistrationValidation.Invalid) { mutable.value = s.copy(error = RegistrationError.Validation(validation.errors)); return }
+        }
         pendingCommand = command; saved["registrationPending"] = true
         val version = commandGeneration
         mutable.value = s.copy(submitting = true, error = null)

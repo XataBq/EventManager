@@ -1,6 +1,6 @@
 # T10: сравнение, миграция правил и интеграция API
 
-**16 ноября — M03 IMPLEMENTED / REVIEW_PENDING.** Подключены remote guest/auth registration, idempotent retry, server ticket scopes/card/cancel и PDF/SAF; demo guest теперь создаёт passwordless account без session. M03 запущен прямой командой пользователя; M02 fix-review остаётся отдельным открытым пунктом. Субагенты не использовались, ручная приёмка после M09. [Отчёт](validation/t10-m03-implementation.md), [фактическая архитектура](architecture/t10-registration-tickets.md). Следующий шаг — отдельное ревью M03; M04–M09 не запускались. Предыдущие датированные записи сохраняют историю.
+**16 ноября — M03 FIX_REVIEW_PENDING.** После CHANGES_REQUESTED на `3277e90` исправлены две P2: replay неопределённой регистрации после изменения анкеты и попадание own-карточки вне scope в server list. [Исправления и проверки](validation/t10-m03-p2-fixes.md), [реализация M03](validation/t10-m03-implementation.md), [текущая архитектура](architecture/t10-registration-tickets.md). Новые APK по указанию пользователя не собираются; code23 не содержит этих исправлений. Следующий шаг — повторное независимое ревью M03. M02 fix-review открыт, M04–M09 TODO, ручная приёмка после M09.
 
 Основание: Android `0493dbd2e328796cd963689cc25cf3d4d2bd40e1` плюс существующие незакоммиченные документы; backend `def65653b9e1f22dce8bc2d6f266b23ace6cd1d5`, OpenAPI/staging 1.1.1. Согласованные правила — [08](08-decisions.md), задание backend — [32](32-backend-final-requirements.md), проверка сервера — [33](33-backend-update-2026-11-13.md). Старое предложение 44 URL и B01–B08 не отменяют более поздних решений пользователя.
 
@@ -75,7 +75,7 @@ Verified App Links не реализуем сейчас. Verify/setup/reset от
 
 Сохранить single-flight, visible/RESUMED, generation/late-result guards из T09a. Observe Flow не равно серверный push: read repository публикует последний ответ и freshness/error; mutation инвалидирует ровно затронутые E/tickets/stats, отдельный private resource scope. Не вводить бесконечный polling hidden экранов. При scanner resume/foreground и редком lifecycle-bound polling проверять права; backend всё равно проверяет каждый scan.
 
-create/registration/scan: одна логическая отправка = один key и неизменное тело, явный повтор после неизвестного сетевого исхода использует тот же key, 24h retention сервера. Новый body → новая команда только после разрешения предыдущей. Автоматический retry HTTP mutation отключён, проверка настроек транспорта обязательна. Cancellation не доказывает rollback сервера. Replay allowed отображается как восстановление результата, без нового зелёного допуска/сигнала. 429 хранит время доступного повтора, жест refresh не повторяет mutation.
+create/registration/scan: одна логическая отправка = один key и неизменное тело, явный повтор после неизвестного сетевого исхода использует тот же key, 24h retention сервера. Новый body → новая команда только после разрешения предыдущей. Текущая анкета валидируется локально лишь перед первой отправкой; replay pending body не перевалидируется по обновлённым questions/policy и не меняет исходные key/answers. Автоматический retry HTTP mutation отключён, проверка настроек транспорта обязательна. Cancellation не доказывает rollback сервера. Replay allowed отображается как восстановление результата, без нового зелёного допуска/сигнала. 429 хранит время доступного повтора, жест refresh не повторяет mutation.
 
 Полное тело регистрации и QR scan не сохранять на диск ради retry. Живой operation owner хранит key/body в памяти через recreation; допустимый saved metadata — key/fingerprint/состояние неопределённого исхода, без ответов/credential. При process death без тела нельзя обещать replay: сначала сверка tickets/scanner, guest — письмо/setup. Не создавать автоматически новую заявку/проход. Draft create может восстанавливаться с неизменным телом из pending Room draft; локальная draft-ID → remote-ID mapping и key предотвращают дубли.
 
@@ -93,7 +93,7 @@ Domain document port допускает server download и demo generation бе�
 
 ## 4. Последовательность этапов
 
-Текущий срез: M00/M01 TECH_ACCEPTED, M02 FIX_REVIEW_PENDING, M03 IMPLEMENTED/REVIEW_PENDING по прямой команде пользователя 16 ноября, M04–M09 TODO. В каждой строке обязательны отдельный завершённый diff, релевантные проверки, обновление текущих страниц и ревью. Коммит фиксировать перед ревью, рабочую базу/посторонние изменения явно перечислить; не коммитить весь текущий dirty tree автоматически. Push не входит в план без команды.
+Текущий срез: M00/M01 TECH_ACCEPTED, M02 FIX_REVIEW_PENDING, M03 FIX_REVIEW_PENDING после исправления двух P2 ревью 3277e90, M04–M09 TODO. В каждой строке обязательны отдельный завершённый diff, релевантные проверки, обновление текущих страниц и ревью. Коммит фиксировать перед ревью, рабочую базу/посторонние изменения явно перечислить; не коммитить весь текущий dirty tree автоматически. Push не входит в план без команды.
 
 | Этап | Цельный результат / область | Минимальные доказательства выхода |
 |---|---|---|

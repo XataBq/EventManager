@@ -1,0 +1,29 @@
+{
+  "base": "3277e906316a035bb4434a17dd36619140ed701d",
+  "target": "commit adding this manifest",
+  "hashAlgorithm": "SHA-256; repository LF files",
+  "excludedBaseline": [
+    "CODE_REVIEW.md",
+    "gradle/gradle-daemon-jvm.properties"
+  ],
+  "files": {
+    "README.md": "a14fe95c3f9f32ccc0e828109903814247cb791d43f36329181b7a5d95c2b678",
+    "app/src/main/kotlin/ru/eventpass/app/feature/event/EventViewModel.kt": "94a5dcd134785682e71c52a4f72c3d966c4ca1b7935928d8f5dcf5650774eed1",
+    "app/src/main/kotlin/ru/eventpass/app/feature/tickets/TicketsScreen.kt": "2b24593332560449232df173ce1ec79496c631e6c34d289f0c112366b1b58c44",
+    "app/src/main/kotlin/ru/eventpass/app/feature/tickets/TicketsViewModel.kt": "8c4b641d3602647f924dbb821b80330405522c2b38b7cdc7dc50b99a668531ce",
+    "app/src/testDemo/kotlin/ru/eventpass/app/feature/event/M03RegistrationStateTest.kt": "400336908911b078191321aeb4c6592c891b010b4907613f66a8a4ac5572fc7f",
+    "app/src/testDemo/kotlin/ru/eventpass/app/feature/event/M03TicketsStateTest.kt": "56866eea73621a67e6cc2c0036e7295bcaf9eef9ea5958e5eaff2d89855cf87d",
+    "docs/03-navigation.md": "bcd16282b98ccde214e14c2967e2ee12fcf4cdc329157bc373883f84f706fef7",
+    "docs/06-delivery-plan.md": "573ef1273d6180c78bacce756911badc8909ae647b2b762a642d4897226fa316",
+    "docs/08-decisions.md": "4b326fa4cea47a42a09fd04dae41d52cd0b2f65300e3202ea19899cb3175c91e",
+    "docs/34-api-migration-plan.md": "3c06f6cf9fdf7bb40de8bfb24c1b8af6bbb1eefd26463a9812942d740364eb53",
+    "docs/35-t10-execution.md": "81c707e31d42190a0215d923462113ac3ac84bf60682cbd96e8bf403df195e63",
+    "docs/architecture/invariants.md": "9b5e6db95c1e5d1f62d8c703f55465459836dbe190d82f749a7cc13f306847de",
+    "docs/architecture/operations.md": "2dcd2fd3df1fc3b5a0e83c84b11f605bdbe136d421703a1fe0df54460e7048a5",
+    "docs/architecture/responsibilities.md": "6bd76c4d678f4651c28ead232771bda47121e52397e04e2108cae5aaf9bace68",
+    "docs/architecture/state-ownership.md": "1faf9b5ef1229ea89a68fd56729103d1eac55349fa64b549fb48fed8e266a8c2",
+    "docs/architecture/t10-registration-tickets.md": "97ad5bbf23eebc64c51baefae8e2eae8c5c4ab8a5a803e63165fd3d22082e339",
+    "docs/prompts/t10-m03-fix-review.md": "19ce7a71305653459839d16d0008bb88f28a3f9da25c5585e8aac776bdffb2e8",
+    "docs/validation/t10-m03-p2-fixes.md": "cd010dc8e8c895679f70c81fb7e09d3b6afd78960b0754909b70101edbb90be6"
+  }
+}
