@@ -1,9 +1,11 @@
 package ru.eventpass.core.designsystem
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 
 private val EventPassColorScheme = darkColorScheme(
     primary = EventPassColors.accent,
@@ -25,6 +27,9 @@ fun EventPassTheme(content: @Composable () -> Unit) {
         colorScheme = EventPassColorScheme,
         typography = EventPassTypography.material,
         shapes = Shapes(EventPassShapes.badge, EventPassShapes.control, EventPassShapes.section, EventPassShapes.large, EventPassShapes.large),
-        content = content,
-    )
+    ) {
+        // MaterialTheme supplies a palette, but plain Text outside Surface/Scaffold
+        // otherwise inherits Compose's black default on our dark window background.
+        CompositionLocalProvider(LocalContentColor provides EventPassColorScheme.onBackground, content = content)
+    }
 }

@@ -73,6 +73,8 @@
     <string name="event_link_input">Ссылка на мероприятие</string>
     <string name="event_link_invalid">Введите публичную ссылку EventPass</string>
     <string name="event_link_open">Открыть мероприятие</string>
+    <string name="event_link_enter">Ввести ссылку на мероприятие</string>
+    <string name="event_link_cancel">Отмена</string>
     <string name="demo_legacy_reset_required">Старые demo-данные несовместимы с новыми правилами. Сброс сохранит их приватную резервную копию.</string>
     <string name="auth_protocol">Не удалось прочитать ответ сервера</string>
     <string name="m02_server_unavailable">Сервис временно недоступен. Повторите позже.</string>

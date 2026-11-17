@@ -1,5 +1,17 @@
 # T10 M09 — итоговая проверка MVP
 
+## Текущий APK: code25 — замечания ручной проверки
+
+**PARTIAL_EXTERNAL / HUMAN_PENDING**, `0.10.9-m09-rc2-remote`, remoteDebug. [Обновлённый APK](../../artifacts/apk/eventpass-0.10.9-m09-rc2-remote-code25.apk). API остаётся staging. Предыдущий code24 сохранён; результаты ниже относятся к нему и не перенесены на code25.
+
+По замечаниям пользователя общая EventPassTheme теперь задаёт светлый LocalContentColor: обычные Text вне Surface/Scaffold больше не наследуют чёрный цвет. Явный чёрный текст QR оставлен на белом фоне. Нижний ввод ссылки на Login заменён кнопкой и отдельным диалогом с отменой/валидацией. При email/password IME footer не поднимается, сохраняется прокрутка формы; Signup/reset/public E сохраняют IME insets. Cancel/Back/outside диалога возвращают прежние поля Login, raw link не persist.
+
+После команды пользователя «проверки и тесты не делай, я сам чекну» выполнена **только assembleRemoteDebug: BUILD SUCCESSFUL,4с,121 up-to-date tasks**; исходники уже скомпилированы предыдущим начатым запуском. Новые тесты не добавлялись/не запускались, device/UI/staging/review не выполнялись. До этой команды был начат assemble+lint; standalone designsystem lint завершился ошибкой NonObservableLocale в неизменённом EventPassData.kt:70 и2 warnings. Его результат не обозначается PASS, исправление локали в этот UI patch не включено; повторных lint не было. Поднятый собственный эмулятор остановлен, пользовательский телефон не тронут.
+
+Логи: `.gradle/m09-auth-ui/assemble-only.log`, `build.log`; метаданные рядом с APK. Ручная приёмка code25 ожидает пользователя: читаемость входа/регистрации и остальных экранов, email/password IME без поднятия footer, диалог ссылки/ошибка/отмена/Back/успешный переход. Общий конечный checklist внизу сохраняется.
+
+## Предыдущая поставка code24 и её evidence
+
 **Статус: PARTIAL_EXTERNAL / HUMAN_PENDING.** Разрешённая Android-интеграция завершена до идентифицированной сборки code24; технические результаты перечислены ниже. Полный DONE не заявлен: реальные browser-письма и опубликованные consent-документы отсутствуют, итоговую ручную приёмку подтверждает пользователь.
 
 База: `2e3672113c009883d987241dadc3b913c0091b6b`, ветка `codex/t10-api-integration`. Работа одним агентом, без push/production deploy. Начальные посторонние изменения сохранены в `.gradle/m09-evidence/baseline`; AGENTS, прежний CODE_REVIEW, prompts и JVM settings не включаются автоматически в коммит.

@@ -132,3 +132,7 @@ MyEvents organizer открывает прежний DashboardKey по internal 
 ## M08–M09: корневой профиль и документы
 
 Remote root открывает общий P03 ProfileRoute через ProfileEditKey: email/publicId/notifications и local delete cascade confirmation, без password/demo tools. При204 cleanup переводит в guest и уничтожает private owners;401 сам по себе не сообщение «аккаунт удалён». Unknown предлагает явную me сверку. Profile raw input живёт у VM/recreation; server XLSX включён у Dashboard и использует прежний SAF owner. Product resend кнопки нет. [Lifecycle/cleanup M08](architecture/t10-profile-delete-documents.md).
+
+## Уточнение стартового remote экрана
+
+LoginKey содержит форму и фиксированную нижнюю кнопку «Ввести ссылку на мероприятие». При IME кнопка скрыта под клавиатурой, вверх не переносится; imePadding применяется к форме. Кнопка открывает AlertDialog с полем, валидацией прежним PublicEventLinkParser и отменой. Cancel/Back/outside закрывают диалог без изменения Login entry/полей; успешный parse открывает прежний EventKey с publicSlug. Signup/reset/public E сохраняют отдельные IME insets.

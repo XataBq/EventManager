@@ -3,6 +3,8 @@ package ru.eventpass.app.navigation
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Scaffold
@@ -36,7 +38,7 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
   SessionGate.Loading -> Box(Modifier.safeDrawingPadding()) {AuthColumn { Text(stringResource(R.string.loading)) }}
   is SessionGate.Recovery -> Box(Modifier.safeDrawingPadding().imePadding()) {AuthColumn { AuthErrorText(g.error); EventPassButton(stringResource(R.string.remote_retry_session),{ scope.launch { session.coordinator.refreshSession() } }); TextAction(stringResource(R.string.auth_login),{ session.signOut() }) }}
   is SessionGate.Shell -> key(g.scope) { RemotePrivateNavigation(session,g) }
-  SessionGate.Login -> Box(Modifier.safeDrawingPadding().imePadding()) { RemotePublicNavigation(session) }
+  SessionGate.Login -> Box(Modifier.safeDrawingPadding()) { RemotePublicNavigation(session) }
  }
  }
 }
@@ -47,22 +49,53 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
  NavDisplay(backStack=stack, onBack={ if(stack.size>1) stack.removeLastOrNull() },
   entryDecorators=listOf(rememberSaveableStateHolderNavEntryDecorator(),rememberViewModelStoreNavEntryDecorator(viewModelStoreOwner=session.publicOwner)),
   entryProvider=entryProvider {
-   entry<LoginKey> { Column { Box(Modifier.weight(1f)) { LoginRoute(session,{stack.add(SignUpKey)},{stack.add(ResetKey)},{stack.add(VerificationKey)},{},showDemo=false) }; PublicEventImport { stack.add(EventKey("", publicSlug = it)) } } }
-   entry<EventKey> { key -> EventRoute(key.eventId, { email, signup, returning ->
+   entry<LoginKey> {
+       RemoteLoginLanding(onEvent={stack.add(EventKey("",publicSlug=it))}) {
+           LoginRoute(session,{stack.add(SignUpKey)},{stack.add(ResetKey)},{stack.add(VerificationKey)},{},showDemo=false)
+       }
+   }
+   entry<EventKey> { key -> Box(Modifier.imePadding()) {EventRoute(key.eventId, { email, signup, returning ->
        session.prefill(email)
        if(returning) session.requireLogin(ReturnDestination.Event(key.eventId,key.publicSlug)) else session.clearDestination()
        stack.add(EventAuthKey(key.flowId,if(signup) EventAuthScreen.SignUp else EventAuthScreen.Login))
-   }, { session.requireLogin(ReturnDestination.Event(key.eventId,key.publicSlug));stack.add(EventAuthKey(key.flowId,EventAuthScreen.Login)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
-   entry<EventAuthKey> { key ->
+   }, { session.requireLogin(ReturnDestination.Event(key.eventId,key.publicSlug));stack.add(EventAuthKey(key.flowId,EventAuthScreen.Login)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key)} }
+   entry<EventAuthKey> { key -> Box(Modifier.imePadding()) {
        when(key.screen) {
         EventAuthScreen.Login -> LoginRoute(session,{stack.add(EventAuthKey(key.flowId,EventAuthScreen.SignUp))},{stack.add(EventAuthKey(key.flowId,EventAuthScreen.Reset))},{stack.add(EventAuthKey(key.flowId,EventAuthScreen.Verification))},{},showDemo=false)
         else -> AccountFlowRoute(key.screen==EventAuthScreen.Reset,session,{stack.removeLastOrNull()},{},verification=key.screen==EventAuthScreen.Verification,showTools=false)
        }
-   }
-   entry<SignUpKey> { AccountFlowRoute(false,session,::login,{},showTools=false) }
-   entry<ResetKey> { AccountFlowRoute(true,session,::login,{},showTools=false) }
-   entry<VerificationKey> { AccountFlowRoute(false,session,::login,{},verification=true,showTools=false) }
+   } }
+   entry<SignUpKey> { Box(Modifier.imePadding()) {AccountFlowRoute(false,session,::login,{},showTools=false)} }
+   entry<ResetKey> { Box(Modifier.imePadding()) {AccountFlowRoute(true,session,::login,{},showTools=false)} }
+   entry<VerificationKey> { Box(Modifier.imePadding()) {AccountFlowRoute(false,session,::login,{},verification=true,showTools=false)} }
   })
+}
+
+/** The event shortcut stays at the screen bottom; the IME only resizes the login form. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable private fun RemoteLoginLanding(onEvent:(String)->Unit, login:@Composable ()->Unit) {
+ var dialogOpen by remember {mutableStateOf(false)}
+ val keyboardVisible=WindowInsets.isImeVisible
+ Box(Modifier.fillMaxSize()) {
+  Box(Modifier.fillMaxSize().padding(bottom=if(keyboardVisible) 0.dp else 64.dp).imePadding()) {login()}
+  // The keyboard covers this fixed footer rather than lifting it above the form.
+  if(!keyboardVisible) TextAction(stringResource(R.string.event_link_enter),{dialogOpen=true},
+   Modifier.align(Alignment.BottomCenter).padding(horizontal=24.dp,vertical=8.dp).testTag("event-link-shortcut"))
+ }
+ if(dialogOpen) {
+  var input by remember {mutableStateOf("")}
+  var invalid by remember {mutableStateOf(false)}
+  androidx.compose.material3.AlertDialog(onDismissRequest={dialogOpen=false},
+   modifier=Modifier.testTag("event-link-dialog"),
+   title={Text(stringResource(R.string.event_link_enter))},
+   text={FormField(input,{input=it;invalid=false},stringResource(R.string.event_link_input),
+    Modifier.testTag("event-link-input"),error=if(invalid) stringResource(R.string.event_link_invalid) else null)},
+   confirmButton={TextAction(stringResource(R.string.event_link_open),{
+    val slug=PublicEventLinkParser.parse(input)
+    if(slug==null) invalid=true else {dialogOpen=false;onEvent(slug.value)}
+   },Modifier.testTag("event-link-confirm"))},
+   dismissButton={TextAction(stringResource(R.string.event_link_cancel),{dialogOpen=false},Modifier.testTag("event-link-cancel"))})
+ }
 }
 
 /** Three independent account-owned stacks. Hidden entries retain state but stop their readers. */

@@ -140,3 +140,7 @@ Profile edit revision сохраняет B при save A; имя/email канд�
 Remote использует общий NavigationState: три независимых account-owned стека Tickets/Events/Profile, отдельный entry owner на каждом маршруте. Hidden читатели остановлены; VM остаётся у своего стека. Nested TicketKey закрывается к вызывающему E; root ticket card возвращается к своему списку. Editor/Scanner Back сохраняет собственную семантику, повтор текущего таба проходит через тот же обработчик. Profile dirty leave применяется при смене таба. PublicEventImportKey открывает slug без capability в ключе. Login/signup/reset email и password — только память живых VM; старые email SavedState keys удаляются. Исключение guest receipt остаётся ограниченным конкретным flow по принятому M03.
 
 При настоящем process death cold /me заново подтверждает account; private route возвращается к безопасному корню. Явно сохранённый Room pending доступен этому account; несохранённый raw ввод не обещается. Это отличается от configuration recreation, сохраняющей живые VM. [Доказательства](../validation/t10-m09-final-validation.md).
+
+## Стартовый импорт ссылки
+
+RemoteLoginLanding владеет только временным состоянием диалога; raw URI/validation error остаются в composition memory, не SavedState/Room. Отмена не меняет NavBackStack и LoginViewModel. После успешного parse в route передаётся только allowlisted publicSlug. Общая EventPassTheme задаёт LocalContentColor=onBackground для обычного Text вне Surface/Scaffold; вложенные компоненты по-прежнему задают свои content colors.
