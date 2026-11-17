@@ -75,6 +75,16 @@
     <string name="event_link_open">Открыть мероприятие</string>
     <string name="event_link_enter">Ввести ссылку на мероприятие</string>
     <string name="event_link_cancel">Отмена</string>
+    <string name="editor_add_field">Добавить поле ▾</string>
+    <string name="editor_field_type">Тип поля: %1$s ▾</string>
+    <string name="editor_field_number">Поле %1$d</string>
+    <string name="editor_field_title">Название поля</string>
+    <string name="editor_questions_empty">Добавьте поле и выберите его тип. Каждый вопрос появится отдельным блоком.</string>
+    <string name="editor_answer_options">Варианты ответа</string>
+    <string name="editor_option_number">Вариант %1$d</string>
+    <string name="editor_remove_field">Удалить поле</string>
+    <string name="editor_remove_option">Удалить вариант</string>
+    <string name="editor_phone_type">Телефон</string>
     <string name="demo_legacy_reset_required">Старые demo-данные несовместимы с новыми правилами. Сброс сохранит их приватную резервную копию.</string>
     <string name="auth_protocol">Не удалось прочитать ответ сервера</string>
     <string name="m02_server_unavailable">Сервис временно недоступен. Повторите позже.</string>

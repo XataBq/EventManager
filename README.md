@@ -2,7 +2,7 @@
 
 Android MVP: Kotlin/Compose, Hilt/MVVM, minSdk28. Основная поставка — remote с реальным staging API; demo остаётся изолированным вариантом.
 
-**M09: PARTIAL_EXTERNAL / HUMAN_PENDING, code25.** Точный APK, commit, результаты и единый checklist — [отчёт M09](docs/validation/t10-m09-final-validation.md). Итоговую ручную приёмку подтверждает пользователь. Внешние mail/legal/staging ограничения не отмечаются PASS.
+**M09: PARTIAL_EXTERNAL / HUMAN_PENDING, code26.** Точный APK, commit, результаты и единый checklist — [отчёт M09](docs/validation/t10-m09-final-validation.md). Итоговую ручную приёмку подтверждает пользователь. Внешние mail/legal/staging ограничения не отмечаются PASS.
 
 ## Текущая реализация
 

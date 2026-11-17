@@ -21,8 +21,8 @@ android {
         applicationId = "ru.eventpass.android"
         minSdk = 28
         targetSdk = 37
-        versionCode = 25
-        versionName = "0.10.9-m09-rc2"
+        versionCode = 26
+        versionName = "0.10.9-m09-rc3"
         buildConfigField("String", "API_BASE_URL", "\"$apiBase\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

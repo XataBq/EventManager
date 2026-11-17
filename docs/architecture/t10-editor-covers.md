@@ -15,3 +15,9 @@ Fake codec6/legacy fixtures не мигрируются в Room. Текущий 
 ## M09: нормализация server asset
 
 Server descriptor описывает нормализованный asset: byteCount и mimeType могут отличаться от local source. RemoteCoverTransfer проверяет supported mime/положительный размер≤5MiB/dimensions и canonical assetId, сохраняя local EventCover metadata для managed source/Room. Сравнение stored bytes с исходными удалено после реального PNG1753→1480. Live upload/attach/detach и regression для uploadPending/importCover пройдены; [текущие доказательства](../validation/t10-m09-final-validation.md).
+
+## Визуальная организация анкеты и выхода
+
+EditorScreen добавляет вопрос через один dropdown типов, каждый существующий вопрос показан отдельной нумерованной карточкой с текущим типом, названием, настройками, отдельной областью вариантов и действиями порядка/удаления. Меню типа не меняет текущий вопрос при повторном выборе того же типа; смена на другой тип использует прежний edit callback с очисткой несовместимых options. Доменные типы/IDs, VM, repository/Room и правила публикации не менялись. Локальный expanded принадлежит composition каждой карточки.
+
+Exit confirmation — один Dialog с ограниченной по высоте прокручиваемой колонкой и тремя полноширинными действиями Save/Discard/Stay. AlertDialog confirm/dismiss FlowRow для трёх действий больше не используется; busy блокирует повторные команды и закрытие. Ошибка сохранения видна внутри диалога. Проверки UI по просьбе пользователя не запускались; актуальная сборка — [отчёт M09](../validation/t10-m09-final-validation.md).

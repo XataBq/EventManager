@@ -9,8 +9,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,10 +26,14 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -94,14 +104,24 @@ fun EditorRoute(draftId: String?, eventId: String?, create: Boolean, onBack: () 
     }) else EditorScreen(s, eventId != null, vm::edit, { vm.save() }, { vm.save(publish = true) },
         { picker.launch(arrayOf("image/png", "image/jpeg")) }, vm::refresh, vm::manage, { ManagedCover(s.input.fields.cover,s.input.fields.remoteCoverAssetId) },refreshEnabled=visible,
         onSync=vm::synchronize,onResolve=vm::resolve,onMerge=vm::beginMerge,onMergeCollection=vm::mergeCollection,onDiscardPersisted=vm::discardPersisted)
-    if (s.confirmExit) AlertDialog(onDismissRequest = vm::stay,
-        title = { Text(stringResource(R.string.editor_unsaved)) },
-        text = { Text(stringResource(R.string.editor_unsaved_hint)) },
-        confirmButton = { TextAction(stringResource(R.string.editor_save_exit), { vm.save(exit = true) }, enabled = !s.busy) },
-        dismissButton = { Column {
-            TextAction(stringResource(R.string.editor_discard), vm::discard, enabled = !s.busy)
-            TextAction(stringResource(R.string.editor_stay), vm::stay)
-        } })
+    if (s.confirmExit) Dialog(onDismissRequest = { if(!s.busy) vm.stay() },
+        properties = DialogProperties(dismissOnBackPress = !s.busy, dismissOnClickOutside = !s.busy)) {
+        Surface(shape = EventPassShapes.large, color = EventPassColors.card, contentColor = EventPassColors.textPrimary) {
+            Column(Modifier.fillMaxWidth().heightIn(max = LocalConfiguration.current.screenHeightDp.dp * 0.85f)
+                .verticalScroll(rememberScrollState()).padding(EventPassDimens.page),
+                verticalArrangement = Arrangement.spacedBy(EventPassDimens.large)) {
+                Text(stringResource(R.string.editor_unsaved), style = EventPassTypography.cardTitle)
+                Text(stringResource(R.string.editor_unsaved_hint))
+                s.error?.let { InlineError(stringResource(editErrorResource(it))) }
+                EventPassButton(stringResource(R.string.editor_save_exit), { vm.save(exit = true) },
+                    Modifier.fillMaxWidth(), enabled = !s.busy, loading = s.busy)
+                EventPassButton(stringResource(R.string.editor_discard), vm::discard,
+                    Modifier.fillMaxWidth(), style = ActionStyle.Danger, enabled = !s.busy)
+                EventPassButton(stringResource(R.string.editor_stay), vm::stay,
+                    Modifier.fillMaxWidth(), style = ActionStyle.Secondary, enabled = !s.busy)
+            }
+        }
+    }
 }
 
 @Composable
@@ -190,15 +210,17 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
             if (s.questionsLocked) Text(stringResource(R.string.editor_locked), color = EventPassColors.warning)
             error("questions")?.let { InlineError(it) }
             fields.questions.forEachIndexed { index, q -> key(q.id) {
-                QuestionEditor(q, enabled && !s.questionsLocked, { changed -> change(fields.copy(questions = fields.questions.map { if (it.id == q.id) changed else it })) },
+                QuestionEditor(q, index, fields.questions.size, enabled && !s.questionsLocked, { changed -> change(fields.copy(questions = fields.questions.map { if (it.id == q.id) changed else it })) },
                     { change(fields.copy(questions = fields.questions.filterNot { it.id == q.id })) },
                     { direction -> val list = fields.questions.toMutableList(); val at = index + direction
                         if (at in list.indices) { java.util.Collections.swap(list, index, at); change(fields.copy(questions = list)) } })
             } }
-            if (!s.questionsLocked) QuestionKind.entries.filter { it != QuestionKind.UNSUPPORTED }.forEach { kind ->
-                TextAction(stringResource(R.string.editor_add_question, stringResource(questionKindResource(kind))), {
+            if (!s.questionsLocked) {
+                if(fields.questions.isEmpty()) Text(stringResource(R.string.editor_questions_empty),
+                    style = EventPassTypography.hint, color = EventPassColors.muted)
+                QuestionKindMenu(null, enabled) { kind ->
                     change(fields.copy(questions = fields.questions + DraftQuestion(UUID.randomUUID().toString(), kind = kind)))
-                }, enabled = enabled)
+                }
             }
         }
         if(s.local!=null) EventPassSection {
@@ -247,40 +269,68 @@ private fun DraftVariant(label: Int, fields: EventFields) {
 
 fun questionKindResource(kind: QuestionKind) = when (kind) {
  QuestionKind.TEXT -> R.string.editor_text; QuestionKind.CHECKBOX -> R.string.editor_checkbox; QuestionKind.SINGLE_CHOICE -> R.string.editor_choice
- QuestionKind.TEXTAREA -> R.string.question_textarea; QuestionKind.EMAIL -> R.string.auth_email; QuestionKind.TEL -> R.string.event_phone_optional
+ QuestionKind.TEXTAREA -> R.string.question_textarea; QuestionKind.EMAIL -> R.string.auth_email; QuestionKind.TEL -> R.string.editor_phone_type
  QuestionKind.NUMBER -> R.string.question_number; QuestionKind.DATE -> R.string.question_date; QuestionKind.SELECT -> R.string.question_select
  QuestionKind.MULTIPLE -> R.string.question_multiple; QuestionKind.UNSUPPORTED -> R.string.event_unsupported_question
 }
 
 @Composable
-private fun QuestionEditor(q: DraftQuestion, enabled: Boolean, edit: (DraftQuestion) -> Unit, remove: () -> Unit, move: (Int) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
-        QuestionKind.entries.filter { it != QuestionKind.UNSUPPORTED }.forEach { kind -> if (kind != q.kind) TextAction(stringResource(questionKindResource(kind)),
-            { edit(q.copy(kind = kind, options = emptyList())) }, enabled = enabled) }
-        FormField(q.title, { edit(q.copy(title = it)) }, stringResource(questionKindResource(q.kind)), enabled = enabled)
+private fun QuestionKindMenu(selected: QuestionKind?, enabled: Boolean, choose: (QuestionKind) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth()) {
+        EventPassButton(if(selected == null) stringResource(R.string.editor_add_field)
+            else stringResource(R.string.editor_field_type, stringResource(questionKindResource(selected))),
+            { expanded = true }, Modifier.fillMaxWidth(), style = ActionStyle.Secondary, enabled = enabled)
+        DropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false },
+            modifier = Modifier.heightIn(max = 320.dp)) {
+            QuestionKind.entries.filter { it != QuestionKind.UNSUPPORTED }.forEach { kind ->
+                DropdownMenuItem(text = { Text(stringResource(questionKindResource(kind))) }, onClick = {
+                    expanded = false
+                    if(kind != selected) choose(kind)
+                })
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuestionEditor(q: DraftQuestion, index: Int, total: Int, enabled: Boolean,
+    edit: (DraftQuestion) -> Unit, remove: () -> Unit, move: (Int) -> Unit) {
+    Column(Modifier.fillMaxWidth().background(EventPassColors.background, EventPassShapes.section)
+        .border(1.dp, EventPassColors.raised, EventPassShapes.section).padding(EventPassDimens.large),
+        verticalArrangement = Arrangement.spacedBy(EventPassDimens.large)) {
+        Text(stringResource(R.string.editor_field_number, index + 1), style = EventPassTypography.emphasis)
+        QuestionKindMenu(q.kind, enabled) { edit(q.copy(kind = it, options = emptyList())) }
+        FormField(q.title, { edit(q.copy(title = it)) }, stringResource(R.string.editor_field_title), enabled = enabled)
         FormField(q.placeholder.orEmpty(), { edit(q.copy(placeholder = it.takeIf(String::isNotEmpty))) }, stringResource(R.string.question_placeholder), enabled = enabled)
         FormField(q.help.orEmpty(), { edit(q.copy(help = it.takeIf(String::isNotEmpty))) }, stringResource(R.string.question_help), enabled = enabled)
         SettingsSwitch(q.required, { edit(q.copy(required = it)) }, stringResource(R.string.editor_required), enabled = enabled)
         if (q.kind in setOf(QuestionKind.SINGLE_CHOICE, QuestionKind.SELECT, QuestionKind.MULTIPLE)) {
-            q.options.forEachIndexed { index, option -> FormField(option.title, { text -> edit(q.copy(options = q.options.map { if (it.id == option.id) it.copy(title = text) else it })) },
-                stringResource(R.string.editor_option), enabled = enabled, trailingContent = {
-                    TextAction(stringResource(R.string.editor_remove), { edit(q.copy(options = q.options.filterNot { it.id == option.id })) }, enabled = enabled)
-                })
+            HorizontalDivider(color = EventPassColors.raised)
+            Text(stringResource(R.string.editor_answer_options), style = EventPassTypography.emphasis)
+            q.options.forEachIndexed { optionIndex, option -> key(option.id) {
+                Column(Modifier.fillMaxWidth().background(EventPassColors.surface, EventPassShapes.control)
+                    .padding(EventPassDimens.medium), verticalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
+                FormField(option.title, { text -> edit(q.copy(options = q.options.map { if (it.id == option.id) it.copy(title = text) else it })) },
+                    stringResource(R.string.editor_option_number, optionIndex + 1), enabled = enabled)
                 FormField(option.hint.orEmpty(), { text -> edit(q.copy(options = q.options.map { if (it.id == option.id) it.copy(hint = text.takeIf(String::isNotEmpty)) else it })) },
                     stringResource(R.string.question_option_hint), enabled = enabled)
-                Row {
-                    fun move(direction: Int) { val items = q.options.toMutableList(); val target = index + direction
-                        if (target in items.indices) { java.util.Collections.swap(items, index, target); edit(q.copy(options = items)) } }
-                    TextAction(stringResource(R.string.editor_option_up), { move(-1) }, enabled = enabled)
-                    TextAction(stringResource(R.string.editor_option_down), { move(1) }, enabled = enabled)
+                Row(horizontalArrangement = Arrangement.spacedBy(EventPassDimens.tiny)) {
+                    fun moveOption(direction: Int) { val items = q.options.toMutableList(); val target = optionIndex + direction
+                        if (target in items.indices) { java.util.Collections.swap(items, optionIndex, target); edit(q.copy(options = items)) } }
+                    TextAction(stringResource(R.string.editor_up), { moveOption(-1) }, Modifier.weight(1f), enabled = enabled && optionIndex > 0)
+                    TextAction(stringResource(R.string.editor_down), { moveOption(1) }, Modifier.weight(1f), enabled = enabled && optionIndex < q.options.lastIndex)
                 }
-            }
+                TextAction(stringResource(R.string.editor_remove_option), { edit(q.copy(options = q.options.filterNot { it.id == option.id })) }, enabled = enabled)
+                }
+            } }
             TextAction(stringResource(R.string.editor_add_option), { edit(q.copy(options = q.options + RegistrationQuestion.Option(UUID.randomUUID().toString(), ""))) }, enabled = enabled)
         }
+        HorizontalDivider(color = EventPassColors.raised)
         Row(horizontalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
-            TextAction(stringResource(R.string.editor_up), { move(-1) }, enabled = enabled)
-            TextAction(stringResource(R.string.editor_down), { move(1) }, enabled = enabled)
-            TextAction(stringResource(R.string.editor_remove), remove, enabled = enabled)
+            TextAction(stringResource(R.string.editor_up), { move(-1) }, Modifier.weight(1f), enabled = enabled && index > 0)
+            TextAction(stringResource(R.string.editor_down), { move(1) }, Modifier.weight(1f), enabled = enabled && index < total - 1)
         }
+        EventPassButton(stringResource(R.string.editor_remove_field), remove, Modifier.fillMaxWidth(), style = ActionStyle.Danger, enabled = enabled)
     }
 }
