@@ -1967,3 +1967,52 @@ Source/статусы/документы не исправлялись, commit/p
 Более поздние решения 08/32/34 имеют приоритет над историческими запретами guest autoaccount/unverified и прежней заморозкой вопросов. Незавершённые remote submit/ticket/document операции относятся к M03 и не являются дефектом M02. До технического принятия M02 зависимый M03 не запускать. Исправление P2 выполняется отдельным реализационным проходом в пределах действующей авторизации, затем требуется повторное ревью исправления. Во время этого ревью изменён только CODE_REVIEW.md.
 
 SHA-256 прежнего CODE_REVIEW.md до добавления записи: `b7b7d1cdf63ad3d395a68a068a29e9f8dd9452367d2c5e638cb73a5f8edec148`.
+
+
+---
+
+# T10 M09 — завершающий последовательный review, 17 ноября 2026
+
+## Scope и независимость
+
+Target `baaf47e84988a5e7b26c9d9434047a9e0c8dac87`, implementation diff `2e3672113c009883d987241dadc3b913c0091b6b..baaf47e`. Manifest57/57 совпал с зафиксированным списком. Рассмотрены M09 diff и связанные интеграционные участки M01–M08 текущего remote дерева: auth/HTTP/DI, navigation owners, Event/Tickets state, Room coordinator, Scanner/CameraX, Profile/delete, Documents/SAF, cover transfer, release.
+
+**Это self-review автора M09 и части M05–M08, а не независимое ревью.** Субагенты не запускались. Во время этого отдельного прохода исходники, тесты, build config и task status не менялись; только дополнен CODE_REVIEW. Предыдущие записи сохранены побайтно. Исторические verdict/review gates M02–M08 не переписаны и не объявлены задним числом TECH_ACCEPTED.
+
+## Подтверждённые находки
+
+**Новых подтверждённых дефектов P0–P2 в рассмотренном состоянии не обнаружено.** Это ограниченный авторский проход, не утверждение об отсутствии любых ошибок и не закрытие обязательных непроверенных сценариев.
+
+Проверены связи и направления данных:
+
+- RemoteModule строит shared ports через реальные transport/Room, без fake/tools/gallery. Остаточный UnavailableRemoteFeatures является fallback для legacy/internal-reference методов; mobile remote вызывает slug и реализованные методы, owner cancel использует ticketId. Поиск этих символов сам по себе не оформлялся ложным дефектом.
+- Три root stacks/entry decorators используют private session stores; lifecycle readers зависят от visible/resumed. TicketsRoute отличает root card от nested TicketKey. Auth generation и session scope гасят старые owners. Dirty Profile держит поля в live VM; его pause не уничтожает edits, tab leave проходит confirmation.
+- M03 pending retry обходит повторную валидацию новой анкеты только для уже сохранённой immutable command; самостоятельно полученная карточка не дописывает server scope list. Существующие регрессии были исполнены в общем M09 прогоне.
+- Auth acceptance делает durable write и проверки epoch/cancellation; clearMemory снимает runtime projections при смене actor. DELETE204 принимается как факт для captured account: другой actor сохраняется, новая session того же удалённого account отзывается. Late failure не ставит deletionUncertain другому actor. Purge IO вне auth lock; cold Room не устанавливает Session.
+- Room schema/lease/incarnation/storageVersion guards проверены в coordinator/store; unknown create сохраняет key/body, ACK A не уничтожает B. Сохранённые source cover metadata отделены от нормализованного server receipt. Upload без idempotency не выдаётся за безопасный автоматический retry.
+- Scanner POST не вычисляет допуск/count локально, mutation version отбрасывает старый GET, свежий read ожидает занятый Mutex. CameraX start/close владеет только своими use cases; image закрывается в finally, после stop callbacks не доставляются. ScannerRoute снимает preview при невидимости/foreground loss. Оптическая физическая камера этим чтением не подтверждается.
+- Dashboard revision/page guards и pin/LRU32 не выбрасывают активную observer/read entry; cancel lock создаётся/снимается атомарно, invalidate адресен eventId/ticketId. Для query/rows есть bounds; полное профилирование памяти не выполнялось.
+- AuthHttp ограничивает origin/base path/redirect/response size, не включает logging interceptor. Remote files валидируются до SAF output, late actor/current401 обработаны. ZIP/CRC/XML limits и pre-parser DTD/encoding guard прочитаны вместе с Android regression tests; редкие/нестандартные XML encodings консервативно не поддерживаются.
+- Token/Room/managed assets используют noBackup; allowBackup/cleartext выключены. Release minify/resource shrink включены, dontwarn ограничен optional desktop TLS providers. Production signing key не добавлен; release runtime smoke выполнялся на копии с debug test key.
+
+## Проверки / evidence
+
+Новый полный suite во время read-only review не запускался: использован завершённый стабилизационный прогон ровно этого production состояния, без повтора неизменённых suites. Проверены XML/логи и APK metadata, а не только наличие test source.
+
+- `final-all.log`: BUILD SUCCESSFUL,3м41с,533 tasks; **352 исполнения /326 уникальных кейсов,0 failed,0 skipped**, включая5 свежих staging tests. Room/Bundled SQLite —9, remote —70, domain —36, fake —101, platform —15, app demo —95, app remote —26. Assemble demoDebug/remoteDebug/unsigned remoteRelease, lint3 variants и demo isolation PASS.
+- Реальный Android Keystore:4 кейса на API28 и API36 (8 исполнений); Android XML:3 кейса на каждом API (6 исполнений). Shared managed cover copy/source deletion —1 native test. Реальный process kill: PID14834 отсутствовал между остановкой и PID15064, task28 прежний, durable draft найден после reopen.
+- `api28-profile-camera.log`: remote UI1/1; `final-modern-retry.log`: полный remote UI1/1 на финальном code24,46с; `final-min-device.log`: startup/insets/intent boundary2/2. Picker cancel/reopen/rotation, PDF/XLSX, denied camera/manual, Back и profile recreation проверены. Повтор modern исправил stale accessibility node теста после rotation, production APK не изменялся.
+- Staging1.1.1:21 registrations/page2/search/cancel/scan/grant/revoke, normalized cover upload/attach/detach, historical false/XLSX и owner delete cascade проверены. Участники после удаления owner остались authenticated, его tickets исчезли из обоих scopes; own synthetic fixtures удаляются через finally с подтверждённым204.
+- Acceptance `0.10.9-m09-rc1-remote`,code24,remoteDebug,54206423 байт; SHA256 `c06977fd75d7f73c74f7f01afd2e83bb5eeeb5a2995ce59e9bcfdbd20fe1a3fe`. Подпись Android Debug. Unsigned R8 APK10443856 байт, SHA256 `cb9fdd8cbe1caa88bdb1cc44d9d7d557b7da8958c749e9e3a616ae8e29d952be`. Финальная release copy cold-start до guest login PASS; ранний authenticated release bootstrap/Room выполнен до последних file-only fixes.
+- Структурная документация:23 страницы,441 local links,9 Mermaid blocks,18 mobile IDs,S01–S14 PASS. Mermaid визуально не отрисовывались. Diff whitespace check PASS. Конкретные логи и sanitised metadata находятся в игнорируемой `.gradle/m09-evidence`.
+
+## Открытые условия / NOT_RUN
+
+1. Реальная доставка/открытие browser verify/setup/reset не подтверждена; пользователь разрешил продолжить без backend почты. Созданный личный тестовый аккаунт сохраняется, автоматически не удалялся. Null terms/privacy URL/version остаются; проекты документов требуют утверждения и публикации оператором.
+2. GET→PATCH race без If-Match явно принят пользователем. Строгая атомарность двух устройств не заявляется.
+3. Две ранние UI teardown-попытки не подтвердили cleanup (401 после logout, пароль ещё не сохранялся). Backend должен проверить0–2 собственных synthetic accounts по prefix `android.m09.device.`/suffix `@example.com` и имени `M09 retained edit`; личный аккаунт не затрагивать. Новые тесты используют private recovery record, fresh login и204 cleanup.
+4. Physical QR/camera, полный TalkBack/fontScale/Figma visual pass, все SAF providers/office viewers, реальные два телефона и production URL/signing/store delivery не проверены. Недоступные внешние условия не оформлены как PASS или подтверждённые дефекты Android.
+
+## Verdict
+
+**NO_NEW_CONFIRMED_FINDINGS / SELF_REVIEW; M09 PARTIAL_EXTERNAL / HUMAN_PENDING.** Следующий шаг — единая пользовательская приёмка code24 и закрытие перечисленных внешних условий. Независимое ревью и human acceptance этим проходом не подменяются. При новых замечаниях — отдельное исправление, адресная проверка и обновлённый идентифицированный APK.
