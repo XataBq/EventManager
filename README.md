@@ -1,6 +1,6 @@
 # EventPass — Android
 
-**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](docs/architecture/t10-room-drafts.md), [объём и ограничения проверки](docs/validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
+**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](docs/architecture/t10-scanner-volunteers.md), [compile и ограничения](docs/validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
 
 **Backend 1.1.1 проверен на staging, 13 ноября.** Сегодняшние изменения `6960209` → `def6565` покрывают BK01–BK09; публичные API/OpenAPI доступны, 55 сценарных проверок + 3 cleanup прошли. Для начала T10 ручек достаточно. Осталось настроить ссылки документов согласия и обеспечить доступ к тестовой почте для полного auth smoke; `guest.phone` без значения передавать как `""`. Android App Links отложены пользователем. [Результаты и границы проверки](docs/33-backend-update-2026-11-13.md). Android-интеграция этим не реализована.
 

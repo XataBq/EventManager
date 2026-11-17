@@ -31,6 +31,7 @@ data object GalleryKey : NavKey
 @Serializable data class EventKey(val eventId: String, val flowId: String = UUID.randomUUID().toString(), val publicSlug: String? = null) : NavKey
 @Serializable data class TicketKey(val ticketId: String? = null) : NavKey
 @Serializable data class ScannerKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
+@Serializable data object ScannerAccessLostKey : NavKey
 @Serializable data class VolunteersKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
 @Serializable data class DashboardKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey
 @Serializable enum class EventAuthScreen { Login, SignUp, Reset, Verification }

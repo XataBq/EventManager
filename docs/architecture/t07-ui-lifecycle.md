@@ -1,6 +1,6 @@
 # T07: Volunteers и общий Scanner — Android wiring
 
-Текущая UI-интеграция использует существующую [foundation](t07-checkin-foundation.md), без новой state machine/store/migration. Schema 4, ManualCodePolicy и demo auth/credential semantics прежние. Backend/API-предложение не согласованы. T06/Back приняты на code 13; T07 camera/UI принят пользователем 6 ноября; [свидетельство](../validation/2026-11-06-manual-acceptance.md). Build/evidence — [24](../24-t07-ui-validation.md).
+Эта страница фиксирует существующее Android wiring T07. Remote M06 использует те же routes/CameraX/VM с [новой sparse projection и retry ownership](t10-scanner-volunteers.md); legacy demo history/derived codes не являются remote контрактом. Схема хранения — в текущем 05, новых миграций M06 нет. T07 demo camera/UI принят пользователем 6 ноября; [свидетельство](../validation/2026-11-06-manual-acceptance.md), [исторические проверки](../24-t07-ui-validation.md). Они не подтверждают поведение remote M06.
 
 ## Ответственность
 
@@ -22,7 +22,7 @@ MyEvents показывает Scanner владельцу и active volunteer, Vo
 
 VolunteersUiState отделяет revokeError от list/grant error. Network/Timeout/Storage при revoke сохраняют выбранного волонтёра и показываются через ConfirmDialog.errorText внутри окна; confirm становится «Повторить» и повторяет revoke того же ID. Busy блокирует повтор/закрытие до ответа. Success закрывает окно, dismiss/новое подтверждение/stop очищает ошибку. AccessDenied очищает confirmation/PII и возвращает MyEvents. Ошибка списка при открытом confirmation также показывается в окне; фонового retry под ним нет.
 
-Scanner StateFlow — прежний ScannerState. VM хранит manual input только в памяти, submit сразу очищает строку. Credential не попадает в route/SavedStateHandle/log. Controller устанавливает submitting синхронно, получает один outcome и сверяет поколение/current access. Preview исчезает при submitting/result/error. Result Back → ready; следующий Back удаляет ScannerKey. Top bar использует тот же VM back, повтор текущего таба также проходит этот путь. Next — явное начало нового цикла, без автоматического retry команды.
+Scanner StateFlow — прежний ScannerState. VM хранит manual input только в памяти, submit сразу очищает строку. Credential не попадает в route/SavedStateHandle/log. Controller устанавливает submitting синхронно, получает один outcome и сверяет поколение/current access. Preview исчезает при submitting/result/error. Result Back → ready; следующий Back удаляет ScannerKey. Top bar использует тот же VM back, повтор текущего таба также проходит этот путь. Next — явный новый цикл после определённого результата. В M06 unknown команда блокирует новый цикл: отдельный retry сохраняет code/key; cancel/background не доказывают rollback.
 
 Permission-request marker сохраняется как boolean для объяснения/перехода в настройки. Реальный CAMERA grant заново читается из ОС на RESUMED; marker не выдаёт доступ. Первый запрос только по кнопке. После denial/permanent denial ручной ввод остаётся доступным. Возвращение из системного окна/фона может оставить ready: для камеры предусмотрено явное «Сканировать QR».
 

@@ -1,6 +1,6 @@
 # Текущие порты, remote и fake storage
 
-**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](architecture/t10-room-drafts.md), [объём и ограничения проверки](validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
+**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](architecture/t10-scanner-volunteers.md), [compile и ограничения](validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
 
 ## Реализованные порты
 
@@ -147,3 +147,7 @@ EventDraft.local ID, remoteEventId и slug различаются. DraftStore х
 Save пишет только на устройство; sync — отдельная foreground команда. Room-транзакции короткие, HTTP/file IO вне них. ACK A сохраняет pending B; logout/deletion fence запрещает позднему ответу создать запись заново. После неизвестного PATCH — GET, затем ack или явный конфликт base/local/remote. Merge сохраняет stable IDs; выбор пользователя сначала локален. Publish/finish online. Pending cover копируется в private durable file, upload descriptor фиксируется до attach; release только после перехода DB/проверки ссылок. GET→PATCH не атомарен без server precondition.
 
 [Таблица состояний, доступ, retention и точки commit](architecture/t10-room-drafts.md). [Проверки и NOT_RUN](validation/t10-m05-implementation.md). M03 registration replay/server list scope не переписаны; их повторные регрессии в M05 не запускались по команде пользователя.
+
+## M06: sparse check-in и volunteer contracts
+
+CheckInOutcome.Confirmed(decision,ScanReceipt,replayed) сохраняет optional scanId/reason/code/name/category/time/display checker; CheckInRecord с реальными fake history IDs остаётся отдельной legacy ветвью. ScannerInfo содержит summary/role/checkedByMe/recent. ScanCommand — неизменные code/key и once-only firstAttempt metadata текущего owner, без disk/SavedState. Volunteer дополняется publicId/fullName/grantedAt/count; Granted содержит projection, Revoked подтверждает userId без искусственного grant. [Операции и ошибки](architecture/t10-scanner-volunteers.md).

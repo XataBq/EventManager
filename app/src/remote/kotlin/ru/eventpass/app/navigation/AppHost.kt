@@ -75,8 +75,8 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
     if(root == RootTab.Events) ru.eventpass.app.feature.myevents.MyEventsRoute(
      { stack.add(EditorKey(draftId=java.util.UUID.randomUUID().toString(),create=true)) },
      { stack.add(EditorKey(draftId=it)) },{ stack.add(EditorKey(eventId=it)) },
-     { stack.add(EventKey("",publicSlug=it)) },{ stack.add(RemoteUnavailableKey) },
-     { stack.add(RemoteUnavailableKey) },{ stack.add(RemoteUnavailableKey) },visible=stack.lastOrNull() == root,
+     { stack.add(EventKey("",publicSlug=it)) },{ stack.add(ScannerKey(it)) },
+     { stack.add(VolunteersKey(it)) },{ stack.add(RemoteUnavailableKey) },visible=stack.lastOrNull() == root,
      onRemoteDraft={stack.add(EditorKey(remoteDraftId=it))})
     else {
     val vm: ProfileViewModel=hiltViewModel()
@@ -97,6 +97,11 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
     { stack.removeLastOrNull() },{ stack.add(EventKey("",publicSlug=it)) },{},visible=stack.lastOrNull() == key,remoteDraftId=key.remoteDraftId) }
    entry<EventKey> { key -> EventRoute(key.eventId, { _, _, _ -> stack.add(RemoteUnavailableKey) }, { stack.add(TicketKey(it)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
    entry<TicketKey> { key -> var initial by rememberSaveable { mutableStateOf(key.ticketId) }; TicketsRoute(initial, { initial = null }, { slug -> stack.add(EventKey("", publicSlug = slug)) }, {}, {}, {}, visible = stack.lastOrNull() == key) }
+   entry<ScannerKey> { key -> ru.eventpass.app.feature.checkin.ScannerRoute(key.eventId,stack.lastOrNull()==key,
+    {stack.removeLastOrNull()},{stack.removeLastOrNull();stack.add(ScannerAccessLostKey)},{}) }
+   entry<VolunteersKey> { key -> ru.eventpass.app.feature.volunteers.VolunteersRoute(key.eventId,stack.lastOrNull()==key,
+    {stack.removeLastOrNull();stack.add(ScannerAccessLostKey)}) }
+   entry<ScannerAccessLostKey> { AuthColumn {Text(stringResource(R.string.scan_access_lost));TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()})} }
    entry<RemoteUnavailableKey> { AuthColumn { Text(stringResource(R.string.feature_unavailable)); TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()}) } }
    entry<VerificationKey> { AccountFlowRoute(false,session,{stack.removeLastOrNull()},{},verification=true,showTools=false) }
   })

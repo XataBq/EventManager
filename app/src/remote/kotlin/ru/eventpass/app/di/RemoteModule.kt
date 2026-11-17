@@ -30,8 +30,8 @@ object RemoteModule {
   RemoteEventRepository(http,auth,LocalDraftRepository(http,auth,RemoteOrganizerRepository(http,auth,UnavailableRemoteFeatures),drafts,transfer,store))
  @Provides @Singleton fun registrations(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.RegistrationRepository = RemoteRegistrations(http, auth)
  @Provides @Singleton fun tickets(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.TicketRepository = RemoteTickets(http, auth)
- @Provides fun checkins(): ru.eventpass.core.domain.checkin.CheckInRepository = UnavailableRemoteFeatures
- @Provides fun volunteers(): ru.eventpass.core.domain.checkin.VolunteerRepository = UnavailableRemoteFeatures
+ @Provides @Singleton fun checkins(http:AuthHttp,auth:RemoteAuthRepository): ru.eventpass.core.domain.checkin.CheckInRepository = RemoteCheckInRepository(http,auth)
+ @Provides @Singleton fun volunteers(http:AuthHttp,auth:RemoteAuthRepository): ru.eventpass.core.domain.checkin.VolunteerRepository = RemoteVolunteersRepository(http,auth)
  @Provides fun attendance(): ru.eventpass.core.domain.attendance.AttendanceRepository = UnavailableRemoteFeatures
  @Provides @Singleton fun documents(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.documents.DocumentsRepository = RemoteTicketDocuments(http, auth)
  @Provides @Singleton fun documentFiles(@ApplicationContext context: Context): ru.eventpass.core.domain.documents.DocumentFiles = ru.eventpass.core.platform.AndroidDocumentFiles(context)

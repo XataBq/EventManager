@@ -1,10 +1,10 @@
 # Фактическая архитектура EventPass Android
 
-**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](architecture/t10-room-drafts.md), [объём и ограничения проверки](validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
+**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](architecture/t10-scanner-volunteers.md), [compile и ограничения](validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
 
-Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 TECH_ACCEPTED по подтверждению пользователя; M04 принят пользователем; M05 реализован с ограниченной проверкой, M06–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
+Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 TECH_ACCEPTED по подтверждению пользователя; M04 принят пользователем; M05 реализован с ограниченной проверкой, M07–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
 
-Текущий срез M01–M04: remote auth/profile, public GET, registration/tickets/PDF, owner editor/scoped MyEvents/covers и общие модели/renderer. M06–M09 недоступны в remote, demo product adapters/schema6 сохранены. [M04](architecture/t10-editor-covers.md). Прежняя demo-приёмка не является финальной приёмкой T10.
+Текущий срез M01–M06: remote auth/profile, public GET, registration/tickets/PDF, owner editor/scoped MyEvents/covers и общие модели/renderer. M07–M09 недоступны в remote, demo product adapters/schema6 сохранены. [M04](architecture/t10-editor-covers.md). Прежняя demo-приёмка не является финальной приёмкой T10.
 
 ## Модули и зависимости исходников
 
@@ -115,3 +115,7 @@ EventDraft.local ID, remoteEventId и slug различаются. DraftStore х
 Save пишет только на устройство; sync — отдельная foreground команда. Room-транзакции короткие, HTTP/file IO вне них. ACK A сохраняет pending B; logout/deletion fence запрещает позднему ответу создать запись заново. После неизвестного PATCH — GET, затем ack или явный конфликт base/local/remote. Merge сохраняет stable IDs; выбор пользователя сначала локален. Publish/finish online. Pending cover копируется в private durable file, upload descriptor фиксируется до attach; release только после перехода DB/проверки ссылок. GET→PATCH не атомарен без server precondition.
 
 [Таблица состояний, доступ, retention и точки commit](architecture/t10-room-drafts.md). [Проверки и NOT_RUN](validation/t10-m05-implementation.md). M03 registration replay/server list scope не переписаны; их повторные регрессии в M05 не запускались по команде пользователя.
+
+## M06: scanner и волонтёры remote
+
+RemoteCheckInRepository / RemoteVolunteersRepository подключены через app/remote DI к общим Scanner/Volunteers. Domain получил sparse receipt/ScannerInfo, memory-only ScanCommand и Volunteer metadata; новых модулей/Room schema нет. [Границы и authority](architecture/t10-scanner-volunteers.md).

@@ -55,7 +55,9 @@ fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> 
                 loading = s.busy, enabled = s.input.isNotBlank() && !s.loading)
             if (!s.loading && s.volunteers.isEmpty()) Text(stringResource(R.string.volunteers_empty))
             s.volunteers.forEach { volunteer -> EventPassSection(Modifier.fillMaxWidth().testTag("volunteer-${volunteer.grant.userId.value}")) {
-                Text(volunteer.email); Text(volunteer.grant.userId.value)
+                volunteer.fullName?.let {Text(it)}
+                Text(volunteer.email); Text(volunteer.publicId ?: volunteer.grant.userId.value)
+                volunteer.grantedAt?.let {Text(stringResource(R.string.m06_granted_at,it.toString()))}
                 Text(stringResource(R.string.volunteer_checked, volunteer.checkedInCount))
                 TextAction(stringResource(R.string.volunteer_revoke), { confirm(volunteer) }, enabled = !s.busy)
             } }
@@ -65,6 +67,8 @@ fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> 
 }
 
 fun volunteerErrorResource(error: VolunteerError): Int = when (error) {
+    VolunteerError.RATE_LIMITED -> R.string.auth_cooldown
+    VolunteerError.EVENT_FINISHED -> R.string.scan_event_inactive
     VolunteerError.ACCOUNT_NOT_FOUND -> R.string.volunteer_unknown
     VolunteerError.INVALID_TARGET -> R.string.volunteer_invalid
     VolunteerError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable

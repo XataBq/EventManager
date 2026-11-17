@@ -63,7 +63,7 @@ class VolunteersViewModel @Inject constructor(private val repository: VolunteerR
                 val result = action(id); currentCoroutineContext().ensureActive()
                 if (generation != token) return@launch
                 when (result) {
-                    is VolunteerOutcome.Updated -> mutable.value = state.value.copy(input = "", revoke = null, revokeError = null)
+                    is VolunteerOutcome.Updated, is VolunteerOutcome.Granted, is VolunteerOutcome.Revoked -> mutable.value = state.value.copy(input = "", revoke = null, revokeError = null)
                     is VolunteerOutcome.Failed -> if (revoking && result.error in setOf(VolunteerError.NETWORK,
                         VolunteerError.TIMEOUT, VolunteerError.STORAGE_UNAVAILABLE))
                         mutable.value = state.value.copy(revokeError = result.error)
@@ -74,7 +74,7 @@ class VolunteersViewModel @Inject constructor(private val repository: VolunteerR
     }
     private fun fail(error: VolunteerError, reading: Boolean = false) {
         val denied = error in setOf(VolunteerError.AUTHENTICATION_REQUIRED, VolunteerError.FORBIDDEN,
-            VolunteerError.SESSION_CHANGED, VolunteerError.NOT_FOUND)
+            VolunteerError.SESSION_CHANGED, VolunteerError.NOT_FOUND,VolunteerError.EVENT_FINISHED)
         if (denied) { stop(); mutable.value = VolunteersUiState(loading = false, error = error, denied = true) }
         else mutable.value = if (reading) state.value.copy(loading = false, readError = error) else state.value.copy(loading = false, error = error)
     }

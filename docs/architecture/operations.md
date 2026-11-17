@@ -135,7 +135,7 @@ Configuration dispose SAF не завершает entry operation: Route пер�
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/attendance/profile mutations/XLSX/resend cleanup относятся к M06–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance/profile mutations/XLSX/resend cleanup относятся к M07–M09.
 
 ## M03: регистрации, билеты и PDF
 
@@ -152,3 +152,7 @@ EventDraft.local ID, remoteEventId и slug различаются. DraftStore х
 Save пишет только на устройство; sync — отдельная foreground команда. Room-транзакции короткие, HTTP/file IO вне них. ACK A сохраняет pending B; logout/deletion fence запрещает позднему ответу создать запись заново. После неизвестного PATCH — GET, затем ack или явный конфликт base/local/remote. Merge сохраняет stable IDs; выбор пользователя сначала локален. Publish/finish online. Pending cover копируется в private durable file, upload descriptor фиксируется до attach; release только после перехода DB/проверки ссылок. GET→PATCH не атомарен без server precondition.
 
 [Таблица состояний, доступ, retention и точки commit](t10-room-drafts.md). [Проверки и NOT_RUN](../validation/t10-m05-implementation.md). M03 registration replay/server list scope не переписаны; их повторные регрессии в M05 не запускались по команде пользователя.
+
+## M06: remote scanner/volunteers
+
+GET scanner → server access/info; POST scan с прежним code/key при unknown; replayed нейтрален, local increment отсутствует. GET/POST/DELETE volunteers адресованы одному E, DELETE204 не декодируется. Visible resume/manual read не выполняют POST, hidden polling нет. [Детальная текущая модель](t10-scanner-volunteers.md), [выполненная проверка/NOT_RUN](../validation/t10-m06-implementation.md).

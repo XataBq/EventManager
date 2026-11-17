@@ -1,6 +1,6 @@
 # Решения и открытые вопросы
 
-**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](architecture/t10-room-drafts.md), [объём и ограничения проверки](validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
+**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](architecture/t10-scanner-volunteers.md), [compile и ограничения](validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
 
 **16 ноября — M02 реализован, REVIEW_PENDING.** Отдельные public slug/internal ID, server-authoritative viewer/status/counts, десять question types и compatible-answer reconciliation; command generation отделена от questions, accepted submit не отбрасывается при schema refresh. Bounded UTF-8 schema6/legacy backup/reset, code-point limits и read/lifecycle guards описаны в [текущей архитектуре](architecture/t10-public-event.md), [проверки](validation/t10-m02-implementation.md). Технический предел public HTTP/fake snapshot 32 MiB вмещает предельную escaped Unicode анкету/историю; auth response по-прежнему 1 MiB. Это реализация ADR-T10-01–05 в пределах M02, не новый server version/precondition и не приёмка M03–M09. Следующее действие — отдельное ревью.
 
@@ -140,3 +140,7 @@ Room 2.8.5 / Bundled SQLite 2.7.1, schema1; compiler/KSP фактически с
 Save local-only; explicit sync current draft, без WorkManager/autosubmit/offline publish. Durable create body/key, firstAttempt и 24h unknown gate; unknown PATCH GET-сверка; base/local/remote и осознанный merge. ADR-T10-06 сохраняет гонку GET→PATCH без server condition. Upload без idempotency может оставить orphan asset, exactly-once не обещается. [Действующая спецификация](architecture/t10-room-drafts.md).
 
 Поздняя команда пользователя сократила проверки до remote compile, без сценарных прогонов/lint/demo/APK. Это не техническая или человеческая приёмка M05. M04 review принят пользователем при запуске M05, повторного авторского ревью нет.
+
+## M06 — server scanner и sparse outcomes (17 ноября)
+
+Remote использует server access/scan/volunteer API из локального OpenAPI1.1.1: без offline admission, без фиктивных ticket/checker IDs; checkedInBy — имя. Unknown scan повторяет прежние memory-only code/key в пределах24h/cooldown; replayed нейтрален и не увеличивает счётчик локально. Legacy fake history/credential codec остаются отдельно. Только compile подтверждён, live/scenario не проверялись; [спецификация](architecture/t10-scanner-volunteers.md).

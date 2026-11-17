@@ -71,7 +71,7 @@ fun ScannerRoute(eventId: String, visible: Boolean, onClose: () -> Unit, onDenie
         }
     }
     ScannerScreen(s, input, vm::edit, vm::submit, vm::camera, vm::next, { vm.refresh() }, cameraFailed,
-        { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())) }, {
+        { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())) }, retryScan=vm::retryScan, preview={
             if (visible && s.cameraActive) key(s.generation) {
                 val cameraGeneration = s.generation
                 val view = remember { QrCameraPreview(context) }
@@ -87,9 +87,20 @@ fun ScannerRoute(eventId: String, visible: Boolean, onClose: () -> Unit, onDenie
 @Composable
 fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit: () -> Unit, camera: () -> Unit,
     next: () -> Unit, retry: () -> Unit, cameraFailed: Boolean, settings: () -> Unit, preview: @Composable () -> Unit) {
+    ScannerScreen(s,input,edit,submit,camera,next,retry,cameraFailed,settings,retry,preview)
+}
+
+@Composable
+fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit: () -> Unit, camera: () -> Unit,
+    next: () -> Unit, retry: () -> Unit, cameraFailed: Boolean, settings: () -> Unit, retryScan:()->Unit,preview: @Composable () -> Unit) {
     AuthColumn(Modifier.testTag("scanner-screen")) {
         Text(stringResource(R.string.scan_title), style = EventPassTypography.heading)
         s.access?.let { Text(it.title, style = EventPassTypography.cardTitle) }
+        s.access?.readError?.let { InlineError(stringResource(scanErrorResource(it))) }
+        s.access?.info?.let {info->
+            Text(stringResource(R.string.m06_checked_by_me,info.checkedByMe))
+            Text(stringResource(if(info.role==ScannerRole.ORGANIZER) R.string.my_organizing else R.string.my_volunteering))
+        }
         when (s.phase) {
             ScannerPhase.ACCESS_LOADING -> Text(stringResource(R.string.loading))
             ScannerPhase.ACCESS_DENIED -> {
@@ -100,12 +111,18 @@ fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit
             ScannerPhase.RESULT -> {
                 val outcome = s.result
                 val title = when (outcome) {
+                    is CheckInOutcome.Confirmed -> if(outcome.replayed) R.string.m06_recovered else when(outcome.decision) {
+                        ScanDecision.ALLOWED->R.string.scan_admitted;ScanDecision.ALREADY_USED->R.string.scan_used;ScanDecision.INVALID->R.string.scan_invalid
+                    }
                     is CheckInOutcome.Admitted -> R.string.scan_admitted
                     is CheckInOutcome.AlreadyUsed -> R.string.scan_used
                     else -> R.string.scan_invalid
                 }
                 EventPassSection(Modifier.fillMaxWidth().testTag("scan-result")) {
                     StatusBadge(stringResource(title), when (outcome) {
+                        is CheckInOutcome.Confirmed -> if(outcome.replayed) StatusTone.Neutral else when(outcome.decision) {
+                            ScanDecision.ALLOWED->StatusTone.Success;ScanDecision.ALREADY_USED->StatusTone.Warning;ScanDecision.INVALID->StatusTone.Danger
+                        }
                         is CheckInOutcome.Admitted -> StatusTone.Success
                         is CheckInOutcome.AlreadyUsed -> StatusTone.Warning
                         else -> StatusTone.Danger
@@ -118,6 +135,17 @@ fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit
                         Text(stringResource(R.string.scan_first, time, it.checkerId.value))
                     }
                     if (outcome is CheckInOutcome.AlreadyUsed && record == null) Text(stringResource(R.string.scan_no_history))
+                    if(outcome is CheckInOutcome.Confirmed) {
+                        if(outcome.replayed) Text(stringResource(R.string.m06_recovered_hint))
+                        outcome.receipt.let {receipt->
+                            receipt.holderName?.let {Text(it)}
+                            receipt.ticketCode?.let {Text(stringResource(R.string.ticket_number,it))}
+                            receipt.category?.let {Text(it)}
+                            receipt.reason?.let {Text(it)}
+                            receipt.checkedInAt?.let {Text(stringResource(R.string.m06_checked_at,it.toString()))}
+                            receipt.checkedInBy?.let {Text(stringResource(R.string.m06_checked_by,it))}
+                        }
+                    }
                     if (outcome is CheckInOutcome.Invalid) Text(stringResource(when (outcome.reason) {
                         InvalidTicketReason.WRONG_EVENT -> R.string.scan_wrong_event
                         InvalidTicketReason.CANCELLED -> R.string.ticket_cancelled
@@ -131,13 +159,31 @@ fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit
                 preview()
                 if (cameraFailed) InlineError(stringResource(R.string.scan_camera_failed))
                 s.error?.let { InlineError(stringResource(scanErrorResource(it))) }
+                s.access?.info?.let {info->
+                    TextAction(stringResource(R.string.m06_refresh_history),retry)
+                    if(info.recent.isNotEmpty()) EventPassSection {
+                        Text(stringResource(R.string.m06_recent),style=EventPassTypography.emphasis)
+                        info.recent.forEach {entry->
+                            Text(stringResource(when(entry.decision) {ScanDecision.ALLOWED->R.string.scan_admitted;ScanDecision.ALREADY_USED->R.string.scan_used;ScanDecision.INVALID->R.string.scan_invalid}))
+                            entry.holderName?.let {Text(it)};entry.ticketCode?.let {Text(it)}
+                            Text(entry.scannedAt.toString());Text(entry.note)
+                        }
+                    }
+                }
+                if(s.retryPending) {
+                    Text(stringResource(R.string.m06_pending_scan))
+                    s.retryAt?.let {Text(stringResource(R.string.m06_retry_at,it.toString()))}
+                    EventPassButton(stringResource(R.string.m06_retry_scan),retryScan,
+                        enabled=s.error!=CheckInError.RECONCILIATION_REQUIRED && s.foreground)
+                    return@AuthColumn
+                }
                 if (s.permission in setOf(ScannerPermission.DENIED, ScannerPermission.PERMANENTLY_DENIED))
                     Text(stringResource(R.string.scan_permission_explanation))
                 if (s.permission == ScannerPermission.PERMANENTLY_DENIED)
                     TextAction(stringResource(R.string.scan_settings), settings)
                 else if (!s.cameraActive) EventPassButton(stringResource(R.string.scan_camera), camera, Modifier.testTag("scan-camera"))
-                Text(stringResource(R.string.scan_hint))
-                FormField(input, edit, stringResource(R.string.scan_manual), Modifier.testTag("scan-input"))
+                Text(stringResource(if(s.access?.info!=null) R.string.m06_scan_hint else R.string.scan_hint))
+                FormField(input, edit, stringResource(if(s.access?.info!=null) R.string.m06_manual else R.string.scan_manual), Modifier.testTag("scan-input"))
                 EventPassButton(stringResource(R.string.scan_check), submit, Modifier.testTag("scan-submit"), enabled = input.isNotBlank())
             }
         }
@@ -145,6 +191,10 @@ fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit
 }
 
 fun scanErrorResource(error: CheckInError): Int = when (error) {
+    CheckInError.EVENT_FINISHED -> R.string.scan_event_inactive
+    CheckInError.RATE_LIMITED -> R.string.auth_cooldown
+    CheckInError.PENDING_RETRY -> R.string.m06_pending_scan
+    CheckInError.RECONCILIATION_REQUIRED -> R.string.m06_reconcile_scan
     CheckInError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
     CheckInError.PROTOCOL -> R.string.auth_protocol
     CheckInError.FORBIDDEN -> R.string.auth_forbidden

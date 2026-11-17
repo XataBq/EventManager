@@ -34,7 +34,7 @@ flowchart TD
 | Выданный guest receipt + guest fullscreen | EventKey VM + SavedStateHandle | Восстанавливается у того же flow | Восстановление той же Android-задачи возвращает snapshot | `close`/удаление owner очищают; новый task не ищет билет по ID |
 | Private tab stacks/выбранная вкладка | PrivateShell + NavigationState saveable | Сохраняются при действующей сессии | Не доверяются без matching PrivateScope/session | Logout/expiry уничтожают state/owners |
 | Выбранный свой ticket/history | Tickets root VM + SavedStateHandle; TicketsRoute обрабатывает Back карточки | Сохраняются | ID может восстановиться только внутри разрешённого scope; данные из repo | Back карточки удаляет выбор, сохраняет history; старые данные не доступны новой личности; fullscreen не persist |
-| Scanner result/manual input | ScannerKey VM, только память; permission-request marker saveable, grant всегда проверяется ОС | Background/hidden/recreation → ready, старый допуск не показывается | Access проверяется заново | Pop/logout очищает VM; foreground(false) очищает input/result |
+| Scanner result/manual/pending command | ScannerKey VM, только память; permission marker saveable, credential/key не persist | Background → ready без прежнего допуска; unknown команда живой VM остаётся для явного retry | Process loss теряет тело; сначала server access/recent | Pop/logout/revoked scope очищает owner; foreground(false) отменяет POST и очищает input/result |
 | Volunteers list/input/confirmation/revokeError | VolunteersKey VM, только память; revoke error и retry внутри Dialog | При RESUMED перечитывается | Не persist | Hidden/background/pop отменяет commands/observation и очищает UI |
 | Dashboard rows/totals/confirmation | DashboardKey VM, память; owner/request/observation generations, coalesced refresh; query в SavedStateHandle | Hidden/background/navigation → clear/read заново | Авторизация/page 1 заново, без PII из saved state | Pop/logout/denied отменяют jobs, очищают PII и confirmation |
 | Profile fields/dirty/confirmation | RootTab.Profile VM, только память; saved profile в общем snapshot | Hidden/background → очистить форму, без autosave | Последняя сохранённая версия; PII не в SavedStateHandle | requestLeave: Save/Discard; logout очищает owner |
@@ -105,7 +105,7 @@ Tickets/MyEvents/Event, как Dashboard/Volunteers/Profile, запускают 
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/attendance/profile mutations/XLSX/resend cleanup относятся к M06–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance/profile mutations/XLSX/resend cleanup относятся к M07–M09.
 
 ## M03: регистрации, билеты и PDF
 
@@ -122,3 +122,7 @@ EventDraft.local ID, remoteEventId и slug различаются. DraftStore х
 Save пишет только на устройство; sync — отдельная foreground команда. Room-транзакции короткие, HTTP/file IO вне них. ACK A сохраняет pending B; logout/deletion fence запрещает позднему ответу создать запись заново. После неизвестного PATCH — GET, затем ack или явный конфликт base/local/remote. Merge сохраняет stable IDs; выбор пользователя сначала локален. Publish/finish online. Pending cover копируется в private durable file, upload descriptor фиксируется до attach; release только после перехода DB/проверки ссылок. GET→PATCH не атомарен без server precondition.
 
 [Таблица состояний, доступ, retention и точки commit](t10-room-drafts.md). [Проверки и NOT_RUN](../validation/t10-m05-implementation.md). M03 registration replay/server list scope не переписаны; их повторные регрессии в M05 не запускались по команде пользователя.
+
+## M06: remote scanner/volunteers
+
+Credential/key/firstAttempt живут у ScanCommand текущей Scanner VM, не в Room/SavedState. Hidden cancel сохраняет unknown команду живой VM; pop/account/revoked scope очищает. Repository state stamped actor/event; consumer-edge sanitize и version guards ограничивают late reply. [Детальная текущая модель](t10-scanner-volunteers.md), [выполненная проверка/NOT_RUN](../validation/t10-m06-implementation.md).

@@ -131,7 +131,12 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
                             TextAction(stringResource(R.string.editor_continue),{remoteDraft(item.id.value)})
                         } else {
                             TextAction(stringResource(R.string.editor_open),{open(item.slug.value)})
+                            if((data.tab==MyEventsTab.ORGANIZING && "organizer" in data.roles) ||
+                                (data.tab==MyEventsTab.VOLUNTEERING && "volunteer" in data.roles)) {
+                                TextAction(stringResource(R.string.scan_title),{scan(item.id.value)})
+                            }
                             if(data.tab == MyEventsTab.ORGANIZING && "organizer" in data.roles) {
+                                TextAction(stringResource(R.string.volunteers_title),{volunteers(item.id.value)})
                                 TextAction(stringResource(R.string.editor_edit),{edit(item.id.value)})
                                 TextAction(stringResource(R.string.editor_copy),{copyLink(item.slug.value)})
                             }

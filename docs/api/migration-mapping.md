@@ -74,15 +74,17 @@ Ticket включает code/qrToken/status/holderName/holderEmail/category/zone
 
 | Метод | Решение / API | Input/output |
 |---|---|---|
-| observeAccess | CHANGE, GET `/events/{event_id}/scanner` | ScannerInfo: event summary/viewerRole/checkedByMe/recent, не boolean grant из local state |
-| refreshAccess | CHANGE, тот же GET | Foreground/lifecycle-bound; no hidden polling; 403 revoke/finished ≠ общий logout |
-| checkIn | CHANGE, POST `/events/{event_id}/scan` | `{code: qrToken или EVT-xxxxxx}` + key → ScanResult; replayed=true не новый допуск |
-| observeVolunteers | CHANGE, GET `/events/{event_id}/volunteers` | Array userId/publicId/fullName/email/grantedAt/checkedInCount |
-| refreshVolunteers | KEEP, тот же GET | Single-flight owner resource |
-| grant | CHANGE, POST `/events/{event_id}/volunteers` | `{identifier: email или publicId}` → Volunteer, не ScanGrant без дополнительных полей |
-| revoke | KEEP, DELETE `/events/{event_id}/volunteers/{volunteer_id}` → 204 | volunteer_id здесь userId; повтор не требует искусственного grant ID |
+| observeAccess | IMPLEMENTED M06, GET `/events/{event_id}/scanner` | ScannerInfo: event summary/viewerRole/checkedByMe/recent, не boolean grant из local state |
+| refreshAccess | IMPLEMENTED M06, тот же GET | Foreground/lifecycle-bound; no hidden polling; 403 revoke/finished ≠ общий logout |
+| checkIn | IMPLEMENTED M06, POST `/events/{event_id}/scan` | `{code: qrToken или EVT-xxxxxx}` + key → ScanResult; replayed=true не новый допуск |
+| observeVolunteers | IMPLEMENTED M06, GET `/events/{event_id}/volunteers` | Array userId/publicId/fullName/email/grantedAt/checkedInCount |
+| refreshVolunteers | IMPLEMENTED M06, тот же GET | Single-flight owner resource |
+| grant | IMPLEMENTED M06, POST `/events/{event_id}/volunteers` | `{identifier: email или publicId}` → Volunteer, не ScanGrant без дополнительных полей |
+| revoke | IMPLEMENTED M06, DELETE `/events/{event_id}/volunteers/{volunteer_id}` → 204 | volunteer_id здесь userId; повтор не требует искусственного grant ID |
 
 ScanResult result=allowed/already_used/invalid; optional scanId/replayed/reason/ticketCode/holderName/category/checkedInAt/checkedInBy. **checkedInBy — отображаемое имя, не UserId**. Scan ID выдаётся только при использовании idempotency key; ticketId/checkerId в ответе нет. Текущий обязательный CheckInRecord не переносится 1:1: использовать sparse projection без выдуманных ID. Неверный/чужой билет может не иметь вообще contact/time/code. reason — русский display text, не машинный InvalidTicketReason: нельзя определять WRONG_EVENT по совпадению текста, допустим generic invalid. QR и EVT не derivation друг друга.
+
+[Remote adapters, реальные projection/ownership и ограничения](../architecture/t10-scanner-volunteers.md). M06 COMPILE_VERIFIED; scanner/volunteer contract/scenario suites NOT_RUN, live не проверен.
 
 ## AttendanceRepository — M07
 

@@ -118,4 +118,18 @@
     <string name="draft_section_title">Название блока</string>
     <string name="draft_section_time">Время / подпись блока</string>
     <string name="draft_section_add">Добавить блок</string>
+    <string name="m06_recovered">Восстановлен прежний результат</string>
+    <string name="m06_recovered_hint">Это ответ на прежнюю попытку, а не новый допуск. Проверьте историю проходов.</string>
+    <string name="m06_checked_by_me">Проверено вами: %1$d</string>
+    <string name="m06_checked_at">Время прохода: %1$s</string>
+    <string name="m06_checked_by">Проверил: %1$s</string>
+    <string name="m06_granted_at">Доступ выдан: %1$s</string>
+    <string name="m06_pending_scan">Результат попытки нужно уточнить. Повтор отправит тот же код с прежним ключом; новый билет пока не сканируйте.</string>
+    <string name="m06_retry_scan">Повторить ту же попытку</string>
+    <string name="m06_reconcile_scan">Безопасный повтор этой попытки недоступен. Обновите историю и сверьте проход перед выходом из сканера.</string>
+    <string name="m06_retry_at">Повтор доступен после: %1$s</string>
+    <string name="m06_refresh_history">Обновить доступ и историю</string>
+    <string name="m06_recent">Последние проверки</string>
+    <string name="m06_scan_hint">Считайте QR билета или введите код EVT-xxxxxx. Допуск подтверждает сервер.</string>
+    <string name="m06_manual">Код билета EVT-xxxxxx</string>
 </resources>

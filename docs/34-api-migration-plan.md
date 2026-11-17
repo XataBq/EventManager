@@ -1,6 +1,6 @@
 # T10: сравнение, миграция правил и интеграция API
 
-**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](architecture/t10-room-drafts.md), [объём и ограничения проверки](validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
+**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](architecture/t10-scanner-volunteers.md), [compile и ограничения](validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
 
 Основание: Android `0493dbd2e328796cd963689cc25cf3d4d2bd40e1` плюс существующие незакоммиченные документы; backend `def65653b9e1f22dce8bc2d6f266b23ace6cd1d5`, OpenAPI/staging 1.1.1. Согласованные правила — [08](08-decisions.md), задание backend — [32](32-backend-final-requirements.md), проверка сервера — [33](33-backend-update-2026-11-13.md). Старое предложение 44 URL и B01–B08 не отменяют более поздних решений пользователя.
 
@@ -167,4 +167,8 @@ Server MyEvents возвращает typed summary только выбранно
 
 ## Фактическое решение M05
 
-ADR-T10-03/05/06 реализованы узким draft store, без универсальной очереди. [Schema1/owners/commit/retention](architecture/t10-room-drafts.md). Account partition и lease/incarnation CAS отделены от auth; confirmed/base/pending и immutable create command durable. Локальная ревизия не server lock. Source обложки noBackup, descriptor записывается до attach. Остаточный GET→PATCH race и неизвестный upload сохранены как ограничения. M05 IMPLEMENTED/REVIEW_PENDING с ограниченной проверкой по команде пользователя, M06 не начат.
+ADR-T10-03/05/06 реализованы узким draft store, без универсальной очереди. [Schema1/owners/commit/retention](architecture/t10-room-drafts.md). Account partition и lease/incarnation CAS отделены от auth; confirmed/base/pending и immutable create command durable. Локальная ревизия не server lock. Source обложки noBackup, descriptor записывается до attach. Остаточный GET→PATCH race и неизвестный upload сохранены как ограничения. M05 IMPLEMENTED/REVIEW_PENDING; пользователь разрешил M06 без ревью. M06 IMPLEMENTED/COMPILE_VERIFIED, поведение NOT_VERIFIED.
+
+## Фактический M06, сокращённый режим
+
+Настоящие scanner/scan/volunteer операции подключены за прежними ports, sparse receipts/EVT/key retry и actor scope описаны в [текущей архитектуре](architecture/t10-scanner-volunteers.md). Проверена одна remote compilation; suites/lint/demo/staging/APK/device/review не выполнялись. M05/M02 gates не закрыты задним числом; M07 самостоятельно не начат.
