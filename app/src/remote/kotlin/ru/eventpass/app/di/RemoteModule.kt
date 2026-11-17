@@ -25,14 +25,19 @@ object RemoteModule {
  @Provides fun authPort(auth: RemoteAuthRepository): AuthRepository = auth
  @Provides fun profiles(auth: RemoteAuthRepository): ProfileRepository = auth.profileRepository
  @Provides fun clock(): java.time.Clock = java.time.Clock.systemUTC()
+ @Provides @Singleton fun organizer(http:AuthHttp,auth:RemoteAuthRepository)=RemoteOrganizerRepository(http,auth,UnavailableRemoteFeatures)
  @Provides @Singleton fun events(http: AuthHttp, auth: RemoteAuthRepository, drafts: ru.eventpass.core.domain.event.DraftStore,
-  transfer: RemoteCoverTransfer, store: ru.eventpass.core.platform.AndroidEventCoverStore): ru.eventpass.core.domain.EventRepository =
-  RemoteEventRepository(http,auth,LocalDraftRepository(http,auth,RemoteOrganizerRepository(http,auth,UnavailableRemoteFeatures),drafts,transfer,store))
+  transfer: RemoteCoverTransfer, store: ru.eventpass.core.platform.AndroidEventCoverStore,organizer:RemoteOrganizerRepository): ru.eventpass.core.domain.EventRepository =
+  RemoteEventRepository(http,auth,LocalDraftRepository(http,auth,organizer,drafts,transfer,store))
  @Provides @Singleton fun registrations(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.RegistrationRepository = RemoteRegistrations(http, auth)
- @Provides @Singleton fun tickets(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.TicketRepository = RemoteTickets(http, auth)
- @Provides @Singleton fun checkins(http:AuthHttp,auth:RemoteAuthRepository): ru.eventpass.core.domain.checkin.CheckInRepository = RemoteCheckInRepository(http,auth)
+ @Provides @Singleton fun remoteTickets(http:AuthHttp,auth:RemoteAuthRepository)=RemoteTickets(http,auth)
+ @Provides fun tickets(remote:RemoteTickets):ru.eventpass.core.domain.TicketRepository=remote
+ @Provides @Singleton fun remoteScanner(http:AuthHttp,auth:RemoteAuthRepository)=RemoteCheckInRepository(http,auth)
+ @Provides fun checkins(remote:RemoteCheckInRepository):ru.eventpass.core.domain.checkin.CheckInRepository=remote
  @Provides @Singleton fun volunteers(http:AuthHttp,auth:RemoteAuthRepository): ru.eventpass.core.domain.checkin.VolunteerRepository = RemoteVolunteersRepository(http,auth)
- @Provides fun attendance(): ru.eventpass.core.domain.attendance.AttendanceRepository = UnavailableRemoteFeatures
+ @Provides @Singleton fun attendance(http:AuthHttp,auth:RemoteAuthRepository,organizer:RemoteOrganizerRepository,
+  volunteers:ru.eventpass.core.domain.checkin.VolunteerRepository,tickets:RemoteTickets,scanner:RemoteCheckInRepository):ru.eventpass.core.domain.attendance.AttendanceRepository =
+  RemoteAttendanceRepository(http,auth,organizer,volunteers,tickets,scanner)
  @Provides @Singleton fun documents(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.documents.DocumentsRepository = RemoteTicketDocuments(http, auth)
  @Provides @Singleton fun documentFiles(@ApplicationContext context: Context): ru.eventpass.core.domain.documents.DocumentFiles = ru.eventpass.core.platform.AndroidDocumentFiles(context)
  @Provides @Singleton fun coverStore(@ApplicationContext context: Context) = ru.eventpass.core.platform.AndroidEventCoverStore(context)

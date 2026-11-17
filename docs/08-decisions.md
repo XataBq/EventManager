@@ -1,6 +1,6 @@
 # Решения и открытые вопросы
 
-**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](architecture/t10-scanner-volunteers.md), [compile и ограничения](validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
+**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](architecture/t10-dashboard-attendees.md), [compile и ограничения](validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
 
 **16 ноября — M02 реализован, REVIEW_PENDING.** Отдельные public slug/internal ID, server-authoritative viewer/status/counts, десять question types и compatible-answer reconciliation; command generation отделена от questions, accepted submit не отбрасывается при schema refresh. Bounded UTF-8 schema6/legacy backup/reset, code-point limits и read/lifecycle guards описаны в [текущей архитектуре](architecture/t10-public-event.md), [проверки](validation/t10-m02-implementation.md). Технический предел public HTTP/fake snapshot 32 MiB вмещает предельную escaped Unicode анкету/историю; auth response по-прежнему 1 MiB. Это реализация ADR-T10-01–05 в пределах M02, не новый server version/precondition и не приёмка M03–M09. Следующее действие — отдельное ревью.
 
@@ -144,3 +144,7 @@ Save local-only; explicit sync current draft, без WorkManager/autosubmit/offl
 ## M06 — server scanner и sparse outcomes (17 ноября)
 
 Remote использует server access/scan/volunteer API из локального OpenAPI1.1.1: без offline admission, без фиктивных ticket/checker IDs; checkedInBy — имя. Unknown scan повторяет прежние memory-only code/key в пределах24h/cooldown; replayed нейтрален и не увеличивает счётчик локально. Legacy fake history/credential codec остаются отдельно. Только compile подтверждён, live/scenario не проверялись; [спецификация](architecture/t10-scanner-volunteers.md).
+
+## M07 — согласованное чтение и ticket cancellation (17 ноября)
+
+Stats/page публикуются одним revision-bound snapshot; server revision не editor If-Match. Отсутствующие attendee registration/time/checker не выдумываются, исторические answers не перекодируются через текущие questions. Отмена по ticketId подтверждается backend; связанные read инвалидируются адресно. Query может содержать PII и остаётся только у живой VM. [Спецификация M07](architecture/t10-dashboard-attendees.md). Только compile подтверждён, M08 не начат.

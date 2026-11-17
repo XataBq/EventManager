@@ -36,7 +36,7 @@ internal class FakeAttendanceOperations(private val state: MutableStateFlow<Fake
         // Serialize all projection fields explicitly; Attendee.toString deliberately redacts PII.
         val fields = buildList {
             add(id.value); add(s.auth.generation.toString()); add(s.events.getValue(id).toString())
-            rows.forEach { addAll(listOf(it.registrationId, it.ticketId.value, it.name, it.email, it.displayNumber,
+            rows.forEach { addAll(listOf(it.registrationId.orEmpty(), it.ticketId.value, it.name, it.email, it.displayNumber,
                 it.status.name, it.registeredAt.toString(), it.checkedAt.toString(), it.checkerId?.value.orEmpty())) }
         }
         val digest = MessageDigest.getInstance("SHA-256")
@@ -82,6 +82,13 @@ internal class FakeAttendanceOperations(private val state: MutableStateFlow<Fake
             if (s.auth.generation != state.value.auth.generation) return@withContext AttendeesResult.Failed(AttendanceError.SESSION_CHANGED)
             AttendeesResult.Page(rev, page, filtered.size, if (next < filtered.size) AttendanceCursor(eventId, rev, normalized, next) else null)
         }
+    }
+    override suspend fun cancelTicket(eventId:EventId,ticketId:TicketId):OwnerCancelResult {
+        auth.initialize()
+        val s=state.value;guard(s,eventId)?.let {return OwnerCancelResult.Failed(it)}
+        val registration=s.tickets.singleOrNull {it.snapshot.ticketId==ticketId && it.snapshot.eventId==eventId}?.registrationId
+            ?: return OwnerCancelResult.Failed(AttendanceError.NOT_FOUND)
+        return cancelRegistration(eventId,registration)
     }
     override suspend fun cancelRegistration(eventId: EventId, registrationId: String): OwnerCancelResult {
         auth.initialize(); val generation = state.value.auth.generation

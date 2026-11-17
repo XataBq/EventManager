@@ -76,7 +76,7 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
      { stack.add(EditorKey(draftId=java.util.UUID.randomUUID().toString(),create=true)) },
      { stack.add(EditorKey(draftId=it)) },{ stack.add(EditorKey(eventId=it)) },
      { stack.add(EventKey("",publicSlug=it)) },{ stack.add(ScannerKey(it)) },
-     { stack.add(VolunteersKey(it)) },{ stack.add(RemoteUnavailableKey) },visible=stack.lastOrNull() == root,
+     { stack.add(VolunteersKey(it)) },{ stack.add(DashboardKey(it)) },visible=stack.lastOrNull() == root,
      onRemoteDraft={stack.add(EditorKey(remoteDraftId=it))})
     else {
     val vm: ProfileViewModel=hiltViewModel()
@@ -102,6 +102,9 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
    entry<VolunteersKey> { key -> ru.eventpass.app.feature.volunteers.VolunteersRoute(key.eventId,stack.lastOrNull()==key,
     {stack.removeLastOrNull();stack.add(ScannerAccessLostKey)}) }
    entry<ScannerAccessLostKey> { AuthColumn {Text(stringResource(R.string.scan_access_lost));TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()})} }
+   entry<DashboardKey> { key -> ru.eventpass.app.feature.dashboard.DashboardRoute(key.eventId,stack.lastOrNull()==key,
+    {stack.add(ScannerKey(key.eventId))},{stack.add(VolunteersKey(key.eventId))},
+    {stack.removeLastOrNull();stack.add(ScannerAccessLostKey)},exportEnabled=false) }
    entry<RemoteUnavailableKey> { AuthColumn { Text(stringResource(R.string.feature_unavailable)); TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()}) } }
    entry<VerificationKey> { AccountFlowRoute(false,session,{stack.removeLastOrNull()},{},verification=true,showTools=false) }
   })

@@ -1,6 +1,6 @@
 # T10: последовательное исполнение и передача контекста
 
-**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](architecture/t10-scanner-volunteers.md), [compile и ограничения](validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
+**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](architecture/t10-dashboard-attendees.md), [compile и ограничения](validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
 
 С 15 ноября 2026 по прямому решению пользователя **субагенты запрещены**, включая помощников реализации и ревьюеров. Разрешение на делегирование от 13 ноября отменено. Этапы M00–M09 и архитектурные критерии [34](34-api-migration-plan.md) сохранены; ручная проверка остаётся только в конце. Историческая передача M02 15 ноября: [handoff](validation/t10-m02-handoff-2026-11-15.md), [промпт](prompts/t10-m02-resume-single-agent.md).
 
@@ -49,7 +49,8 @@ CODE_REVIEW.md: дата, M, base/target commit или точный манифе
 | M04 | TECH_ACCEPTED | 8da678a; пользователь подтвердил выполненное ревью при запуске M05 | Отдельное подтверждение в отчёте M05; CODE_REVIEW автором не менялся |
 | M05 | IMPLEMENTED/REVIEW_PENDING | Room/durable drafts/explicit sync/conflict/covers; [отчёт](validation/t10-m05-implementation.md) | Remote compile пройден; сценарии/lint/demo по команде пользователя NOT_RUN; M06 разрешён без review gate; M05 не TECH_ACCEPTED |
 | M06 | IMPLEMENTED/COMPILE_VERIFIED | Remote scanner/volunteers; [отчёт](validation/t10-m06-implementation.md) | Поведение NOT_VERIFIED; review/scenario/device только по команде |
-| M07–M09 | TODO | Не запускались | Только по следующей команде |
+| M07 | IMPLEMENTED/COMPILE_VERIFIED | Remote dashboard/attendees/cancel; [отчёт](validation/t10-m07-implementation.md) | Поведение NOT_VERIFIED, без M06 review gate |
+| M08–M09 | TODO | Не запускались | Только по новой команде |
 
 Все H-проверки нового remote и непроверенный новый T09a UX ожидают единой финальной приёмки. Обновление этого журнала не закрывает их автоматически.
 

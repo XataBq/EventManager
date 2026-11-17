@@ -178,6 +178,12 @@ class RemoteRegistrations(private val api: AuthHttp, private val auth: RemoteAut
 
 class RemoteTickets(private val api: AuthHttp, private val auth: RemoteAuthRepository,
     private val clock: Clock = Clock.systemUTC()) : TicketRepository {
+    private val ownUpdates=java.util.concurrent.ConcurrentHashMap<TicketId,MutableStateFlow<Long>>()
+    private val knownEvents=java.util.concurrent.ConcurrentHashMap<TicketScope,Set<EventId>>()
+    internal fun invalidateOwnerCancellation(eventId:EventId,ticketId:TicketId) {
+        ownUpdates[ticketId]?.update {it+1}
+        knownEvents.filterValues {eventId in it}.keys.forEach {scope->revisions.getValue(scope).update {it+1}}
+    }
     private val revisions = TicketScope.entries.associateWith { MutableStateFlow(0L) }
     private val completed = TicketScope.entries.associateWith { MutableStateFlow(0L) }
     private val readers = TicketScope.entries.associateWith { java.util.concurrent.atomic.AtomicInteger() }
@@ -203,7 +209,9 @@ class RemoteTickets(private val api: AuthHttp, private val auth: RemoteAuthRepos
                 val dto = api.json.decodeFromString<MyTicketsDto>(text)
                 require(dto.items.map { it.id }.distinct().size == dto.items.size)
                 val counters = TicketScope.entries.associateWith { requireNotNull(dto.counters[it.name.lowercase()]).also { n -> require(n >= 0) } }
-                MyTicketsResult.Ready(dto.items.map { it.domain() }, now = clock.instant(), scope = scope, counters = counters)
+                val tickets=dto.items.map {it.domain()}
+                if(auth.isCurrentPublicRead(ctx)) knownEvents[scope]=tickets.map {it.snapshot.eventId}.toSet()
+                MyTicketsResult.Ready(tickets, now = clock.instant(), scope = scope, counters = counters)
             } catch(e: RemoteFailure) { MyTicketsResult.Failed(e.readError()) }
               catch(_: SerializationException) { MyTicketsResult.Failed(ProductReadError.PROTOCOL) }
               catch(_: IllegalArgumentException) { MyTicketsResult.Failed(ProductReadError.PROTOCOL) }
@@ -213,7 +221,7 @@ class RemoteTickets(private val api: AuthHttp, private val auth: RemoteAuthRepos
         }.onStart { readers.getValue(scope).incrementAndGet() }
          .onCompletion { readers.getValue(scope).decrementAndGet(); completed.getValue(scope).value = revisions.getValue(scope).value }
          .buffer(0)
-    override fun observeOwnTicket(ticketId: TicketId): Flow<OwnTicketResult> = auth.observeSession().transformLatest {
+    override fun observeOwnTicket(ticketId: TicketId): Flow<OwnTicketResult> = combine(auth.observeSession(),ownUpdates.getOrPut(ticketId){MutableStateFlow(0L)}) {session,version->session to version}.transformLatest {
         val ctx = auth.capturePublicRead()
         if(ctx.token == null) { emit(OwnTicketResult.AuthenticationRequired); return@transformLatest }
         val result = try {

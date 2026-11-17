@@ -1,6 +1,6 @@
 # T08: owner dashboard и общая явка
 
-Текущая demo-реализация поверх T07. Backend/API-предложение ещё не согласованы; remote cursor/polling/security protocol не утверждены. T07 camera/UI и H3 приняты пользователем 6 ноября; [свидетельство](../validation/2026-11-06-manual-acceptance.md). Результаты исходного среза — [26](../26-t08-validation.md), исправления refresh — [27](../27-t08-refresh-validation.md).
+Эта страница описывает legacy demo T08. Remote Stats/Attendees/revision/server-page/ticket cancel подключены в [M07](t10-dashboard-attendees.md); ниже demo offset/registration/time rules не являются remote контрактом. Прежние T07/H3 приёмки не подтверждают M07; [историческое свидетельство](../validation/2026-11-06-manual-acceptance.md).
 
 ## Ответственность и данные
 

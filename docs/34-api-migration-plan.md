@@ -1,6 +1,6 @@
 # T10: сравнение, миграция правил и интеграция API
 
-**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](architecture/t10-scanner-volunteers.md), [compile и ограничения](validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
+**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](architecture/t10-dashboard-attendees.md), [compile и ограничения](validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
 
 Основание: Android `0493dbd2e328796cd963689cc25cf3d4d2bd40e1` плюс существующие незакоммиченные документы; backend `def65653b9e1f22dce8bc2d6f266b23ace6cd1d5`, OpenAPI/staging 1.1.1. Согласованные правила — [08](08-decisions.md), задание backend — [32](32-backend-final-requirements.md), проверка сервера — [33](33-backend-update-2026-11-13.md). Старое предложение 44 URL и B01–B08 не отменяют более поздних решений пользователя.
 
@@ -172,3 +172,7 @@ ADR-T10-03/05/06 реализованы узким draft store, без унив�
 ## Фактический M06, сокращённый режим
 
 Настоящие scanner/scan/volunteer операции подключены за прежними ports, sparse receipts/EVT/key retry и actor scope описаны в [текущей архитектуре](architecture/t10-scanner-volunteers.md). Проверена одна remote compilation; suites/lint/demo/staging/APK/device/review не выполнялись. M05/M02 gates не закрыты задним числом; M07 самостоятельно не начат.
+
+## M07 — согласованное чтение и ticket cancellation (17 ноября)
+
+Stats/page публикуются одним revision-bound snapshot; server revision не editor If-Match. Отсутствующие attendee registration/time/checker не выдумываются, исторические answers не перекодируются через текущие questions. Отмена по ticketId подтверждается backend; связанные read инвалидируются адресно. Query может содержать PII и остаётся только у живой VM. [Спецификация M07](architecture/t10-dashboard-attendees.md). Только compile подтверждён, M08 не начат.

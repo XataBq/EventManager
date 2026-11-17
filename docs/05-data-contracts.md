@@ -1,6 +1,6 @@
 # Текущие порты, remote и fake storage
 
-**17 ноября — M06 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote Scanner/check-in и Volunteers подключены к существующим UI/ports. [Архитектура M06](architecture/t10-scanner-volunteers.md), [compile и ограничения](validation/t10-m06-implementation.md). Переход без ревью M05 разрешён пользователем; M05/M02 не TECH_ACCEPTED. Одна remote Kotlin/Java/DI компиляция прошла, сценарии/lint/demo/staging/APK/device не запускались. M07–M09 TODO; ручная приёмка после M09.
+**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](architecture/t10-dashboard-attendees.md), [compile и ограничения](validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
 
 ## Реализованные порты
 
@@ -151,3 +151,7 @@ Save пишет только на устройство; sync — отдельн�
 ## M06: sparse check-in и volunteer contracts
 
 CheckInOutcome.Confirmed(decision,ScanReceipt,replayed) сохраняет optional scanId/reason/code/name/category/time/display checker; CheckInRecord с реальными fake history IDs остаётся отдельной legacy ветвью. ScannerInfo содержит summary/role/checkedByMe/recent. ScanCommand — неизменные code/key и once-only firstAttempt metadata текущего owner, без disk/SavedState. Volunteer дополняется publicId/fullName/grantedAt/count; Granted содержит projection, Revoked подтверждает userId без искусственного grant. [Операции и ошибки](architecture/t10-scanner-volunteers.md).
+
+## M07: stats/page и sparse attendee
+
+DashboardResult.Ready.firstPage связывает Stats/Attendees revision до UI commit. Cursor хранит serverPage/pageSize/query/event/revision, legacy offset не server cursor. Attendee registrationId/registeredAt/checkerId nullable; boolean/string/string[] answers сохраняются без текущих questions. cancelTicket принимает настоящий ticketId, legacy cancelRegistration remote unavailable. Volunteer count nullable, fetchedAt локальный; [подробный contract/lifecycle](architecture/t10-dashboard-attendees.md).

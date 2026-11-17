@@ -105,7 +105,7 @@ Tickets/MyEvents/Event, как Dashboard/Volunteers/Profile, запускают 
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance/profile mutations/XLSX/resend cleanup относятся к M07–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance подключён в M07; profile mutations/XLSX/resend cleanup относятся к M08–M09.
 
 ## M03: регистрации, билеты и PDF
 
@@ -126,3 +126,7 @@ Save пишет только на устройство; sync — отдельн�
 ## M06: remote scanner/volunteers
 
 Credential/key/firstAttempt живут у ScanCommand текущей Scanner VM, не в Room/SavedState. Hidden cancel сохраняет unknown команду живой VM; pop/account/revoked scope очищает. Repository state stamped actor/event; consumer-edge sanitize и version guards ограничивают late reply. [Детальная текущая модель](t10-scanner-volunteers.md), [выполненная проверка/NOT_RUN](../validation/t10-m06-implementation.md).
+
+## M07: dashboard/участники
+
+Query живёт у DashboardKey VM и сохраняется при rotation/возврате дочернего entry, не process death/SavedState. Raw attendee answers/selection/PII не persist. Страницы принадлежат actor/event/query/revision; смена owner отменяет read/finally, auth denial очищает VM. [Текущая модель](t10-dashboard-attendees.md), [реальная проверка и ограничения](../validation/t10-m07-implementation.md).

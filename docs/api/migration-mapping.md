@@ -92,14 +92,16 @@ ScanResult result=allowed/already_used/invalid; optional scanId/replayed/reason/
 
 | Метод | Решение / API | Input/output |
 |---|---|---|
-| observeDashboard | CHANGE, GET `/events/{event_id}/stats` + details при необходимости | `{revision,registered,capacity,checkedIn,notCheckedIn}`; header из отдельного доступного EventDetails, не дублированная authority |
-| refreshDashboard | CHANGE, те же read | Stats/page версии сравниваются, смешанную комбинацию не выдавать Ready |
-| attendees | CHANGE, GET `/events/{event_id}/attendees?search=&page=&pageSize=&revision=` | `{revision,items,total,page,pageSize}`, pageSize≤100; local cursor должен хранить query/E/revision и server page, не обещать cursor protocol |
-| cancelRegistration | CHANGE input registrationId→ticketId, POST `/events/{event_id}/attendees/{ticket_id}/cancel` | `{ticketId,status:"cancelled"}`, used→409; re-read связанных stats/page/ticket |
+| observeDashboard | IMPLEMENTED M07, GET `/events/{event_id}/stats` + details при необходимости | `{revision,registered,capacity,checkedIn,notCheckedIn}`; header из отдельного доступного EventDetails, не дублированная authority |
+| refreshDashboard | IMPLEMENTED M07, те же read | Stats/page версии сравниваются, смешанную комбинацию не выдавать Ready |
+| attendees | IMPLEMENTED M07, GET `/events/{event_id}/attendees?search=&page=&pageSize=&revision=` | `{revision,items,total,page,pageSize}`, pageSize≤100; local cursor должен хранить query/E/revision и server page, не обещать cursor protocol |
+| cancelTicket (legacy cancelRegistration remote unavailable) | CHANGE input registrationId→ticketId, POST `/events/{event_id}/attendees/{ticket_id}/cancel` | `{ticketId,status:"cancelled"}`, used→409; re-read связанных stats/page/ticket |
 
 Attendee response: ticketId/ticketCode/fullName/email/status(present/expected/cancelled)/checkedInAt/answers. Нет registeredAt/checkerId/registrationId: текущие обязательные поля изменить на optional/убрать, не вставлять now/actor/ticketId под видом registrationId. Normal list может исключать cancelled; total относится к search и этому фильтру. Полный XLSX все статусы получает сервер независимо от query/page.
 
 Revision — opaque consistency token **только чтения dashboard**. Смена query/E сбрасывает cursor; STALE_PAGE/409 → первая страница+stats, старые rows не append. Не передавать token как expectedRevision в PATCH editor. Перед read последующих страниц передавать revision первой.
+
+[Фактический snapshot/page/cancel protocol и NOT_VERIFIED](../architecture/t10-dashboard-attendees.md). Remote compile пройден; contract/scenario/live не проверены.
 
 ## ProfileRepository / DocumentsRepository — read profile M01, mutations M08; PDF M03
 

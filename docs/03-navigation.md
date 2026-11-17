@@ -124,3 +124,7 @@ Back save/discard/stay сохраняет текущий raw ввод или о�
 ## M06: remote scanner/volunteers
 
 MyEvents server summary открывает ScannerKey по internal eventId для organizer/volunteer, VolunteersKey для organizer. Remote host подключает прежние ScannerRoute/VolunteersRoute; result не создаёт отдельный NavKey. При отказе route возвращается к родителю с сообщением ScannerAccessLostKey. Visible RESUMED перечитывает доступ; неизвестная отправка сохраняет прежний memory-only key для явного retry, без auto POST при resume. [Lifecycle/Back](architecture/t10-scanner-volunteers.md).
+
+## M07: remote DashboardKey
+
+MyEvents organizer открывает прежний DashboardKey по internal eventId; оттуда — общие Scanner/Volunteers того же E. Back возвращает в Dashboard с query живой VM; visible RESUMED перечитывает согласованный snapshot, скрытый родитель не поллится. Query/selection/PII не persist в SavedState/Room. Отказ очищает private состояние и возвращает сообщение; XLSX до M08 не предлагается. [Владельцы M07](architecture/t10-dashboard-attendees.md).

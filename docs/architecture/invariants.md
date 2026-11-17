@@ -80,7 +80,7 @@ Configuration rebind сохраняет pending и уже начатый writer;
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance/profile mutations/XLSX/resend cleanup относятся к M07–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance подключён в M07; profile mutations/XLSX/resend cleanup относятся к M08–M09.
 
 ## M03: регистрации, билеты и PDF
 
@@ -101,3 +101,7 @@ Save пишет только на устройство; sync — отдельн�
 ## M06: remote scanner/volunteers
 
 Remote M06 compiled, но sparse/replay/24h/cooldown/concurrent scan/revoke/late result/camera поведение NOT_VERIFIED. Старые T07 tests описывают legacy demo и не являются новым evidence. Server authority и отсутствие offline допуска — реализованные guards, не доказанный сценарный результат. [Детальная текущая модель](t10-scanner-volunteers.md), [выполненная проверка/NOT_RUN](../validation/t10-m06-implementation.md).
+
+## M07: dashboard/участники
+
+M07 remote Kotlin/Java/DI compiled, но coherent snapshot при гонках, stale/query/page/actor/finally guards, cancel/scan и sparse historical answers сценарно NOT_VERIFIED. Прежние T08 tests/прогон aaca508 не выдаются за новые M07 результаты. [Текущая модель](t10-dashboard-attendees.md), [реальная проверка и ограничения](../validation/t10-m07-implementation.md).

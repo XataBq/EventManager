@@ -23,7 +23,7 @@ import ru.eventpass.core.domain.event.EventLifecycle
 
 @Composable
 fun DashboardRoute(eventId: String, visible: Boolean, scanner: () -> Unit, volunteers: () -> Unit, onDenied: () -> Unit,
-    vm: DashboardViewModel = hiltViewModel()) {
+    vm: DashboardViewModel = hiltViewModel(),exportEnabled:Boolean=true) {
     val s by vm.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(eventId, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -31,7 +31,7 @@ fun DashboardRoute(eventId: String, visible: Boolean, scanner: () -> Unit, volun
     } }
     LaunchedEffect(s.denied) { if (visible && s.denied) onDenied() }
     DashboardScreen(s, vm::query, vm::refresh, vm::more, vm::retryPage, vm::confirm, scanner, volunteers, visible = visible,
-        documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.AttendanceXlsx(ru.eventpass.core.domain.event.EventId(eventId)),visible,s.dashboard!=null) })
+        documents = { if(exportEnabled) ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.AttendanceXlsx(ru.eventpass.core.domain.event.EventId(eventId)),visible,s.dashboard!=null) })
     s.selected?.let { target -> ConfirmDialog(stringResource(R.string.attendance_cancel), target.name,
         stringResource(if (s.cancelError == null) R.string.attendance_cancel else R.string.ticket_retry), vm::cancel,
         { vm.confirm(null) }, destructive = true, loading = s.cancelling,
@@ -54,18 +54,21 @@ fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () ->
                 StatusBadge(stringResource(when {
                     d.header.lifecycle == EventLifecycle.CANCELLED -> R.string.event_cancelled
                     d.header.finished -> R.string.event_finished
-                    d.updatedAt >= d.header.startsAt -> R.string.event_started
+                    d.header.lifecycle==EventLifecycle.LIVE || (!d.header.statusAuthoritative && d.updatedAt >= d.header.startsAt) -> R.string.event_started
                     !d.header.registrationOpen -> R.string.event_closed
                     else -> R.string.event_open
                 }), StatusTone.Neutral)
                 EventPassSection(Modifier.fillMaxWidth().testTag("dashboard-totals")) {
                     KeyValueRow(stringResource(R.string.dashboard_registered), d.summary.registered.toString())
+                    if(d.header.statusAuthoritative) KeyValueRow(stringResource(R.string.m07_capacity),d.summary.capacity?.toString() ?: stringResource(R.string.m07_unknown))
                     KeyValueRow(stringResource(R.string.dashboard_checked), "${d.summary.checkedIn} (${d.summary.percent}%)")
                     KeyValueRow(stringResource(if (d.header.finished) R.string.dashboard_absent else R.string.dashboard_expected), d.summary.notCheckedIn.toString())
                     KeyValueRow(stringResource(R.string.dashboard_remaining), d.summary.remaining?.toString() ?: stringResource(R.string.dashboard_unlimited))
+                    if(d.header.statusAuthoritative) KeyValueRow(stringResource(R.string.m07_volunteers),d.volunteerCount?.toString() ?: stringResource(R.string.m07_unknown))
                 }
-                Text(stringResource(R.string.dashboard_updated, formatEventTime(d.updatedAt, d.header.zoneId)), style = EventPassTypography.hint)
-                Text(stringResource(R.string.dashboard_local), style = EventPassTypography.hint)
+                d.volunteerError?.let {InlineError(stringResource(ru.eventpass.app.feature.volunteers.volunteerErrorResource(it)))}
+                Text(stringResource(if(d.header.statusAuthoritative) R.string.m07_fetched else R.string.dashboard_updated, formatEventTime(d.fetchedAt, d.header.zoneId)), style = EventPassTypography.hint)
+                Text(stringResource(if(d.header.statusAuthoritative) R.string.m07_local_time else R.string.dashboard_local), style = EventPassTypography.hint)
                 TextAction(stringResource(R.string.scan_title), scanner, Modifier.testTag("dashboard-scanner"))
                 TextAction(stringResource(R.string.volunteers_title), volunteers, Modifier.testTag("dashboard-volunteers"))
             }
@@ -78,9 +81,9 @@ fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () ->
         }
         if (s.dashboard != null) {
             item("search") {
-                FormField(s.query, query, stringResource(R.string.dashboard_search), Modifier.testTag("dashboard-query"))
-                Text(stringResource(R.string.dashboard_matches, s.matches), Modifier.testTag("dashboard-matches"))
-                Text(stringResource(R.string.dashboard_all_statuses), style = EventPassTypography.hint)
+                FormField(s.query, query, stringResource(R.string.dashboard_search), Modifier.testTag("dashboard-query"),enabled=!s.cancelling)
+                if(s.matchesKnown) Text(stringResource(R.string.dashboard_matches, s.matches), Modifier.testTag("dashboard-matches"))
+                Text(stringResource(if(s.dashboard.header.statusAuthoritative) R.string.m07_filter_hint else R.string.dashboard_all_statuses), style = EventPassTypography.hint)
             }
             items(s.rows, key = { it.ticketId.value }) { row -> EventPassSection(Modifier.fillMaxWidth().testTag("attendee-${row.ticketId.value}")) {
                 Text(row.name, style = EventPassTypography.cardTitle); Text(row.email); Text(row.displayNumber)
@@ -90,8 +93,21 @@ fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () ->
                     TicketStatus.ACTIVE -> if (s.dashboard.header.finished) R.string.dashboard_absent else R.string.dashboard_expected
                 }), StatusTone.Neutral)
                 if (row.status == TicketStatus.USED) Text(row.checkedAt?.let {
-                    stringResource(R.string.scan_first, formatEventTime(it, s.dashboard.header.zoneId), row.checkerId?.value.orEmpty())
+                    if(row.checkerId!=null) stringResource(R.string.scan_first, formatEventTime(it, s.dashboard.header.zoneId), row.checkerId?.value.orEmpty())
+                    else stringResource(R.string.m06_checked_at,formatEventTime(it,s.dashboard.header.zoneId))
                 } ?: stringResource(R.string.scan_no_history))
+                if(row.answers.isNotEmpty()) {
+                    Text(stringResource(R.string.m07_answers),style=EventPassTypography.emphasis)
+                    row.answers.values.forEachIndexed {index,answer->
+                        val value=when(answer) {
+                            is ru.eventpass.core.domain.registration.Answer.Text->answer.value
+                            is ru.eventpass.core.domain.registration.Answer.Checkbox->stringResource(if(answer.checked) R.string.m07_yes else R.string.m07_no)
+                            is ru.eventpass.core.domain.registration.Answer.SingleChoice->answer.optionId
+                            is ru.eventpass.core.domain.registration.Answer.MultipleChoice->answer.optionIds.joinToString(", ")
+                        }
+                        Text(stringResource(R.string.m07_answer,index+1,value))
+                    }
+                }
                 if (row.status == TicketStatus.ACTIVE) TextAction(stringResource(R.string.attendance_cancel), { confirm(row) }, enabled = !s.cancelling)
             } }
             item("footer") {
@@ -105,6 +121,7 @@ fun DashboardScreen(s: DashboardUiState, query: (String) -> Unit, refresh: () ->
     }
 }
 fun attendanceErrorResource(error: AttendanceError): Int = when (error) {
+    AttendanceError.RATE_LIMITED -> R.string.auth_cooldown
     AttendanceError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable
     AttendanceError.PROTOCOL -> R.string.auth_protocol
     AttendanceError.FORBIDDEN -> R.string.auth_forbidden

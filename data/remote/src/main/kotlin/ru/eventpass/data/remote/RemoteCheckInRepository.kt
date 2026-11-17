@@ -38,6 +38,11 @@ class RemoteCheckInRepository(private val api:AuthHttp,private val auth:RemoteAu
         entries.getOrPut(id){Entry()}
     }
     override fun parseManual(raw:String)=ServerTicketCodePolicy.parse(raw)
+    /** No hidden polling: the existing visible/resume reader reloads this event after owner cancellation. */
+    internal fun invalidateEvent(id:EventId) = synchronized(entries) {
+        entries[id]?.let {it.version.incrementAndGet();it.state.value=null}
+        Unit
+    }
     private fun current(c:PublicReadContext)=auth.isCurrentPublicRead(c)
     private fun access(e:Entry,c:PublicReadContext)=e.state.value?.takeIf {current(it.context) && it.context.snapshot==c.snapshot}?.value
     private fun denial(e:Entry,c:PublicReadContext,error:CheckInError) {

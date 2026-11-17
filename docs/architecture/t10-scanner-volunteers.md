@@ -1,6 +1,6 @@
 # M06: remote Scanner и Volunteers
 
-**IMPLEMENTED / COMPILE_VERIFIED; поведение NOT_VERIFIED.** Контракт — локальный OpenAPI1.1.1, [mapping](../api/migration-mapping.md), [команда и ограничения](../validation/t10-m06-implementation.md). M05/M02 не становятся TECH_ACCEPTED; переход без review gate прямо разрешён пользователем. M07 не запускался.
+**IMPLEMENTED / COMPILE_VERIFIED; поведение NOT_VERIFIED.** Контракт — локальный OpenAPI1.1.1, [mapping](../api/migration-mapping.md), [команда и ограничения](../validation/t10-m06-implementation.md). M05/M02 не становятся TECH_ACCEPTED; переход без review gate прямо разрешён пользователем. Dashboard и его связи с M06 подключены в [M07](t10-dashboard-attendees.md), поведение также NOT_VERIFIED.
 
 ## Владельцы и модели
 

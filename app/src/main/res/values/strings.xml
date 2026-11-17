@@ -132,4 +132,14 @@
     <string name="m06_recent">Последние проверки</string>
     <string name="m06_scan_hint">Считайте QR билета или введите код EVT-xxxxxx. Допуск подтверждает сервер.</string>
     <string name="m06_manual">Код билета EVT-xxxxxx</string>
+    <string name="m07_capacity">Вместимость</string>
+    <string name="m07_volunteers">Волонтёры</string>
+    <string name="m07_unknown">Нет данных</string>
+    <string name="m07_fetched">Данные получены: %1$s</string>
+    <string name="m07_local_time">Указано время получения на этом устройстве.</string>
+    <string name="m07_filter_hint">Состав списка и число найденных определяет сервер. Отменённые билеты могут отсутствовать в списке.</string>
+    <string name="m07_answers">Сохранённые ответы регистрации</string>
+    <string name="m07_answer">Ответ %1$d: %2$s</string>
+    <string name="m07_yes">Да</string>
+    <string name="m07_no">Нет</string>
 </resources>
