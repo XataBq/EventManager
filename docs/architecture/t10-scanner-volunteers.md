@@ -1,6 +1,6 @@
 # M06: remote Scanner и Volunteers
 
-**IMPLEMENTED / COMPILE_VERIFIED; поведение NOT_VERIFIED.** Контракт — локальный OpenAPI1.1.1, [mapping](../api/migration-mapping.md), [команда и ограничения](../validation/t10-m06-implementation.md). M05/M02 не становятся TECH_ACCEPTED; переход без review gate прямо разрешён пользователем. Dashboard и его связи с M06 подключены в [M07](t10-dashboard-attendees.md), поведение также NOT_VERIFIED.
+Текущая проверка и остаток — [единая матрица M09](../validation/t10-m09-final-validation.md). Исходный compile-only результат этапа остаётся историческим; он не заменяет выполненные в M09 проверки и не закрывает ручную приёмку.
 
 ## Владельцы и модели
 
@@ -19,7 +19,7 @@ Manual принимает только `EVT-[A-Z0-9]{6}` с нормализац
 
 Network/Timeout/503/Protocol/cancel не доказывают rollback. Controller сохраняет команду в памяти, блокирует новые camera/manual отправки и предлагает явный повтор того же code/body/key. Первый attempted-send timestamp и 429 cooldown не сбрасываются на retry; после 24h/IDEMPOTENCY_CONFLICT — сверка истории без нового POST/key. Неизвестный outcome при потере owner/процесса не превращается в постоянную очередь или автоматический новый scan. Другой actor/event/revoked scope очищает команду.
 
-`replayed=true` рисуется нейтрально как восстановленный ответ, не новый зелёный допуск; звука/вибрации не добавлено. Счётчики локально не увеличиваются: после ответа выполняется адресный GET scanner, доступно явное обновление истории. Гонку двух сканеров решает backend, клиент этого не обещает. Конкурентность reads/mutations сценарно не проверялась.
+`replayed=true` рисуется нейтрально как восстановленный ответ, не новый зелёный допуск; звука/вибрации не добавлено. Счётчики локально не увеличиваются: после ответа выполняется адресный GET scanner, доступно явное обновление истории. Гонку двух сканеров решает backend, клиент этого не обещает. После подтверждённого scan version инвалидирует старые GET; обязательный server read ожидает освобождения reader Mutex, затем получает свежие counts/history. Регрессия старого GET и реальная гонка двух scanners проверены в M09.
 
 GET volunteers возвращает фактические userId/publicId/fullName/email/grantedAt/checkedInCount. POST `{identifier}` принимает email/publicId, ответ Granted содержит Volunteer; DELETE по **userId** подтверждает Revoked без разбора 204 как JSON и без искусственного grantId. Обновляется projection данного E и выполняется его read; старые GET ограничены version guard. Grant/revoke не меняют билеты и другие E. Errors/retry остаются внутри существующего confirmation; cooldown и access errors типизированы.
 
@@ -29,4 +29,4 @@ Remote MyEvents открывает прежние ScannerKey и VolunteersKey п
 
 Visible RESUMED перечитывает access; hidden/background отменяет чтение/POST и очищает ввод/результат, сохраняя неизвестную команду у живой VM для явного retry. Permission/camera bind/unbind/manual fallback прежние. Observer binding, request generation и finally guard не дают позднему завершению менять новый entry. Ни скрытого polling, ни фоновой sync-очереди нет. Volunteers hidden/stop очищает transient UI и отменяет commands.
 
-Room/draft/auth contracts M05, registration/guest/tickets M03, dashboard/attendance M07, profile/delete/export M08 не перерабатывались. Данные Scanner/Volunteers — transient private projection, не fake snapshot/Room migration. Compilation подтверждает связывание, **не** camera/retry/race/revoke поведение; эти проверки выполняются только по отдельной команде.
+Room/draft/auth contracts M05, registration/guest/tickets M03, dashboard/attendance M07, profile/delete/export M08 не перерабатывались. Данные Scanner/Volunteers — transient private projection, не fake snapshot/Room migration. Compilation подтверждает связывание, **не** camera/retry/race/revoke поведение; текущие результаты находятся в матрице M09.

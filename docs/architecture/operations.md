@@ -164,3 +164,7 @@ Stats + первая страница одной revision принимаются
 ## M08: profile/delete/documents
 
 Profile PATCH отправляет только changed fields с explicit null/false; old profile GET fenced version. Delete требует confirmation/204, unknown → explicit me сверка. XLSX format=xlsx — server download/MIME/ZIP/XML/bounds → existing SAF, без query/page/local fallback. Ticket resend удалён, auth resend/initial outbox остаются. [Текущие владельцы](t10-profile-delete-documents.md), [compile/NOT_RUN](../validation/t10-m08-implementation.md).
+
+## M09: стабилизация
+
+Текущая реализация: remote host владеет тремя стеками; AuthRepository обрабатывает подтверждённый delete204 отдельно от current-read filtering, old actor не загрязняет новый; Scanner invalidates старый GET и последовательно перечитывает серверный счётчик; Dashboard ограничивает retention неактивных query. XML guard работает с Android Expat и запрещает DTD до парсера. Ports/Room schema1 и серверная авторизация не заменены. Инварианты и точное evidence — [единая матрица](../validation/t10-m09-final-validation.md), включая RemoteEventRepositoryTest, ProfileDeleteProtocolTest, ScannerDashboardProtocolTest, DraftCoordinatorHttpTest, XlsxAndroidTest и RemoteMvpDeviceTest.

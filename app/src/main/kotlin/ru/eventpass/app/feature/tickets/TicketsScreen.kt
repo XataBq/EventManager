@@ -21,7 +21,7 @@ import ru.eventpass.core.domain.registration.*
 
 @Composable
 fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) -> Unit,
-    onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit, visible: Boolean = true, vm: TicketsViewModel = hiltViewModel()) {
+    onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit, visible: Boolean = true, vm: TicketsViewModel = hiltViewModel(), onCardClosed:(()->Unit)?=null) {
     val s by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(selected) { selected?.let { vm.selectIssued(it); onConsumed() } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -30,8 +30,8 @@ fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) ->
     } }
     // The selected card belongs to the root entry, so NavDisplay cannot pop it.
     // Dialog windows handle Back themselves before the card returns to the list.
-    BackHandler(enabled = visible && s.selected != null && !s.fullscreen && !s.confirming) { vm.select(null) }
-    TicketsScreen(s, vm::select, vm::history, { vm.refresh() }, { vm.fullscreen(true) }, { vm.confirm(true) }, onEvent, onDemo, onGallery, onTools,
+    BackHandler(enabled = visible && s.selected != null && !s.fullscreen && !s.confirming) { onCardClosed?.invoke() ?: vm.select(null) }
+    TicketsScreen(s, {id->if(id==null && onCardClosed!=null) onCardClosed() else vm.select(id)}, vm::history, { vm.refresh() }, { vm.fullscreen(true) }, { vm.confirm(true) }, onEvent, onDemo, onGallery, onTools,
         documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.TicketPdf(it.snapshot.ticketId),visible) }, visible = visible)
     if (s.confirming) ConfirmDialog(stringResource(R.string.ticket_cancel_title), stringResource(R.string.ticket_cancel_description),
         stringResource(R.string.ticket_cancel), vm::cancel, { vm.confirm(false) }, destructive = true, loading = s.cancelling, dismissLabel = stringResource(R.string.ticket_keep))

@@ -15,7 +15,7 @@ import ru.eventpass.data.remote.*
 @Module @InstallIn(SingletonComponent::class)
 object RemoteModule {
  @Provides @Singleton fun tokens(@ApplicationContext context: Context): SessionTokenStore = AndroidSessionTokenStore(context)
- @Provides @Singleton fun http() = AuthHttp("https://staging.eventpass.dikanskii.ru/api/")
+ @Provides @Singleton fun http() = AuthHttp(ru.eventpass.app.BuildConfig.API_BASE_URL)
  @Provides @Singleton fun drafts(@ApplicationContext context: Context): ru.eventpass.core.domain.event.DraftStore = ru.eventpass.data.local.AndroidDraftStoreFactory.open(context)
  @Provides @Singleton fun auth(http: AuthHttp, tokens: SessionTokenStore, drafts: ru.eventpass.core.domain.event.DraftStore, store: ru.eventpass.core.platform.AndroidEventCoverStore,files:ru.eventpass.core.domain.documents.DocumentFiles) = RemoteAuthRepository(http,tokens) { account ->
   files.purgePrivate(account)

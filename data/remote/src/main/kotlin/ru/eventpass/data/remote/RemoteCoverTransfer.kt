@@ -18,7 +18,7 @@ class RemoteCoverTransfer(private val api: AuthHttp, private val auth: RemoteAut
             val dto=api.json.decodeFromString<UploadedCover>(api.uploadCover(bytes,cover.mimeType,token))
             currentCoroutineContext().ensureActive()
             if(!auth.isCurrentPublicRead(context)) throw RemoteFailure(AuthError.SessionChanged)
-            require(dto.assetId.isNotBlank() && dto.assetId.length<=300 && dto.byteCount==bytes.size.toLong() && dto.mimeType==cover.mimeType)
+            require(dto.assetId.isNotBlank() && dto.assetId.length<=300 && dto.byteCount in 1..5_242_880L && dto.mimeType in setOf("image/png","image/jpeg"))
             require(dto.width in 1..32768 && dto.height in 1..32768)
             return cover.copy(remoteAssetId=dto.assetId)
         } catch(e:RemoteFailure) {if(e.error==AuthError.Unauthorized) auth.rejectUnauthorized(context);throw e}
@@ -37,7 +37,9 @@ class RemoteCoverTransfer(private val api: AuthHttp, private val auth: RemoteAut
             currentCoroutineContext().ensureActive()
             if(!auth.isCurrentPublicRead(c)) return CoverImportResult.Unavailable
             require(dto.assetId.isNotBlank() && dto.assetId.length <= 300)
-            require(dto.byteCount == bytes.size.toLong() && dto.mimeType == imported.cover.mimeType)
+            // The server may normalize/re-encode the image. These are remote asset properties,
+            // while EventCover still describes the retained local source used by the draft store.
+            require(dto.byteCount in 1..5_242_880L && dto.mimeType in setOf("image/png","image/jpeg"))
             require(dto.width in 1..32768 && dto.height in 1..32768)
             CoverImportResult.Imported(imported.cover.copy(remoteAssetId=dto.assetId))
         } catch(e: CancellationException) { throw e }

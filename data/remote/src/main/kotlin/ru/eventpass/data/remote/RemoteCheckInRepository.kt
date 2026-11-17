@@ -63,8 +63,8 @@ class RemoteCheckInRepository(private val api:AuthHttp,private val auth:RemoteAu
         if(c.token==null || c.profile==null) {denial(e,c,CheckInError.AUTHENTICATION_REQUIRED);return}
         read(eventId,e,c)
     }
-    private suspend fun read(id:EventId,e:Entry,c:PublicReadContext) {
-        if(!e.read.tryLock()) return
+    private suspend fun read(id:EventId,e:Entry,c:PublicReadContext,afterMutation:Boolean=false) {
+        if(afterMutation) e.read.lock() else if(!e.read.tryLock()) return
         val version=e.version.get()
         try {
             val text=auth.requestScoped(apiPath("events",id.value,"scanner"),c) ?: return
@@ -131,8 +131,9 @@ class RemoteCheckInRepository(private val api:AuthHttp,private val auth:RemoteAu
             if(!current(c) || version!=e.version.get() || (access(e,c) as? ScannerAccess.Allowed)?.scope!=allowed.scope)
                 return CheckInOutcome.Failed(CheckInError.SESSION_CHANGED)
             e.attempts.remove(command.id);e.retryAt=null
+            e.version.incrementAndGet()
             // Counts/history come from the server read; no local increment, including replayed receipts.
-            read(eventId,e,c)
+            read(eventId,e,c,afterMutation=true)
             if(!current(c)) return CheckInOutcome.Failed(CheckInError.SESSION_CHANGED)
             if((access(e,c) as? ScannerAccess.Allowed)?.scope!=allowed.scope)
                 return CheckInOutcome.Failed((access(e,c) as? ScannerAccess.Denied)?.error ?: CheckInError.SESSION_CHANGED)

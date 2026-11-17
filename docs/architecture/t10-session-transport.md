@@ -7,13 +7,13 @@
 | Владелец | Ответственность |
 |---|---|
 | data:remote AuthHttp | OkHttp 5.5.1, kotlinx.serialization, cancellable async HTTP, bounded body 1 МиБ, typed status errors, no redirect/retry/logging |
-| RemoteAuthRepository | Один bearer в памяти/TokenStore, /me bootstrap, SessionSnapshot generation, защищённое принятие сессии, read-only ProfileRepository |
+| RemoteAuthRepository | Один bearer в памяти/TokenStore, /me bootstrap, SessionSnapshot generation, защищённое принятие сессии, общий изменяемый ProfileRepository |
 | SessionTokenStore / AndroidSessionTokenStore | Domain порт; platform AES256/GCM Android Keystore + AtomicFile/noBackup, IO/Mutex, recovery corrupt/missing key, IOException при storage failure |
 | AppSessionViewModel / SessionCoordinator | Auth gate, private/public entry owners, безопасный return target; подтверждённый email не является gate |
 | app demo / remote hosts | Отдельный source-set composition root, общие auth ViewModels/Screens; Navigation3 entry decorators, private owner очистка при logout |
-| RemoteModule | Реальные auth/profile/Clock/TokenStore bindings; остальные существующие ports — временный UnavailableRemoteFeatures |
+| RemoteModule | Реальные auth/profile/Clock/TokenStore bindings; product ports связаны с реальными M02–M08 adapters и Room coordinator |
 
-app/main не импортирует concrete fake/remote или demo tools/gallery. data:remote зависит от domain; platform реализует TokenStore. data:local/Room ещё отсутствует. Fake остаётся только demo implementation/testDemo, не network fallback.
+app/main не импортирует concrete fake/remote или demo tools/gallery. data:remote зависит от domain; platform реализует TokenStore. data:local/Room подключён с M05. Fake остаётся только demo implementation/testDemo, не network fallback.
 
 ## Протокол и состояние
 
@@ -36,3 +36,7 @@ Demo outbox поддерживает verify/reset mail tokens, fake completeEmai
 ## Проверки и предел
 
 Точные команды/XML/APK hashes и результаты — в [отчёте M01](../validation/t10-m01-implementation.md). Модульные тесты проверяют generation/401/cancellation, IO и HTTP статусы; platform instrumentation — реальный Keystore/AtomicFile. Существующий demo suite перемещён в testDemo/androidTestDemo без удаления сценариев; remote имеет отдельные URI boundary tests. Человеческая визуальная/IME/TalkBack/два физических устройства приёмка не заявляется.
+
+## M09: текущая проверка
+
+Auth email/password остаются только в живой VM, legacy email SavedState keys удаляются. Shared Account/Profile/delete owners уточнены в M08/M09; current/late401, cleanup/actor races, настоящий Keystore и Android lifecycle проверены. Все текущие результаты и внешние mail/legal пределы — [единая матрица](../validation/t10-m09-final-validation.md), не старый compile-only вывод.

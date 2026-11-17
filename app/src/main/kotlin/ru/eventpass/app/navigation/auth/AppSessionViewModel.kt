@@ -71,7 +71,8 @@ class AppSessionViewModel @Inject constructor(
         saved.remove<String>("pending")
         return shell.destination
     }
-    private val mutableEmail = MutableStateFlow(saved.get<String>("loginEmail") ?: "")
+    private val mutableEmail = MutableStateFlow("")
+    init {saved.remove<String>("loginEmail")}
     val loginEmail = mutableEmail.asStateFlow()
 
     fun owner(tab: RootTab): ViewModelStoreOwner = stores.getOrPut(tab) {
@@ -92,7 +93,7 @@ class AppSessionViewModel @Inject constructor(
         mutableOpen.value = null
         coordinator.signOut()
     }
-    fun prefill(email: String) { mutableEmail.value = email; saved["loginEmail"] = email }
+    fun prefill(email: String) { mutableEmail.value = email }
     fun receiveLink(uri: String?, requestId: String = UUID.randomUUID().toString()) {
         queuedLinks.addLast(requestId to uri)
         drainLinks()

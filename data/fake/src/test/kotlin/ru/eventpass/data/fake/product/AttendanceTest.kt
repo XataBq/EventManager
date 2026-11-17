@@ -79,7 +79,8 @@ class AttendanceTest {
     @Test fun ownerAndSelfCancelOnceShareStatusCapacityAndPermanentSchemaLock() = runTest {
         val e = environment(); e.scenarios.signInAs(FakeFixtures.HOST)
         val row = (e.attendance.attendees(FakeFixtures.MIXED,"") as AttendeesResult.Page).rows.single()
-        repeat(2) { assertEquals(OwnerCancelResult.Cancelled,e.attendance.cancelRegistration(FakeFixtures.MIXED,row.registrationId)) }
+        assertNotNull(row.registrationId) // The demo still has a real legacy relationship; the action uses ticketId.
+        repeat(2) { assertEquals(OwnerCancelResult.Cancelled,e.attendance.cancelTicket(FakeFixtures.MIXED,row.ticketId)) }
         assertEquals(AttendanceSummary(0,0,0,20),dashboard(e).summary)
         assertFalse((e.events.observeEditor(EventEditorTarget.Published(FakeFixtures.MIXED)).first() as EventEditorResult.Published).questionsLocked)
         e.scenarios.signInAs(FakeFixtures.ALEX)

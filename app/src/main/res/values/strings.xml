@@ -2,7 +2,7 @@
 
 <resources>
 
-    <string name="app_name">EventPass Demo</string>
+    <string name="app_name">EventPass</string>
 
     <string name="demo_badge">Демонстрация</string>
 

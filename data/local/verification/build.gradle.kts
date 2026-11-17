@@ -13,6 +13,7 @@ kotlin {
     jvmToolchain(21)
     compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     sourceSets.main { kotlin.srcDir("../src/main/kotlin"); kotlin.exclude("**/AndroidDraftStoreFactory.kt") }
+    sourceSets.test { kotlin.srcDir("../../remote/src/main/kotlin");kotlin.srcDir("../../remote/src/test/kotlin/ru/eventpass/data/remote/support") }
 }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 dependencies {
@@ -24,4 +25,6 @@ dependencies {
     ksp(libs.room.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.okhttp)
+    testImplementation(libs.mockwebserver)
 }

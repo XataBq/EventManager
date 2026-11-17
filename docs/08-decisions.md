@@ -152,3 +152,11 @@ Stats/page публикуются одним revision-bound snapshot; server rev
 ## M08 — Account update, delete204 и server XLSX (17 ноября)
 
 Profile email — кандидат, canonical Account/User один; PATCH меняет только diff, явный null и false сохранены. Тот же sessionId/userId не purge Room. Delete204 использует общий explicit logout cleanup; unknown требует me сверки,401 не доказывает каскад. Temp epoch/account scope и callbacks очищают private работу без пользовательских SAF файлов. Server XLSX format=xlsx идёт прежним Remote source, local writers только demo. Product resend удалён, auth/initial mails остаются. [Спецификация](architecture/t10-profile-delete-documents.md); только compile подтверждён, M09 не начат.
+
+## M09: внешние условия и предел приёмки, 17 ноября 2026
+
+Пользователь разрешил продолжить Android-проверки без исправления backend-доставки писем. Это не подтверждает получение/открытие verify/setup/reset. Созданный на указанной пользователем почте тестовый аккаунт сохраняется, автоматически не удаляется; доступ только в игнорируемой локальной конфигурации.
+
+Пользователь явно принял residual risk двух устройств без server If-Match: предварительный GET/conflict choice не устраняет гонку GET→PATCH. Оператор для проекта политики — Мосполитех, размещение Россия, контакт demo123@mail.ru. [Проект политики](legal/privacy-draft.md) и [условий](legal/terms-draft.md) требуют утверждения/публикации оператором; null URL/version backend не заменяются выдуманными ссылками.
+
+Release проверяется как unsigned staging-конфигурация; отдельная debug-подпись для локального runtime smoke не является production ключом. Итоговая human-приёмка не закрыта. Факты и ограничения — [M09](validation/t10-m09-final-validation.md).

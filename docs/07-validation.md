@@ -114,3 +114,7 @@ Decision: accepted / changes required / partly checked
 Результаты хранить в `docs/validation/` при появлении реальной сборки. Не создавать фиктивный passing report сейчас.
 
 Независимый T09 и единый checklist H3/H4 для code 18 — [28](28-t09-validation.md). Автоматические profile/files/restart результаты не закрывают ручную camera/UI/H3/H4. Q10/deletion отложен до согласования, T09 остаётся IN_PROGRESS.
+
+## M09: одна финальная приёмка
+
+Текущий APK, результаты и единственный ручной checklist — [отчёт M09](validation/t10-m09-final-validation.md). Старые H-приёмки demo не относятся к этому remote APK. Автоматические проверки/авторский review не являются human acceptance. Доставка писем и backend consent URLs остаются отдельными внешними условиями, даже если Android-команды проверены локально.

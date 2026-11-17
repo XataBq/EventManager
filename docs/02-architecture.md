@@ -1,10 +1,10 @@
 # Фактическая архитектура EventPass Android
 
-**17 ноября — M08 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote profile PATCH/delete и server XLSX подключены к общим UI/ports; product ticket resend удалён. [Архитектура M08](architecture/t10-profile-delete-documents.md), [compile/NOT_RUN](validation/t10-m08-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. Старые review/H-пункты не закрыты. M09 TODO, ручная приёмка после M09.
+M09 — интеграционная стабилизация Android MVP. Актуальный объём, проверки и внешние ограничения — [единый отчёт](validation/t10-m09-final-validation.md). Demo-приёмка не является приёмкой remote; финальная human-приёмка не закрыта.
 
-Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 TECH_ACCEPTED по подтверждению пользователя; M04 принят пользователем; M05 реализован с ограниченной проверкой, M09 ещё не выполнен. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
+Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 TECH_ACCEPTED по подтверждению пользователя; M04 принят пользователем; M05 реализован с ограниченной проверкой, M09 выполняется с полной проверкой. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
 
-Текущий срез M01–M08: remote auth/profile, public GET, registration/tickets/PDF, owner editor/scoped MyEvents/covers и общие модели/renderer. M09 остаётся следующим этапом remote, demo product adapters/schema6 сохранены. [M04](architecture/t10-editor-covers.md). Прежняя demo-приёмка не является финальной приёмкой T10.
+Текущий срез M01–M08: remote auth/profile, public GET, registration/tickets/PDF, owner editor/scoped MyEvents/covers и общие модели/renderer. M09 завершает интеграцию remote, demo product adapters/schema6 сохранены. [M04](architecture/t10-editor-covers.md). Прежняя demo-приёмка не является финальной приёмкой T10.
 
 ## Модули и зависимости исходников
 
@@ -19,7 +19,9 @@ flowchart LR
     fake --> domain
     demo --> platform
     remoteApp["app remote: DI/host"] --> appMain
-    remoteApp --> remote["data:remote auth/profile/public E"]
+    remoteApp --> remote["data:remote: HTTP adapters/coordinator"]
+    remoteApp --> local["data:local: Room drafts"]
+    local --> domain
     remote --> domain
     remoteApp --> platform
 ```

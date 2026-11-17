@@ -1,6 +1,6 @@
 # M07: remote dashboard и участники
 
-**IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Контракт — локальный OpenAPI1.1.1 и [mapping](../api/migration-mapping.md). Одна итоговая remote compilation пройдена; [точный результат и NOT_RUN](../validation/t10-m07-implementation.md). Переход после M06 без review gate разрешён пользователем, старые review/H-пункты не закрыты.
+Текущая проверка и остаток — [единая матрица M09](../validation/t10-m09-final-validation.md). Исходный compile-only результат этапа остаётся историческим; он не заменяет выполненные в M09 проверки и не закрывает ручную приёмку.
 
 ## Владельцы и projection
 
@@ -12,7 +12,7 @@ AttendanceSummary содержит server registered/checkedIn/notCheckedIn/capa
 
 ## Согласованность и страницы
 
-Ключ чтения — captured auth context + eventId + нормализованный query. Stats.revision и page1.revision обязаны совпадать до публикации Ready; частичные header/stats/page не публикуются как новый снимок. Header API не предоставляет revision, поэтому атомарность отдельного header GET со Stats не выдумывается. Network/Timeout/503 сохраняют у VM прежний согласованный snapshot с ошибкой, без новых totals поверх старых rows.
+Ключ чтения — captured auth context + eventId + нормализованный query. Retention ограничен 32 LRU projections; активные observers и in-flight операции удерживают pin до finally и не вытесняются. Старый cursor вытесненного query требует нового согласованного snapshot. Per-event write Mutex удаляется атомарно с освобождением, без гонки появления второго lock. Stats.revision и page1.revision обязаны совпадать до публикации Ready; частичные header/stats/page не публикуются как новый снимок. Header API не предоставляет revision, поэтому атомарность отдельного header GET со Stats не выдумывается. Network/Timeout/503 сохраняют у VM прежний согласованный snapshot с ошибкой, без новых totals поверх старых rows.
 
 AttendanceCursor хранит event/query/opaque revision/следующий **server page**/pageSize. Offset оставлен только для legacy demo; remote не использует его как server cursor. GET attendees передаёт search (до300 code points), page с1, pageSize1..100 и revision до64. Page/size/total/unique ticket IDs и revision проверяются. Append разрешён только к прежнему revision/query/actor; выбранная строка никогда не вставляется в server list/counters как details.
 

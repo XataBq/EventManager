@@ -26,17 +26,32 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
     private data class Stamped(val context:PublicReadContext,val result:DashboardResult)
     private class Entry {
         val lock=Mutex();val completed=AtomicLong();val version=AtomicLong();val state=MutableStateFlow<Stamped?>(null)
+        var pins=0 // Protected by entries; includes observers and in-flight reads.
     }
     private class Failure(val error:AttendanceError):Exception("Attendance operation failed")
-    private val entries=mutableMapOf<Key,Entry>()
+    private val entries=linkedMapOf<Key,Entry>()
     private val writes=java.util.concurrent.ConcurrentHashMap<EventId,Mutex>()
     private var lastContext:PublicReadContext?=null
     init {auth.onPrivateSessionClosed {synchronized(entries) {entries.values.forEach {it.version.incrementAndGet();it.state.value=null};entries.clear();lastContext=null}}}
-    private fun entry(key:Key,c:PublicReadContext):Entry=synchronized(entries) {
+    private fun acquire(key:Key,c:PublicReadContext):Entry=synchronized(entries) {
         if(lastContext?.let {!auth.isCurrentPublicRead(it)}==true) {
             entries.values.forEach {it.version.incrementAndGet();it.state.value=null};entries.clear()
         }
-        lastContext=c;entries.getOrPut(key){Entry()}
+        lastContext=c
+        val entry=entries.remove(key) ?: Entry()
+        entry.pins++;entries[key]=entry;trim()
+        entry
+    }
+    private fun trim() {
+        val iterator=entries.iterator()
+        while(entries.size>32 && iterator.hasNext()) {
+            val item=iterator.next()
+            if(item.value.pins==0) iterator.remove()
+        }
+    }
+    private suspend fun <T> withEntry(key:Key,c:PublicReadContext,block:suspend (Entry)->T):T {
+        val entry=acquire(key,c)
+        try {return block(entry)} finally {synchronized(entries) {entry.pins--;trim()}}
     }
     private fun normalizedQuery(raw:String):String {
         if(raw.codePointCount(0,raw.length)>300) throw Failure(AttendanceError.INVALID_INPUT)
@@ -56,9 +71,11 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
                 send(Stamped(c,DashboardResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED)));return@collectLatest
             }
             try {
-                val key=Key(eventId,normalizedQuery(query));val e=entry(key,c)
-                if(e.state.value?.context?.let {auth.isCurrentPublicRead(it)}!=true) refresh(key,e,c)
-                e.state.filterNotNull().collect {send(it)}
+                val key=Key(eventId,normalizedQuery(query))
+                withEntry(key,c) {e->
+                    if(e.state.value?.context?.let {auth.isCurrentPublicRead(it)}!=true) refresh(key,e,c)
+                    e.state.filterNotNull().collect {send(it)}
+                }
             } catch(ex:CancellationException){throw ex} catch(ex:Exception){send(Stamped(c,DashboardResult.Failed(error(ex))))}
         }
     }.map {if(auth.isCurrentPublicRead(it.context)) it.result else DashboardResult.Failed(AttendanceError.SESSION_CHANGED)}
@@ -67,7 +84,7 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
     override suspend fun refreshDashboard(eventId:EventId,query:String):DashboardResult {
         val c=auth.capturePublicRead()
         if(c.token==null || c.profile==null) return DashboardResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED)
-        return try {val key=Key(eventId,normalizedQuery(query));refresh(key,entry(key,c),c)}
+        return try {val key=Key(eventId,normalizedQuery(query));withEntry(key,c) {refresh(key,it,c)}}
         catch(ex:CancellationException){throw ex} catch(ex:Exception){DashboardResult.Failed(error(ex))}
     }
     private suspend fun refresh(key:Key,e:Entry,c:PublicReadContext):DashboardResult {
@@ -136,26 +153,31 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
         if(c.token==null || c.profile==null) return AttendeesResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED)
         return try {
             val key=Key(eventId,normalizedQuery(query))
-            if(cursor==null) return when(val refreshed=refresh(key,entry(key,c),c)) {
+            if(cursor==null) return when(val refreshed=withEntry(key,c) {refresh(key,it,c)}) {
                 is DashboardResult.Ready->refreshed.firstPage ?: AttendeesResult.Failed(AttendanceError.PROTOCOL)
                 is DashboardResult.Failed->AttendeesResult.Failed(refreshed.error)
             }
             if(cursor.eventId!=eventId || cursor.query!=key.query || cursor.serverPage==null || cursor.pageSize==null) throw Failure(AttendanceError.STALE_PAGE)
-            val e=entry(key,c);val version=e.version.get()
+            withEntry(key,c) {e->
+            val version=e.version.get()
             val baseline=e.state.value?.takeIf {auth.isCurrentPublicRead(it.context)}?.result as? DashboardResult.Ready
             if(baseline?.dashboard?.revision!=cursor.revision) throw Failure(AttendanceError.STALE_PAGE)
             val page=readPage(key,c,cursor.revision,requireNotNull(cursor.serverPage),requireNotNull(cursor.pageSize))
             current(c)
             if(version!=e.version.get() || (e.state.value?.result as? DashboardResult.Ready)?.dashboard?.revision!=cursor.revision) throw Failure(AttendanceError.STALE_PAGE)
             page
+            }
         } catch(ex:CancellationException){throw ex} catch(ex:Exception){AttendeesResult.Failed(error(ex))}
     }
     override suspend fun cancelRegistration(eventId:EventId,registrationId:String)=OwnerCancelResult.Failed(AttendanceError.FEATURE_UNAVAILABLE)
     override suspend fun cancelTicket(eventId:EventId,ticketId:TicketId):OwnerCancelResult {
         val c=auth.capturePublicRead()
         if(c.token==null || c.profile==null) return OwnerCancelResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED)
-        val lock=writes.getOrPut(eventId){Mutex()}
-        if(!lock.tryLock()) return OwnerCancelResult.Failed(AttendanceError.INVALID_INPUT)
+        val lock=synchronized(writes) {
+            val candidate=writes.getOrPut(eventId){Mutex()}
+            if(!candidate.tryLock()) return OwnerCancelResult.Failed(AttendanceError.INVALID_INPUT)
+            candidate
+        }
         invalidate(eventId)
         try {
             val dto=api.json.decodeFromString<CancellationDto>(request(apiPath("events",eventId.value,"attendees",ticketId.value,"cancel"),c,"{}"))
@@ -172,7 +194,7 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
                 entries.filterKeys {it.event==eventId}.values.forEach {it.state.value=Stamped(c,DashboardResult.Failed(reason))}
             }
             return OwnerCancelResult.Failed(reason)
-        } finally {invalidate(eventId);lock.unlock()}
+        } finally {invalidate(eventId);synchronized(writes) {lock.unlock();writes.remove(eventId,lock)}}
     }
     private fun error(ex:Exception):AttendanceError {
         if(ex is Failure) return ex.error

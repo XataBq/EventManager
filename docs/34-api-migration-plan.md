@@ -180,3 +180,7 @@ Stats/page публикуются одним revision-bound snapshot; server rev
 ## M08 — Account update, delete204 и server XLSX (17 ноября)
 
 Profile email — кандидат, canonical Account/User один; PATCH меняет только diff, явный null и false сохранены. Тот же sessionId/userId не purge Room. Delete204 использует общий explicit logout cleanup; unknown требует me сверки,401 не доказывает каскад. Temp epoch/account scope и callbacks очищают private работу без пользовательских SAF файлов. Server XLSX format=xlsx идёт прежним Remote source, local writers только demo. Product resend удалён, auth/initial mails остаются. [Спецификация](architecture/t10-profile-delete-documents.md); только compile подтверждён, M09 не начат.
+
+## Текущий M09
+
+Полный технический цикл выполнен/фиксируется в [едином отчёте](validation/t10-m09-final-validation.md). Remote имеет три корневых стека и shared screens; release включён отдельно без production подписи. Предыдущие compile-only результаты M05–M08 — история, текущие PASS/FAIL/NOT_RUN только в матрице M09. Backend mail flow и null consent URLs не выдаются за проверенные. GET→PATCH residual risk явно принят пользователем; строгого server lock приложение не обещает.

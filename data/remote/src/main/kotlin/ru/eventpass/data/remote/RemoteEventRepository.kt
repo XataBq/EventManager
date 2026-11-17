@@ -27,9 +27,18 @@ class RemoteEventRepository(
         val lock = Mutex()
         val state = MutableStateFlow<Stamped?>(null)
     }
-    private class Stamped(val context: PublicReadContext, val value: PublicEventResult, val confirmed: Boolean)
+    private class Stamped(val context: PublicReadContext?, val value: PublicEventResult, val confirmed: Boolean)
     private val entries = linkedMapOf<PublicEventReference.Slug, Entry>()
-    init {auth.onPrivateSessionClosed {synchronized(entries) {entries.values.forEach {it.state.value=null};entries.clear()}}}
+    init {auth.onPrivateSessionClosed {synchronized(entries) {
+        val iterator=entries.iterator()
+        while(iterator.hasNext()) {
+            val resource=iterator.next().value
+            // Keep a public-only value for a visible guest screen; drop the old bearer/profile immediately.
+            resource.state.value=resource.state.value?.let {Stamped(null,it.value.publicOnly(),false)}
+            if(resource.clients.get()==0) iterator.remove()
+        }
+    }}}
+    private fun current(saved:Stamped)=saved.context?.let(auth::isCurrentPublicRead)==true
 
     override fun observePublicEvent(eventId: EventId): Flow<PublicEventResult> =
         observePublicEvent(PublicEventReference.Internal(eventId))
@@ -72,12 +81,12 @@ class RemoteEventRepository(
                     auth.observeSession().collectLatest {
                         val context = auth.capturePublicRead()
                         val saved = resource.state.value
-                        if (saved != null && !auth.isCurrentPublicRead(saved.context)) {
+                        if (saved != null && !current(saved)) {
                             resource.state.value = Stamped(context, saved.value.publicOnly(), false)
                         }
                         resource.lock.withLock {
                             val current = resource.state.value
-                            if (current == null || !current.confirmed || !auth.isCurrentPublicRead(current.context)) {
+                            if (current == null || !current.confirmed || !this@RemoteEventRepository.current(current)) {
                                 read(reference, resource)
                             }
                         }
@@ -89,7 +98,7 @@ class RemoteEventRepository(
             }
         }.map { saved ->
             // Check at the consumer edge too: the channel may contain an older actor's result.
-            if (auth.isCurrentPublicRead(saved.context)) saved.value else saved.value.publicOnly()
+            if (current(saved)) saved.value else saved.value.publicOnly()
         }.distinctUntilChanged()
     }
 

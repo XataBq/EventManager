@@ -11,3 +11,7 @@ Editor VM сохраняет raw/dirty при живой configuration recreatio
 Platform importer копирует content в durable managed source, remote upload возвращает отдельный server asset descriptor. Для draft source сохраняется до DB transition/attach; для published save upload производится перед online update. Preview выполняет bounded GET по assetId через API origin без bearer на произвольный coverUrl, MIME/size проверяются, bitmap decode вне main. Exactly-once upload и server DELETE asset не обещаются.
 
 Fake codec6/legacy fixtures не мигрируются в Room. Текущий M05 проверен только в объёме, перечисленном в [отчёте](../validation/t10-m05-implementation.md): remote compilation и ранние DAO/merge unit tests. Сценарии/lint/demo/device/UI после поздней команды пользователя не запускались; прежние M04 suites не выдаются за повторно пройденные.
+
+## M09: нормализация server asset
+
+Server descriptor описывает нормализованный asset: byteCount и mimeType могут отличаться от local source. RemoteCoverTransfer проверяет supported mime/положительный размер≤5MiB/dimensions и canonical assetId, сохраняя local EventCover metadata для managed source/Room. Сравнение stored bytes с исходными удалено после реального PNG1753→1480. Live upload/attach/detach и regression для uploadPending/importCover пройдены; [текущие доказательства](../validation/t10-m09-final-validation.md).

@@ -37,6 +37,7 @@ class DashboardViewModelTest {
         val stream = MutableStateFlow<DashboardResult>(DashboardResult.Ready(dashboard()))
         var load: suspend (String) -> AttendeesResult = { AttendeesResult.Page("revision",listOf(row),1,null) }
         var cancel: suspend (String) -> OwnerCancelResult = { OwnerCancelResult.Cancelled }
+        val cancelTargets=mutableListOf<TicketId>()
         var refresh: DashboardResult? = null
         val reads=mutableListOf<EventId>()
         var refreshAction: (suspend () -> DashboardResult)? = null
@@ -44,6 +45,7 @@ class DashboardViewModelTest {
         override suspend fun refreshDashboard(eventId: EventId): DashboardResult {reads+=eventId;return refreshAction?.invoke() ?: refresh ?: stream.value}
         override suspend fun attendees(eventId: EventId, query: String, cursor: AttendanceCursor?) = load(query)
         override suspend fun cancelRegistration(eventId: EventId, registrationId: String) = cancel(registrationId)
+        override suspend fun cancelTicket(eventId:EventId,ticketId:TicketId):OwnerCancelResult {cancelTargets+=ticketId;return cancel(ticketId.value)}
     }
     @Test fun lateRefreshCannotRollBackObserverTotalsOrEmptySearchPage() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val repo=Repo()
@@ -137,7 +139,7 @@ class DashboardViewModelTest {
             assertTrue(vm.state.value.paging); assertTrue(vm.state.value.rows.isEmpty()); assertNull(vm.state.value.pageError)
             pending[2].second.resume(AttendeesResult.Page("revision",listOf(row.copy(name="New")),1,null)); runCurrent()
             assertEquals("New",vm.state.value.rows.single().name); assertFalse(vm.state.value.paging)
-            assertEquals(setOf("query"),saved.keys()); assertEquals("new",saved.get<String>("query"))
+            assertTrue(saved.keys().isEmpty()); assertEquals("new",vm.state.value.query) // Search may contain PII; live VM only.
         } finally { vm.viewModelScope.cancel(); Dispatchers.resetMain() }
     }
     @Test fun hiddenOwnerAndLateCancelFinallyCannotChangeNewConfirmation() = runTest {
@@ -147,8 +149,9 @@ class DashboardViewModelTest {
         try {
             vm.start("one"); runCurrent(); vm.confirm(row); vm.cancel(); runCurrent()
             vm.stop(); assertNull(vm.state.value.dashboard); assertTrue(vm.state.value.rows.isEmpty()); assertNull(vm.state.value.selected)
-            vm.start("two"); runCurrent(); val next=row.copy(registrationId="another",name="Another")
+            vm.start("two"); runCurrent(); val next=row.copy(registrationId="another",ticketId=TicketId("second-ticket"),name="Another")
             vm.confirm(next); vm.cancel(); runCurrent()
+            assertEquals(listOf(row.ticketId,next.ticketId),repo.cancelTargets)
             pending[0].resume(OwnerCancelResult.Failed(AttendanceError.NETWORK)); runCurrent()
             assertTrue(vm.state.value.cancelling); assertNull(vm.state.value.cancelError); assertEquals(next,vm.state.value.selected)
             pending[1].resume(OwnerCancelResult.Failed(AttendanceError.TIMEOUT)); runCurrent()

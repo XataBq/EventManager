@@ -1,6 +1,7 @@
 package ru.eventpass.data.remote
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -65,15 +66,21 @@ class RemoteTicketsTest {
     @Test fun lateGuestReplyAfterLoginDoesNotPublishReceiptOrOverwriteBearer() = runTest {
         MockWebServer().use { server -> server.start()
             val api = AuthHttp(server.url("/api/").toString()); val store = Store(); val auth = RemoteAuthRepository(api,store)
-            server.enqueue(MockResponse.Builder().code(201).addHeader("Content-Type","application/json")
-                .body("""{"ticket":$ticket,"accountCreated":true,"accessToken":"guest-cap"}""")
-                .bodyDelay(500,TimeUnit.MILLISECONDS).build())
+            val entered=CountDownLatch(1);val release=CountDownLatch(1)
+            server.dispatcher=object:mockwebserver3.Dispatcher() {
+                override fun dispatch(request:mockwebserver3.RecordedRequest):MockResponse = if(request.url.encodedPath.endsWith("/registrations")) {
+                    entered.countDown();check(release.await(15,TimeUnit.SECONDS))
+                    json("""{"ticket":$ticket,"accountCreated":true,"accessToken":"guest-cap"}""",201)
+                } else json("""{"token":"new-bearer","user":$user}""")
+            }
             val guest = async(Dispatchers.IO) { RemoteRegistrations(api,auth).submitGuest(command) }
-            withContext(Dispatchers.IO) { assertNotNull(server.takeRequest(2,TimeUnit.SECONDS)) }
-            server.enqueue(json("""{"token":"new-bearer","user":$user}"""))
-            assertTrue(auth.signIn("alex@example.com",AuthSecret("password")) is AuthResult.Success)
-            assertEquals(GuestRegistrationOutcome.Failed(RegistrationError.SessionChanged),guest.await())
-            assertEquals("new-bearer",store.token!!.value); assertTrue(auth.currentSession().state is SessionState.Authenticated)
+            try {
+                withContext(Dispatchers.IO) {assertTrue(entered.await(10,TimeUnit.SECONDS))}
+                assertTrue(auth.signIn("alex@example.com",AuthSecret("password")) is AuthResult.Success)
+                release.countDown()
+                assertEquals(GuestRegistrationOutcome.Failed(RegistrationError.SessionChanged),guest.await())
+                assertEquals("new-bearer",store.token!!.value); assertTrue(auth.currentSession().state is SessionState.Authenticated)
+            } finally {release.countDown()}
         }
     }
     @Test fun rateLimitRetainsBodyAndPreventsAnotherHttpAttemptUntilRetryAfter() = runTest {

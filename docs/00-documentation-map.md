@@ -61,3 +61,7 @@
 Ссылки на файлы стабильнее номеров строк. Перед использованием пути сверить дерево. Реализованное, временный demo default и будущее явно разделяются. Несуществующий backend endpoint или ещё не написанный scanner нельзя дорисовывать как текущую зависимость.
 
 M01 фактический auth/transport: [session, secure storage, DI и ownership](architecture/t10-session-transport.md), [проверки этапа](validation/t10-m01-implementation.md).
+
+## Маршрут M09
+
+[Промпт](prompts/t10-m09-final-completion.md) → [единая матрица проверки](validation/t10-m09-final-validation.md) → затронутые карты `architecture/` и [журнал](35-t10-execution.md). [Проект privacy](legal/privacy-draft.md), [проект terms](legal/terms-draft.md) — материалы для утверждения оператором, не инструкции реализации и не опубликованные URL.

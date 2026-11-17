@@ -15,9 +15,10 @@ import ru.eventpass.core.domain.auth.*
 data class LoginUiState(val email: String = "", val password: String = "", val busy: Boolean = false, val error: AuthError? = null)
 @HiltViewModel
 class LoginViewModel @Inject constructor(private val saved: SavedStateHandle) : ViewModel() {
-    private val mutable = MutableStateFlow(LoginUiState(email = saved["email"] ?: ""))
+    private val mutable = MutableStateFlow(LoginUiState())
+    init {saved.remove<String>("email")}
     val state = mutable.asStateFlow()
-    fun email(value: String) { saved["email"] = value; mutable.value = mutable.value.copy(email = value, error = null) }
+    fun email(value: String) { mutable.value = mutable.value.copy(email = value, error = null) }
     fun password(value: String) { mutable.value = mutable.value.copy(password = value, error = null) }
     fun submit(signIn: suspend (String, AuthSecret) -> AuthResult<Unit>) {
         val s = mutable.value
@@ -41,13 +42,13 @@ enum class AccountStep { Input, Verification, Done }
 data class AccountUiState(val email: String = "", val name: String = "", val password: String = "", val code: String = "", val consent: Boolean = false, val step: AccountStep = AccountStep.Input, val busy: Boolean = false, val error: AuthError? = null, val resendAt: Instant? = null, val sent: Boolean = false, val documents: ConsentDocuments? = null, val documentsError: AuthError? = null)
 @HiltViewModel
 class AccountFlowViewModel @Inject constructor(private val auth: AuthRepository, private val saved: SavedStateHandle, private val clock: Clock) : ViewModel() {
- private val mutable = MutableStateFlow(AccountUiState(email = saved["email"] ?: ""))
+ private val mutable = MutableStateFlow(AccountUiState())
+ init {saved.remove<String>("email")}
  val state = mutable.asStateFlow()
  init { viewModelScope.launch { when(val r=auth.consentDocuments()) { is AuthResult.Success -> mutable.value=mutable.value.copy(documents=r.value); is AuthResult.Failed -> mutable.value=mutable.value.copy(documentsError=r.error) } } }
  private var verificationOnly = false
  fun now() = clock.instant()
  fun edit(email: String = mutable.value.email, name: String = mutable.value.name, password: String = mutable.value.password, code: String = "", consent: Boolean = mutable.value.consent) {
-  saved["email"] = email
   mutable.value = mutable.value.copy(email=email,name=name,password=password,consent=consent,error=null)
  }
  fun verification(email: String) { if(!verificationOnly) { verificationOnly=true; edit(email=email); mutable.value=mutable.value.copy(step=AccountStep.Verification); submit(false) } }

@@ -51,7 +51,7 @@ CODE_REVIEW.md: дата, M, base/target commit или точный манифе
 | M06 | IMPLEMENTED/COMPILE_VERIFIED | Remote scanner/volunteers; [отчёт](validation/t10-m06-implementation.md) | Поведение NOT_VERIFIED; review/scenario/device только по команде |
 | M07 | IMPLEMENTED/COMPILE_VERIFIED | Remote dashboard/attendees/cancel; [отчёт](validation/t10-m07-implementation.md) | Поведение NOT_VERIFIED, без M06 review gate |
 | M08 | IMPLEMENTED/COMPILE_VERIFIED | Profile/delete/server XLSX/resend removal; [отчёт](validation/t10-m08-implementation.md) | Поведение NOT_VERIFIED; без M07 review gate |
-| M09 | TODO | Не запускался | Только по новой команде |
+| M09 | PARTIAL_EXTERNAL / HUMAN_PENDING | [Единый отчёт](validation/t10-m09-final-validation.md) | Полный локальный прогон, устройства/Room/HTTP/release; внешние mail/legal/staging условия и human остаются явными |
 
 Все H-проверки нового remote и непроверенный новый T09a UX ожидают единой финальной приёмки. Обновление этого журнала не закрывает их автоматически.
 
@@ -68,3 +68,7 @@ CODE_REVIEW.md: дата, M, base/target commit или точный манифе
 13 ноября, до изменения приложения: `JAVA_HOME` = JBR 21 Android Studio1; команда `./gradlew.bat :core:domain:test :data:fake:test :app:testDemoDebugUnitTest :core:platform:testDebugUnitTest :app:verifyDemoIsolation --console=plain` завершилась exit 0. Лог `.gradle/t10-baseline-tests.log`: BUILD SUCCESSFUL, 83 задачи, 1 выполнена/82 up-to-date. Это подтверждение актуальности инкрементальных outputs, не новый полный прогон тестов. Исходники/Gradle были чистыми относительно `0493dbd`, документация уже имела пользовательские изменения. Манифест текущих файлов сохранён в `.gradle/t10-start-manifest.json`; исполнитель M00 отдельно сохраняет baseline затрагиваемых dirty документов.
 
 Ревью M01 повторило 12 local transport tests: filtered runner заменил текущие XML remote suites, поэтому текущий aggregate 231, а 232 со staging — исторический полный прогон исполнителя. Последующие evidence XML сохранять отдельной копией до/после фильтрованных прогонов. Сохранённые 5 device результатов сверены ревьюером, не запущены заново.
+
+## M09 — текущая поставка
+
+Compile-only ограничения сняты пользователем. M05–M08 выше сохраняют исторические review labels; выполненные в M09 проверки перечислены отдельно в [единой матрице](validation/t10-m09-final-validation.md). Самопроверка автора не заменяет независимое ревью; human acceptance только на идентифицированном APK после ответа пользователя.

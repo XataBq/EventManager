@@ -27,7 +27,7 @@ flowchart TD
 | Данные | Владелец и носитель | Поворот | Новый процесс / та же задача | Удаление flow / logout / новый запуск |
 |---|---|---|---|---|
 | Текущая session | Auth backend, память singleton | Сохраняется в процессе | Не persist: Unknown → Guest, ручной login | Logout очищает; server records остаются |
-| Pending destination, login email | Activity VM + SavedStateHandle | Сохраняются | Безопасные значения восстанавливаются | Назначение потребляется/очищается; это не анкета |
+| Pending destination / login email | Destination: Activity VM + SavedStateHandle; email: только память VM | Живые VM сохраняются | Только безопасное назначение; email вводится заново | Legacy saved email удаляется; пароли/PII auth-форм не persist |
 | Confirmation URI/token и retry | Очередь/handler Activity VM, только память | Необработанная доставка остаётся | Не сериализуются; может понадобиться повтор исходной ссылки | После обработки/очистки владельца больше не держатся |
 | Пароль/reset code/grant | Auth entry VM, только память | Могут жить пока жива entry VM | Не восстанавливаются из SavedStateHandle | Очищаются по переходу/успеху/удалению owner |
 | Незавершённая регистрационная форма | EventViewModel, память | Живёт при сохранении той же VM | Не восстанавливается | `leaveForm` очищает ответы при уходе; login не завершает заявку |
@@ -36,7 +36,7 @@ flowchart TD
 | Выбранный свой ticket/history | Tickets root VM + SavedStateHandle; TicketsRoute обрабатывает Back карточки | Сохраняются | ID может восстановиться только внутри разрешённого scope; данные из repo | Back карточки удаляет выбор, сохраняет history; старые данные не доступны новой личности; fullscreen не persist |
 | Scanner result/manual/pending command | ScannerKey VM, только память; permission marker saveable, credential/key не persist | Background → ready без прежнего допуска; unknown команда живой VM остаётся для явного retry | Process loss теряет тело; сначала server access/recent | Pop/logout/revoked scope очищает owner; foreground(false) отменяет POST и очищает input/result |
 | Volunteers list/input/confirmation/revokeError | VolunteersKey VM, только память; revoke error и retry внутри Dialog | При RESUMED перечитывается | Не persist | Hidden/background/pop отменяет commands/observation и очищает UI |
-| Dashboard rows/totals/confirmation | DashboardKey VM, память; owner/request/observation generations, coalesced refresh; query в SavedStateHandle | Hidden/background/navigation → clear/read заново | Авторизация/page 1 заново, без PII из saved state | Pop/logout/denied отменяют jobs, очищают PII и confirmation |
+| Dashboard rows/totals/confirmation | DashboardKey VM, память; owner/request/observation generations, coalesced refresh; query только в памяти VM | Hidden/background/navigation → clear/read заново | Авторизация/page 1 заново, без PII из saved state | Pop/logout/denied отменяют jobs, очищают PII и confirmation |
 | Profile fields/dirty/confirmation | RootTab.Profile VM, только память; saved profile в общем snapshot | Hidden/background → очистить форму, без autosave | Последняя сохранённая версия; PII не в SavedStateHandle | requestLeave: Save/Discard; logout очищает owner |
 | Document picker/export/resend | VM Tickets root/Dashboard entry; memory request/session stamp/jobs/error, route saveable только launch ID | SAF pause/configuration recreation сохраняет pending/writer через идемпотентный bind; настоящий dispose/смена ресурса/таба очищает | Pending result без VM игнорируется; temp очищается startup | Logout/hidden отменяют job; итоговый доступ проверяется перед bytes/успехом |
 | MyEvents tab | MyEvents VM + SavedStateHandle | Сохраняется | Только с допустимым private scope | Новый scope получает новый owner |
@@ -134,3 +134,9 @@ Query живёт у DashboardKey VM и сохраняется при rotation/в
 ## M08: profile/delete/documents
 
 Profile edit revision сохраняет B при save A; имя/email кандидат только у VM, подтверждённая Account одна. Same-user email change не уничтожает private owners. Delete неизвестен до204; epoch/Session cleanup отменяет owners/jobs, Room/files purge account-scoped. Export context проверяется в source и каждом SAF chunk. [Текущие владельцы](t10-profile-delete-documents.md), [compile/NOT_RUN](../validation/t10-m08-implementation.md).
+
+## M09: remote shell и auth forms
+
+Remote использует общий NavigationState: три независимых account-owned стека Tickets/Events/Profile, отдельный entry owner на каждом маршруте. Hidden читатели остановлены; VM остаётся у своего стека. Nested TicketKey закрывается к вызывающему E; root ticket card возвращается к своему списку. Editor/Scanner Back сохраняет собственную семантику, повтор текущего таба проходит через тот же обработчик. Profile dirty leave применяется при смене таба. PublicEventImportKey открывает slug без capability в ключе. Login/signup/reset email и password — только память живых VM; старые email SavedState keys удаляются. Исключение guest receipt остаётся ограниченным конкретным flow по принятому M03.
+
+При настоящем process death cold /me заново подтверждает account; private route возвращается к безопасному корню. Явно сохранённый Room pending доступен этому account; несохранённый raw ввод не обещается. Это отличается от configuration recreation, сохраняющей живые VM. [Доказательства](../validation/t10-m09-final-validation.md).

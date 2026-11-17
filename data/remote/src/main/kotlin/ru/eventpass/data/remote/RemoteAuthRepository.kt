@@ -104,6 +104,7 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
     catch(e: CancellationException) { withContext(NonCancellable) { clearMemory(); tokens.clear(); publish(SessionState.Guest) }; throw e }
     catch(e: IOException) { withContext(NonCancellable) { clearMemory(); tokens.clear(); publish(SessionState.Guest) }; return@withLock AuthResult.Failed(AuthError.StorageUnavailable) }
     if(epoch.get() != generation) { withContext(NonCancellable) { clearMemory(); tokens.clear(); publish(SessionState.Guest) }; return@withLock AuthResult.Failed(AuthError.SessionChanged) }
+    clearMemory()
     token = AuthSecret(dto.token); initialized = true; user = dto.user
     profiles.value = ProfileResult.Ready(dto.user.profile()); publish(SessionState.Authenticated(session))
     AuthResult.Success(session)
@@ -121,10 +122,11 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
   return epoch.get()==c.epoch && token===c.token && current!=null && old!=null && current.id==old.id && current.account.id==old.account.id
  }
  /** One logout/delete cleanup path. IO account purge remains outside the auth lock. */
- private suspend fun retire(expected:PublicReadContext?=null):Retired? = withContext(NonCancellable) {
+ private suspend fun retire(expected:PublicReadContext?=null,confirmedDeletion:Boolean=false):Retired? = withContext(NonCancellable) {
   if(expected==null) epoch.incrementAndGet()
   val retired=lock.withLock {
-   if(expected!=null && !sameActor(expected)) return@withLock null
+   val deletedCurrentAccount=confirmedDeletion && expected?.profile?.account?.id!=null && expected.profile.account.id==user?.account()?.id
+   if(expected!=null && !sameActor(expected) && !deletedCurrentAccount) return@withLock null
    val next=Retired(token,user?.account()?.id,epoch.incrementAndGet())
    profileVersion.incrementAndGet();clearMemory();publish(SessionState.Guest);initialized=true
    try {tokens.clear()} catch(_:IOException) {next.error=ProfileError.STORAGE_UNAVAILABLE;publish(SessionState.Recovery(AuthError.StorageUnavailable))}
@@ -219,20 +221,24 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
     if(pendingDeletion) return DeleteAccountResult.Uncertain(ProfileError.DELETE_UNCONFIRMED)
     profileVersion.incrementAndGet()
     try {
-     val result=requestScoped("me",c,method="DELETE",expectedStatus=204) ?: return DeleteAccountResult.Failed(ProfileError.SESSION_CHANGED)
+     // A 204 is durable proof for this captured account even if another actor signed in meanwhile.
+     // Scoped read filtering would discard it and leave the deleted account's local files behind.
+     val result=try {api.request("me",token=c.token,method="DELETE",expectedStatus=204)}
+         catch(ex:RemoteFailure) {if(ex.error==AuthError.Unauthorized) rejectUnauthorized(c);throw ex}
      require(result.isBlank())
      return withContext(NonCancellable) {
-      val retired=retire(c)
+      val retired=retire(c,confirmedDeletion=true)
       if(retired==null) {
        // Confirmed deletion of old actor never logs a different current actor out.
        c.profile?.account?.id?.let {onExplicitLogout(it)}
        DeleteAccountResult.Failed(ProfileError.SESSION_CHANGED)
       } else DeleteAccountResult.Deleted(retired.error)
      }
-    } catch(ex:CancellationException) {pendingDeletion=true;throw ex}
+    } catch(ex:CancellationException) {if(sameActor(c)) pendingDeletion=true;throw ex}
       catch(ex:Exception) {
        val error=profileError(ex)
        if(error==ProfileError.AUTHENTICATION_REQUIRED) return DeleteAccountResult.AccessRevoked
+       if(!sameActor(c)) return DeleteAccountResult.Failed(ProfileError.SESSION_CHANGED)
        if(error in setOf(ProfileError.NETWORK,ProfileError.TIMEOUT,ProfileError.SERVER_UNAVAILABLE,ProfileError.PROTOCOL)) {pendingDeletion=true;return DeleteAccountResult.Uncertain(error)}
        return DeleteAccountResult.Failed(error)
       }

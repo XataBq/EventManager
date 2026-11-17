@@ -1,6 +1,6 @@
 # Текущая навигация и mobile-frame
 
-M03: private remote host открывает общий TicketsRoute через TicketKey(ticketId?), public Event — через EventKey(publicSlug); guest capability в NavKey отсутствует. Receipt/Event VM owns saved QR, guest PDF/SAF shares entry. [Текущие ownership/cleanup](architecture/t10-registration-tickets.md). M02 fix-review и M03 review ожидаются; прежние demo routes ниже сохраняются.
+Remote M09 использует три независимых стека общего NavigationState и shared screens. Tickets — корень; MyEvents открывает Editor/Dashboard/Scanner/Volunteers по internal ID, public Event — по slug. Profile редактируется в своём корне. TicketKey, открытый из E, закрывается обратно к E; выбор билета в корне возвращается к списку. PublicEventImportKey доступен из Tickets. Guest capability отсутствует в NavKey. [Текущая проверка](validation/t10-m09-final-validation.md).
 
 **Целевые auth/guest links после решения 13 ноября:** применять [32](32-backend-final-requirements.md): server slug/web links, immediate signup session и setup/reset по ссылке. Ниже — фактически реализованная demo-навигация; она ещё не адаптирована. Прежние обязательные VerifyEmail/code-reset маршруты не являются требованием к новому backend.
 
@@ -15,7 +15,7 @@ M03: private remote host открывает общий TicketsRoute через T
 | EventKey(eventId, flowId, publicSlug?) | Public/private common EventRoute; отдельный UUID flow на новый визит |
 | EventAuthKey(flowId, screen, entryId) | Public auth поверх E/receipt; связывает возврат с flow, не несёт secret/анкеты |
 | EditorKey(draftId/eventId/create/entryId) | Private Events stack, owner read/commands; create нормализуется host к draft ID |
-| DashboardKey(eventId,entryId) | Owner-only private entry в исходном табе; query saveable, PII/страницы/confirmation только память |
+| DashboardKey(eventId,entryId) | Owner-only private entry в исходном табе; query/PII/страницы/confirmation только память |
 | ScannerKey / VolunteersKey | Private entry owner; current-tab открытие из общего MyEvents, доступ перепроверяет repository |
 | GalleryKey / DemoDetails / DemoToolsKey / OutboxKey | Технические demo routes; gallery/tools/outbox implementation в src/demo |
 | GuestReceipt / fullscreen / publication result | **UiState внутри владельца**, не отдельные сериализованные NavKey |
@@ -129,6 +129,6 @@ MyEvents server summary открывает ScannerKey по internal eventId дл
 
 MyEvents organizer открывает прежний DashboardKey по internal eventId; оттуда — общие Scanner/Volunteers того же E. Back возвращает в Dashboard с query живой VM; visible RESUMED перечитывает согласованный snapshot, скрытый родитель не поллится. Query/selection/PII не persist в SavedState/Room. Отказ очищает private состояние и возвращает сообщение; XLSX до M08 не предлагается. [Владельцы M07](architecture/t10-dashboard-attendees.md).
 
-## M08: ProfileEditKey и документы
+## M08–M09: корневой профиль и документы
 
 Remote root открывает общий P03 ProfileRoute через ProfileEditKey: email/publicId/notifications и local delete cascade confirmation, без password/demo tools. При204 cleanup переводит в guest и уничтожает private owners;401 сам по себе не сообщение «аккаунт удалён». Unknown предлагает явную me сверку. Profile raw input живёт у VM/recreation; server XLSX включён у Dashboard и использует прежний SAF owner. Product resend кнопки нет. [Lifecycle/cleanup M08](architecture/t10-profile-delete-documents.md).

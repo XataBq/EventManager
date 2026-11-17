@@ -115,3 +115,5 @@ fun rememberNavigationState(): NavigationState {
 }
 
 @Serializable data object RemoteUnavailableKey : NavKey
+
+@Serializable data object PublicEventImportKey : NavKey

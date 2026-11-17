@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -16,7 +18,6 @@ import androidx.navigation3.runtime.*
 import androidx.navigation3.ui.NavDisplay
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.*
-import ru.eventpass.app.feature.profile.ProfileViewModel
 import ru.eventpass.app.navigation.auth.*
 import ru.eventpass.core.designsystem.*
 import kotlinx.coroutines.launch
@@ -25,17 +26,17 @@ import ru.eventpass.core.platform.PublicEventLinkParser
 import ru.eventpass.app.feature.event.EventRoute
 import ru.eventpass.app.feature.tickets.TicketsRoute
 
-/** M01 real auth/profile surface; every entry retains and clears its own ViewModel store. */
+/** Remote auth gate and account-owned navigation; feature screens remain shared with demo. */
 @Composable fun EventPassApp(session: AppSessionViewModel = hiltViewModel()) {
  val scope=rememberCoroutineScope()
  val gate by session.gate.collectAsStateWithLifecycle()
  val lifecycle=LocalLifecycleOwner.current.lifecycle
  LaunchedEffect(session,lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { session.coordinator.refreshSession() } }
- Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) { when(val g=gate) {
-  SessionGate.Loading -> AuthColumn { Text(stringResource(R.string.loading)) }
-  is SessionGate.Recovery -> AuthColumn { AuthErrorText(g.error); EventPassButton(stringResource(R.string.remote_retry_session),{ scope.launch { session.coordinator.refreshSession() } }); TextAction(stringResource(R.string.auth_login),{ session.signOut() }) }
-  is SessionGate.Shell -> key(g.scope) { RemoteProfileNavigation(session,g) }
-  SessionGate.Login -> RemotePublicNavigation(session)
+ Box(Modifier.fillMaxSize()) { when(val g=gate) {
+  SessionGate.Loading -> Box(Modifier.safeDrawingPadding()) {AuthColumn { Text(stringResource(R.string.loading)) }}
+  is SessionGate.Recovery -> Box(Modifier.safeDrawingPadding().imePadding()) {AuthColumn { AuthErrorText(g.error); EventPassButton(stringResource(R.string.remote_retry_session),{ scope.launch { session.coordinator.refreshSession() } }); TextAction(stringResource(R.string.auth_login),{ session.signOut() }) }}
+  is SessionGate.Shell -> key(g.scope) { RemotePrivateNavigation(session,g) }
+  SessionGate.Login -> Box(Modifier.safeDrawingPadding().imePadding()) { RemotePublicNavigation(session) }
  }
  }
 }
@@ -51,65 +52,91 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
        session.prefill(email)
        if(returning) session.requireLogin(ReturnDestination.Event(key.eventId,key.publicSlug)) else session.clearDestination()
        stack.add(EventAuthKey(key.flowId,if(signup) EventAuthScreen.SignUp else EventAuthScreen.Login))
-   }, { stack.add(RemoteUnavailableKey) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
+   }, { session.requireLogin(ReturnDestination.Event(key.eventId,key.publicSlug));stack.add(EventAuthKey(key.flowId,EventAuthScreen.Login)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
    entry<EventAuthKey> { key ->
        when(key.screen) {
         EventAuthScreen.Login -> LoginRoute(session,{stack.add(EventAuthKey(key.flowId,EventAuthScreen.SignUp))},{stack.add(EventAuthKey(key.flowId,EventAuthScreen.Reset))},{stack.add(EventAuthKey(key.flowId,EventAuthScreen.Verification))},{},showDemo=false)
         else -> AccountFlowRoute(key.screen==EventAuthScreen.Reset,session,{stack.removeLastOrNull()},{},verification=key.screen==EventAuthScreen.Verification,showTools=false)
        }
    }
-   entry<RemoteUnavailableKey> { AuthColumn { Text(stringResource(R.string.feature_unavailable)); TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()}) } }
    entry<SignUpKey> { AccountFlowRoute(false,session,::login,{},showTools=false) }
    entry<ResetKey> { AccountFlowRoute(true,session,::login,{},showTools=false) }
    entry<VerificationKey> { AccountFlowRoute(false,session,::login,{},verification=true,showTools=false) }
   })
 }
 
-@Composable private fun RemoteProfileNavigation(session: AppSessionViewModel, gate: SessionGate.Shell) {
- val stack=rememberNavBackStack(RootTab.Profile)
- LaunchedEffect(gate.scope) { (session.takeDestination(gate) as? ReturnDestination.Event)?.let { stack.add(EventKey(it.eventId, publicSlug = it.publicSlug)) } }
- NavDisplay(backStack=stack,onBack={ if(stack.size>1) stack.removeLastOrNull() },
-  entryDecorators=listOf(rememberSaveableStateHolderNavEntryDecorator(),rememberViewModelStoreNavEntryDecorator(viewModelStoreOwner=session.owner(RootTab.Profile))),
-  entryProvider=entryProvider {
-   entry<RootTab> { root ->
-    if(root == RootTab.Events) ru.eventpass.app.feature.myevents.MyEventsRoute(
-     { stack.add(EditorKey(draftId=java.util.UUID.randomUUID().toString(),create=true)) },
-     { stack.add(EditorKey(draftId=it)) },{ stack.add(EditorKey(eventId=it)) },
-     { stack.add(EventKey("",publicSlug=it)) },{ stack.add(ScannerKey(it)) },
-     { stack.add(VolunteersKey(it)) },{ stack.add(DashboardKey(it)) },visible=stack.lastOrNull() == root,
-     onRemoteDraft={stack.add(EditorKey(remoteDraftId=it))})
-    else {
-    val vm: ProfileViewModel=hiltViewModel()
-    val state by vm.state.collectAsStateWithLifecycle()
-    DisposableEffect(vm) { vm.start(); onDispose { vm.stop() } }
-    AuthColumn {
-     EventPassButton(stringResource(R.string.tickets_title), { stack.add(TicketKey()) })
-     EventPassButton(stringResource(R.string.events_title), { stack.add(RootTab.Events) })
-     PublicEventImport { stack.add(EventKey("", publicSlug = it)) }
-     EventPassButton(stringResource(R.string.m08_profile_edit),{stack.add(ProfileEditKey)})
-     state.profile?.let { Text(it.fields.name); Text(it.account.email); Text(stringResource(if(it.account.emailVerified) R.string.auth_email_verified_status else R.string.auth_email_unverified_status)) }
-     TextAction(stringResource(R.string.auth_request_verification),{session.prefill(session.account?.email.orEmpty());stack.add(VerificationKey)})
-     EventPassButton(stringResource(R.string.auth_logout_action),{session.signOut()})
-    }
-    }
-   }
-   entry<EditorKey> { key -> ru.eventpass.app.feature.editor.EditorRoute(key.draftId,key.eventId,key.create,
-    { stack.removeLastOrNull() },{ stack.add(EventKey("",publicSlug=it)) },{},visible=stack.lastOrNull() == key,remoteDraftId=key.remoteDraftId) }
-   entry<ProfileEditKey> { ru.eventpass.app.feature.profile.ProfileRoute(stack.lastOrNull()==ProfileEditKey,
-    {stack.removeLastOrNull()},{},{session.signOut()},{},showTools=false,enableDeletion=true) }
-   entry<EventKey> { key -> EventRoute(key.eventId, { _, _, _ -> stack.add(RemoteUnavailableKey) }, { stack.add(TicketKey(it)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
-   entry<TicketKey> { key -> var initial by rememberSaveable { mutableStateOf(key.ticketId) }; TicketsRoute(initial, { initial = null }, { slug -> stack.add(EventKey("", publicSlug = slug)) }, {}, {}, {}, visible = stack.lastOrNull() == key) }
-   entry<ScannerKey> { key -> ru.eventpass.app.feature.checkin.ScannerRoute(key.eventId,stack.lastOrNull()==key,
-    {stack.removeLastOrNull()},{stack.removeLastOrNull();stack.add(ScannerAccessLostKey)},{}) }
-   entry<VolunteersKey> { key -> ru.eventpass.app.feature.volunteers.VolunteersRoute(key.eventId,stack.lastOrNull()==key,
-    {stack.removeLastOrNull();stack.add(ScannerAccessLostKey)}) }
-   entry<ScannerAccessLostKey> { AuthColumn {Text(stringResource(R.string.scan_access_lost));TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()})} }
-   entry<DashboardKey> { key -> ru.eventpass.app.feature.dashboard.DashboardRoute(key.eventId,stack.lastOrNull()==key,
-    {stack.add(ScannerKey(key.eventId))},{stack.add(VolunteersKey(key.eventId))},
-    {stack.removeLastOrNull();stack.add(ScannerAccessLostKey)},exportEnabled=true) }
-   entry<RemoteUnavailableKey> { AuthColumn { Text(stringResource(R.string.feature_unavailable)); TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()}) } }
-   entry<VerificationKey> { AccountFlowRoute(false,session,{stack.removeLastOrNull()},{},verification=true,showTools=false) }
-  })
+/** Three independent account-owned stacks. Hidden entries retain state but stop their readers. */
+@Composable private fun RemotePrivateNavigation(session: AppSessionViewModel, gate: SessionGate.Shell) {
+ val navigation=rememberNavigationState()
+ var editorBack by remember { mutableStateOf<(() -> Unit)?>(null) }
+ var scannerBack by remember { mutableStateOf<(() -> Unit)?>(null) }
+ var profileLeave by remember { mutableStateOf<((() -> Unit) -> Unit)?>(null) }
+ var accessLost by remember { mutableStateOf(false) }
+ fun open(slug:String) {navigation.currentStack.add(EventKey("",publicSlug=slug))}
+ fun select(tab:RootTab) {
+  if(tab==navigation.currentTab) when(navigation.currentStack.lastOrNull()) {
+   is EditorKey -> {editorBack?.invoke() ?: navigation.back();return}
+   is ScannerKey -> {scannerBack?.invoke() ?: navigation.back();return}
+   else -> Unit
+  }
+  val action={navigation.select(tab)}
+  if(navigation.currentTab==RootTab.Profile && tab!=RootTab.Profile) profileLeave?.invoke(action) ?: action() else action()
+ }
+ fun back() {when(navigation.currentStack.lastOrNull()) {
+  is EditorKey -> editorBack?.invoke() ?: navigation.back()
+  is ScannerKey -> scannerBack?.invoke() ?: navigation.back()
+  else -> navigation.back()
+ }}
+ fun denied() {accessLost=true;navigation.returnToMyEvents()}
+ LaunchedEffect(gate.scope) {when(val destination=session.takeDestination(gate)) {
+  is ReturnDestination.Event -> {navigation.select(RootTab.Tickets);navigation.currentStack.add(EventKey(destination.eventId,publicSlug=destination.publicSlug))}
+  is ReturnDestination.Root -> navigation.select(destination.tab)
+  null -> Unit
+ }}
+ val entries=mutableMapOf<RootTab,List<NavEntry<NavKey>>>()
+ for(tab in RootTab.entries) key(tab) {
+  val stack=navigation.stacks.getValue(tab)
+  fun visible(key:NavKey)=navigation.currentTab==tab && stack.lastOrNull()==key
+  entries[tab]=rememberDecoratedNavEntries(backStack=stack,
+   entryDecorators=listOf(rememberSaveableStateHolderNavEntryDecorator(),rememberViewModelStoreNavEntryDecorator(viewModelStoreOwner=session.owner(tab))),
+   entryProvider=entryProvider {
+    entry<RootTab> {root->when(root) {
+     RootTab.Tickets -> Column(Modifier.fillMaxSize()) {
+      TextAction(stringResource(R.string.event_link_open),{stack.add(PublicEventImportKey)},Modifier.padding(horizontal=16.dp))
+      Box(Modifier.weight(1f)) {TicketsRoute(null,{},::open,{},{},{},visible(root))}
+     }
+     RootTab.Events -> ru.eventpass.app.feature.myevents.MyEventsRoute(
+      {stack.add(EditorKey(draftId=java.util.UUID.randomUUID().toString(),create=true))},
+      {stack.add(EditorKey(draftId=it))},{stack.add(EditorKey(eventId=it))},::open,
+      {stack.add(ScannerKey(it))},{stack.add(VolunteersKey(it))},{stack.add(DashboardKey(it))},
+      visible=visible(root),onRemoteDraft={stack.add(EditorKey(remoteDraftId=it))})
+     RootTab.Profile -> Column(Modifier.fillMaxSize()) {
+      TextAction(stringResource(R.string.auth_request_verification),{session.prefill(session.account?.email.orEmpty());stack.add(VerificationKey)},Modifier.padding(horizontal=16.dp))
+      Box(Modifier.weight(1f)) {ru.eventpass.app.feature.profile.ProfileRoute(visible(root),navigation::back,{profileLeave=it},{session.signOut()},{},showTools=false,enableDeletion=true)}
+     }
+    }}
+    entry<PublicEventImportKey> {PublicEventImport(::open)}
+    entry<EditorKey> {route->ru.eventpass.app.feature.editor.EditorRoute(route.draftId,route.eventId,route.create,navigation::back,::open,{editorBack=it},visible(route),route.remoteDraftId)}
+    entry<EventKey> {route->EventRoute(route.eventId,{_,_,_->session.guard(AccessOutcome.Unauthenticated,ReturnDestination.Event(route.eventId,route.publicSlug))},
+     {stack.add(TicketKey(it))},navigation::back,publicSlug=route.publicSlug,visible=visible(route))}
+    entry<TicketKey> {route->var initial by rememberSaveable {mutableStateOf(route.ticketId)}
+     TicketsRoute(initial,{initial=null},::open,{},{},{},visible(route),onCardClosed=navigation::back)}
+    entry<ScannerKey> {route->ru.eventpass.app.feature.checkin.ScannerRoute(route.eventId,visible(route),navigation::back,::denied,{scannerBack=it})}
+    entry<VolunteersKey> {route->ru.eventpass.app.feature.volunteers.VolunteersRoute(route.eventId,visible(route),::denied)}
+    entry<DashboardKey> {route->ru.eventpass.app.feature.dashboard.DashboardRoute(route.eventId,visible(route),
+     {stack.add(ScannerKey(route.eventId))},{stack.add(VolunteersKey(route.eventId))},::denied,exportEnabled=true)}
+    entry<VerificationKey> {AccountFlowRoute(false,session,navigation::back,{},verification=true,showTools=false)}
+   })
+ }
+ BackHandler(navigation.currentStack.size==1 && navigation.currentTab!=RootTab.Tickets) {back()}
+ if(accessLost) androidx.compose.material3.AlertDialog(onDismissRequest={accessLost=false},text={Text(stringResource(R.string.scan_access_lost))},
+  confirmButton={TextAction(stringResource(R.string.dismiss),{accessLost=false})})
+ Scaffold(modifier=Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).imePadding(),contentWindowInsets=WindowInsets(0),
+  topBar={EventPassTopBar(stringResource(R.string.brand),variant=if(navigation.currentStack.size>1) TopBarVariant.Nested else TopBarVariant.Authenticated,
+   onBack=::back,onProfile={select(RootTab.Profile)})},
+  bottomBar={EventPassBottomBar(BottomDestination.valueOf(navigation.currentTab.name),{select(RootTab.valueOf(it.name))})}) {padding->
+   NavDisplay(entries=entries.getValue(navigation.currentTab),onBack=::back,modifier=Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding))
+  }
 }
 
 @Composable private fun PublicEventImport(open: (String) -> Unit) {

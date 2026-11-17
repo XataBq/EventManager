@@ -1,9 +1,17 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+val apiBase = providers.gradleProperty("eventpass.apiBaseUrl").getOrElse("https://staging.eventpass.dikanskii.ru/api/")
+val apiUri = URI(apiBase)
+require(apiUri.scheme == "https" && !apiUri.host.isNullOrBlank() && apiUri.userInfo == null && apiUri.query == null && apiUri.fragment == null && apiUri.path.endsWith("/")) {
+    "eventpass.apiBaseUrl must be an HTTPS base directory without credentials, query or fragment"
 }
 
 android {
@@ -13,8 +21,9 @@ android {
         applicationId = "ru.eventpass.android"
         minSdk = 28
         targetSdk = 37
-        versionCode = 23
-        versionName = "0.10.3-m03"
+        versionCode = 24
+        versionName = "0.10.9-m09-rc1"
+        buildConfigField("String", "API_BASE_URL", "\"$apiBase\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     flavorDimensions += "backend"
@@ -37,22 +46,28 @@ android {
     }
     testOptions { unitTests.isIncludeAndroidResources = true }
     lint { abortOnError = true }
+    buildTypes.named("release") {
+        isMinifyEnabled = true
+        isShrinkResources = true
+        proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        // Intentionally unsigned: production credentials are not part of the repository.
+    }
 }
 
-// No release/production application exists until a real backend is integrated.
+// Acceptance/debug plus unsigned remote release; demo is never a release product.
 androidComponents {
-    beforeVariants { variant -> variant.enable = variant.buildType == "debug" }
+    beforeVariants { variant -> variant.enable = variant.buildType == "debug" || variant.name == "remoteRelease" }
 }
 val enabledVariants = mutableSetOf<String>()
 androidComponents.onVariants { enabledVariants += it.name }
 tasks.register("verifyDemoIsolation") {
     group = "verification"
     doLast {
-        check(enabledVariants == setOf("demoDebug", "remoteDebug")) { "Unexpected application variants: $enabledVariants" }
+        check(enabledVariants == setOf("demoDebug", "remoteDebug", "remoteRelease")) { "Unexpected application variants: $enabledVariants" }
         check(configurations.getByName("implementation").dependencies.none {
             it is ProjectDependency && it.path == ":data:fake"
         }) { "Fake must be wired only by demoImplementation" }
-        check(configurations.getByName("remoteDebugRuntimeClasspath").incoming.resolutionResult.allComponents.none {
+        for (variant in listOf("remoteDebug", "remoteRelease")) check(configurations.getByName("${variant}RuntimeClasspath").incoming.resolutionResult.allComponents.none {
             it.id.displayName.contains("project :data:fake")
         }) { "Remote runtime must not contain fake" }
         check(file("src/main/kotlin").walkTopDown().filter { it.extension == "kt" }.none {
@@ -60,7 +75,7 @@ tasks.register("verifyDemoIsolation") {
                 it.readText().contains("import ru.eventpass.app.feature.gallery.") ||
                 it.readText().contains("import ru.eventpass.data.fake.")
         }) { "Main must not import demo tools, gallery or fake" }
-        println("demoDebug/remoteDebug enabled; fake absent from main and remote runtime.")
+        println("demoDebug/remoteDebug/unsigned remoteRelease enabled; fake absent from main and both remote runtimes.")
     }
 }
 kotlin { compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
@@ -95,4 +110,5 @@ dependencies {
     // Compose Test's older transitive Espresso uses reflection removed on Android 16.
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.zxing.core)
+    "androidTestRemoteImplementation"(libs.okhttp)
 }
