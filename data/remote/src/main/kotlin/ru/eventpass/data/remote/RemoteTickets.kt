@@ -180,6 +180,7 @@ class RemoteTickets(private val api: AuthHttp, private val auth: RemoteAuthRepos
     private val clock: Clock = Clock.systemUTC()) : TicketRepository {
     private val ownUpdates=java.util.concurrent.ConcurrentHashMap<TicketId,MutableStateFlow<Long>>()
     private val knownEvents=java.util.concurrent.ConcurrentHashMap<TicketScope,Set<EventId>>()
+    init {auth.onPrivateSessionClosed {knownEvents.clear();ownUpdates.clear()}}
     internal fun invalidateOwnerCancellation(eventId:EventId,ticketId:TicketId) {
         ownUpdates[ticketId]?.update {it+1}
         knownEvents.filterValues {eventId in it}.keys.forEach {scope->revisions.getValue(scope).update {it+1}}
@@ -258,37 +259,58 @@ internal fun RemoteFailure.readError(): ProductReadError = when(error) {
     else -> ProductReadError.PROTOCOL
 }
 
-class RemoteTicketDocuments(private val api: AuthHttp, private val auth: RemoteAuthRepository) : DocumentsRepository {
-    override suspend fun prepare(request: DocumentRequest): DocumentResult {
-        if(request !is DocumentRequest.TicketPdf) return DocumentResult.Failed(DocumentError.FEATURE_UNAVAILABLE)
-        if(request.ticketId.value.isBlank() || request.guestAccess?.let { it.isBlank() || it.length > 128 } == true) return DocumentResult.Failed(DocumentError.PROTOCOL)
-        val ctx = auth.capturePublicRead()
-        if(ctx.token == null && request.guestAccess.isNullOrBlank()) return DocumentResult.Failed(DocumentError.AUTHENTICATION_REQUIRED)
-        val stamp = DocumentStamp(ctx.profile?.account?.id, ctx.snapshot.generation)
-        val path = apiPath("tickets", request.ticketId.value, "pdf") + (request.guestAccess?.let {
-            require(it.length <= 128)
-            "?token=" + "https://path.invalid/".toHttpUrl().newBuilder().addQueryParameter("token", it).build().encodedQuery!!.substringAfter("=")
-        } ?: "")
-        return DocumentResult.Ready(DocumentSnapshot.Remote(stamp, request, DocumentSource { output ->
-            if(!auth.isCurrentPublicRead(ctx)) throw java.io.IOException("Document owner changed")
-            val bytes = try { api.downloadPdf(path, if(request.guestAccess == null) ctx.token else null) }
-            catch(e: RemoteFailure) {
-                if(e.error == AuthError.Unauthorized && request.guestAccess == null) auth.rejectUnauthorized(ctx)
-                throw DocumentFailure(if(e.machineCode == "STORAGE_UNAVAILABLE") DocumentError.STORAGE_UNAVAILABLE else when(e.error) {
-                    AuthError.Unauthorized -> DocumentError.AUTHENTICATION_REQUIRED
-                    AuthError.Network -> DocumentError.NETWORK; AuthError.Timeout -> DocumentError.TIMEOUT
-                    AuthError.Forbidden -> DocumentError.FORBIDDEN; AuthError.ServerUnavailable -> DocumentError.SERVER_UNAVAILABLE
-                    else -> if(e.httpStatus == 404) DocumentError.NOT_FOUND else DocumentError.PROTOCOL
-                })
+/** Server PDFs/XLSX only. Demo renderers are supplied exclusively by app/demo. */
+class RemoteTicketDocuments(private val api:AuthHttp,private val auth:RemoteAuthRepository):DocumentsRepository {
+    override suspend fun prepare(request:DocumentRequest):DocumentResult {
+        val id=when(request){is DocumentRequest.TicketPdf->request.ticketId.value;is DocumentRequest.AttendanceXlsx->request.eventId.value}
+        if(id.isBlank() || id in setOf(".","..")) return DocumentResult.Failed(DocumentError.PROTOCOL)
+        val c=auth.capturePublicRead()
+        val guest=(request as? DocumentRequest.TicketPdf)?.guestAccess
+        if(c.token==null && guest.isNullOrBlank()) return DocumentResult.Failed(DocumentError.AUTHENTICATION_REQUIRED)
+        if(guest!=null && (guest.isBlank() || guest.length>128)) return DocumentResult.Failed(DocumentError.PROTOCOL)
+        val path=when(request) {
+            is DocumentRequest.TicketPdf->apiPath("tickets",request.ticketId.value,"pdf")+(guest?.let {
+                "?token="+"https://path.invalid/".toHttpUrl().newBuilder().addQueryParameter("token",it).build().encodedQuery!!.substringAfter("=")
+            } ?: "")
+            is DocumentRequest.AttendanceXlsx->apiPath("events",request.eventId.value,"attendees","export")+"?format=xlsx"
+        }
+        val stamp=DocumentStamp(c.profile?.account?.id,c.snapshot.generation)
+        return DocumentResult.Ready(DocumentSnapshot.Remote(stamp,request,DocumentSource {output->
+            if(!auth.isCurrentPublicRead(c)) throw DocumentFailure(DocumentError.SESSION_CHANGED)
+            val bytes=try {when(request) {
+                is DocumentRequest.TicketPdf->api.downloadPdf(path,if(guest==null) c.token else null)
+                is DocumentRequest.AttendanceXlsx->api.downloadXlsx(path,requireNotNull(c.token))
+            }} catch(ex:RemoteFailure) {
+                if(ex.error==AuthError.Unauthorized && guest==null) auth.rejectUnauthorized(c)
+                throw DocumentFailure(ex.documentError())
             }
             currentCoroutineContext().ensureActive()
-            if(!auth.isCurrentPublicRead(ctx)) throw java.io.IOException("Document owner changed")
+            if(!auth.isCurrentPublicRead(c)) throw DocumentFailure(DocumentError.SESSION_CHANGED)
+            if(request is DocumentRequest.AttendanceXlsx) {
+                // Recheck owner after download, before the private file can be copied to SAF.
+                try {
+                    val text=auth.requestScoped(apiPath("events","by-id",request.eventId.value),c) ?: throw DocumentFailure(DocumentError.SESSION_CHANGED)
+                    val event=api.json.decodeFromString<EventDto>(text)
+                    if(event.id!=request.eventId.value || event.organizerId!=c.profile?.account?.id?.value) throw DocumentFailure(DocumentError.FORBIDDEN)
+                } catch(ex:RemoteFailure){throw DocumentFailure(ex.documentError())}
+                  catch(ex:SerializationException){throw DocumentFailure(DocumentError.PROTOCOL)}
+            }
+            if(!auth.isCurrentPublicRead(c)) throw DocumentFailure(DocumentError.SESSION_CHANGED)
             output.write(bytes)
-        }))
+        },current={auth.isCurrentPublicRead(c)}))
     }
-    override suspend fun validate(snapshot: DocumentSnapshot): DocumentError? {
-        val ctx = auth.capturePublicRead()
-        return if(ctx.snapshot.generation != snapshot.stamp.generation || ctx.profile?.account?.id != snapshot.stamp.accountId) DocumentError.SESSION_CHANGED else null
+    override suspend fun validate(snapshot:DocumentSnapshot):DocumentError? {
+        val c=auth.capturePublicRead()
+        return if(c.snapshot.generation!=snapshot.stamp.generation || c.profile?.account?.id!=snapshot.stamp.accountId ||
+            snapshot is DocumentSnapshot.Remote && !snapshot.current()) DocumentError.SESSION_CHANGED else null
     }
-    override suspend fun resendTicket(ticketId: TicketId) = ResendResult.Failed(DocumentError.FEATURE_UNAVAILABLE)
+}
+private fun RemoteFailure.documentError():DocumentError=when {
+    machineCode=="STORAGE_UNAVAILABLE"->DocumentError.STORAGE_UNAVAILABLE
+    httpStatus==404->DocumentError.NOT_FOUND
+    else->when(error) {
+        AuthError.Unauthorized->DocumentError.AUTHENTICATION_REQUIRED;AuthError.Forbidden->DocumentError.FORBIDDEN
+        AuthError.SessionChanged->DocumentError.SESSION_CHANGED;AuthError.Network->DocumentError.NETWORK;AuthError.Timeout->DocumentError.TIMEOUT
+        AuthError.ServerUnavailable->DocumentError.SERVER_UNAVAILABLE;else->DocumentError.PROTOCOL
+    }
 }

@@ -86,7 +86,7 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
      EventPassButton(stringResource(R.string.tickets_title), { stack.add(TicketKey()) })
      EventPassButton(stringResource(R.string.events_title), { stack.add(RootTab.Events) })
      PublicEventImport { stack.add(EventKey("", publicSlug = it)) }
-     Text(stringResource(R.string.remote_profile_readonly))
+     EventPassButton(stringResource(R.string.m08_profile_edit),{stack.add(ProfileEditKey)})
      state.profile?.let { Text(it.fields.name); Text(it.account.email); Text(stringResource(if(it.account.emailVerified) R.string.auth_email_verified_status else R.string.auth_email_unverified_status)) }
      TextAction(stringResource(R.string.auth_request_verification),{session.prefill(session.account?.email.orEmpty());stack.add(VerificationKey)})
      EventPassButton(stringResource(R.string.auth_logout_action),{session.signOut()})
@@ -95,6 +95,8 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
    }
    entry<EditorKey> { key -> ru.eventpass.app.feature.editor.EditorRoute(key.draftId,key.eventId,key.create,
     { stack.removeLastOrNull() },{ stack.add(EventKey("",publicSlug=it)) },{},visible=stack.lastOrNull() == key,remoteDraftId=key.remoteDraftId) }
+   entry<ProfileEditKey> { ru.eventpass.app.feature.profile.ProfileRoute(stack.lastOrNull()==ProfileEditKey,
+    {stack.removeLastOrNull()},{},{session.signOut()},{},showTools=false,enableDeletion=true) }
    entry<EventKey> { key -> EventRoute(key.eventId, { _, _, _ -> stack.add(RemoteUnavailableKey) }, { stack.add(TicketKey(it)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
    entry<TicketKey> { key -> var initial by rememberSaveable { mutableStateOf(key.ticketId) }; TicketsRoute(initial, { initial = null }, { slug -> stack.add(EventKey("", publicSlug = slug)) }, {}, {}, {}, visible = stack.lastOrNull() == key) }
    entry<ScannerKey> { key -> ru.eventpass.app.feature.checkin.ScannerRoute(key.eventId,stack.lastOrNull()==key,
@@ -104,7 +106,7 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
    entry<ScannerAccessLostKey> { AuthColumn {Text(stringResource(R.string.scan_access_lost));TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()})} }
    entry<DashboardKey> { key -> ru.eventpass.app.feature.dashboard.DashboardRoute(key.eventId,stack.lastOrNull()==key,
     {stack.add(ScannerKey(key.eventId))},{stack.add(VolunteersKey(key.eventId))},
-    {stack.removeLastOrNull();stack.add(ScannerAccessLostKey)},exportEnabled=false) }
+    {stack.removeLastOrNull();stack.add(ScannerAccessLostKey)},exportEnabled=true) }
    entry<RemoteUnavailableKey> { AuthColumn { Text(stringResource(R.string.feature_unavailable)); TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()}) } }
    entry<VerificationKey> { AccountFlowRoute(false,session,{stack.removeLastOrNull()},{},verification=true,showTools=false) }
   })

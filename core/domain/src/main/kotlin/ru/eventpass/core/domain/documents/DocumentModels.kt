@@ -30,7 +30,7 @@ sealed interface DocumentSnapshot {
     val request: DocumentRequest
     /** Transient download source; never serialized or retained as an offline product cache. */
     class Remote(override val stamp: DocumentStamp, override val request: DocumentRequest,
-        val source: DocumentSource) : DocumentSnapshot {
+        val source: DocumentSource,val current:()->Boolean={true}) : DocumentSnapshot {
         override fun toString() = "RemoteDocument([redacted])"
     }
     data class Ticket(override val stamp: DocumentStamp, override val request: DocumentRequest.TicketPdf,
@@ -46,20 +46,15 @@ sealed interface DocumentResult {
     data class Ready(val snapshot: DocumentSnapshot) : DocumentResult
     data class Failed(val error: DocumentError) : DocumentResult
 }
-sealed interface ResendResult {
-    data class Queued(val retryAt: Instant) : ResendResult
-    data class Cooldown(val retryAt: Instant) : ResendResult
-    data class Failed(val error: DocumentError) : ResendResult
-}
 interface DocumentsRepository {
     suspend fun prepare(request: DocumentRequest): DocumentResult
     suspend fun validate(snapshot: DocumentSnapshot): DocumentError?
-    suspend fun resendTicket(ticketId: TicketId): ResendResult
 }
 /** Destination is an opaque platform locator, never an unrestricted filesystem path. */
 interface DocumentFiles {
     suspend fun save(snapshot: DocumentSnapshot, destination: String, authorize: suspend () -> DocumentError?): DocumentError?
     suspend fun cleanup()
+    suspend fun purgePrivate(accountId:UserId) {cleanup()}
 }
 
 fun interface DocumentSource { suspend fun writeTo(output: java.io.OutputStream) }

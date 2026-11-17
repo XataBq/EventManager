@@ -5,6 +5,7 @@ import java.net.SocketTimeoutException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -25,7 +26,7 @@ import kotlin.coroutines.resumeWithException
 @Serializable internal data class EmailLinkBody(val token: String, val password: String? = null)
 @Serializable internal data class UserDto(val id: String, val publicId: String, val fullName: String, val email: String, val phone: String?, val organization: String?, val emailVerified: Boolean, val notificationsEnabled: Boolean) {
  fun account() = Account(UserId(id), email, emailVerified)
- fun profile() = Profile(account(), ProfileFields(fullName, phone, organization, notificationsEnabled))
+ fun profile() = Profile(account(), ProfileFields(fullName, phone, organization, notificationsEnabled,email),publicId)
 }
 @Serializable internal data class SessionDto(val token: String, val user: UserDto)
 @Serializable internal data class ErrorDto(val code: String, val fields: Map<String,String> = emptyMap())
@@ -75,7 +76,7 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
   }
  } catch(e: SocketTimeoutException) { throw RemoteFailure(AuthError.Timeout) }
  catch(e: IOException) { if(e is RemoteFailure) throw e; throw RemoteFailure(AuthError.Network) }
- internal suspend fun request(path: String, body: String? = null, token: AuthSecret? = null, method: String? = null, responseLimit: Int = 1_048_576, idempotencyKey: String? = null): String = withContext(Dispatchers.IO) {
+ internal suspend fun request(path: String, body: String? = null, token: AuthSecret? = null, method: String? = null, responseLimit: Int = 1_048_576, idempotencyKey: String? = null,expectedStatus:Int?=null): String = withContext(Dispatchers.IO) {
   require(responseLimit in 1..33_554_432)
   require(!path.startsWith("/") && !path.contains(":") && path.split('/').none { it == "." || it == ".." })
   val target = requireNotNull(base.resolve(path))
@@ -92,7 +93,7 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
     call.enqueue(object : Callback {
      override fun onFailure(call: Call, e: IOException) { if(c.isActive) c.resumeWithException(e) }
      override fun onResponse(call: Call, response: Response) {
-      try { val text = decodeResponse(response, responseLimit); if(c.isActive) c.resume(text) }
+      try { val text = decodeResponse(response, responseLimit,expectedStatus); if(c.isActive) c.resume(text) }
       catch(e: Exception) { if(c.isActive) c.resumeWithException(e) }
      }
     })
@@ -131,7 +132,41 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
     catch(e: RemoteFailure) { throw e }
     catch(e: IOException) { throw RemoteFailure(AuthError.Network) }
  }
- private fun decodeResponse(response: Response, limit: Int): String = response.use {
+ internal suspend fun downloadXlsx(path:String,token:AuthSecret):ByteArray=withContext(Dispatchers.IO) {
+  require(!path.startsWith("/") && !path.contains(":") && path.split('/').none {it=="." || it==".."})
+  val target=requireNotNull(base.resolve(path))
+  require(target.scheme==base.scheme && target.host==base.host && target.port==base.port && target.encodedPath.startsWith(base.encodedPath))
+  val request=Request.Builder().url(target).header("Accept","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+   .header("Authorization","Bearer "+token.value).build()
+  val context=kotlinx.coroutines.currentCoroutineContext()
+  try {
+   suspendCancellableCoroutine<ByteArray> {continuation->
+    val call=http.newCall(request);continuation.invokeOnCancellation {call.cancel()}
+    call.enqueue(object:Callback {
+     override fun onFailure(call:Call,e:IOException) {if(continuation.isActive) continuation.resumeWithException(e)}
+     override fun onResponse(call:Call,response:Response) {
+      try {
+       val bytes=response.use {
+        if(!it.isSuccessful) {decodeResponse(it,1_048_576);throw RemoteFailure(AuthError.Protocol)}
+        if(it.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase(java.util.Locale.ROOT)!="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") throw RemoteFailure(AuthError.Protocol)
+        val source=it.body?.source() ?: throw RemoteFailure(AuthError.Protocol)
+        source.request(33_554_433);val raw=source.buffer.readByteArray()
+        if(raw.size>33_554_432) throw RemoteFailure(AuthError.Protocol)
+        try {XlsxFormat.check(raw) {context.ensureActive()}}
+        catch(ex:kotlinx.coroutines.CancellationException){throw ex}
+        catch(_:Exception){throw RemoteFailure(AuthError.Protocol)}
+        raw
+       }
+       if(continuation.isActive) continuation.resume(bytes)
+      } catch(ex:Exception) {if(continuation.isActive) continuation.resumeWithException(ex)}
+     }
+    })
+   }
+  } catch(ex:SocketTimeoutException){throw RemoteFailure(AuthError.Timeout)}
+    catch(ex:RemoteFailure){throw ex}
+    catch(ex:IOException){throw RemoteFailure(AuthError.Network)}
+ }
+ private fun decodeResponse(response: Response, limit: Int,expectedStatus:Int?=null): String = response.use {
   val source = it.body?.source(); source?.request(limit.toLong() + 1)
   val raw = source?.buffer?.readByteArray() ?: byteArrayOf()
   if(raw.size > limit) throw RemoteFailure(AuthError.Protocol)
@@ -150,6 +185,7 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
     else -> AuthError.Protocol
    }, it.code, code, envelope?.fields.orEmpty())
   }
+  if(expectedStatus!=null && it.code!=expectedStatus) throw RemoteFailure(AuthError.Protocol,it.code)
   if(it.code != 204 && !it.header("Content-Type").orEmpty().contains("application/json")) throw RemoteFailure(AuthError.Protocol)
   text
  }

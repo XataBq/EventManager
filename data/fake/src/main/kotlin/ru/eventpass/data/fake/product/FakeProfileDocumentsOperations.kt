@@ -2,7 +2,6 @@ package ru.eventpass.data.fake.product
 
 import java.io.IOException
 import java.time.Clock
-import java.time.Duration
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
@@ -18,12 +17,9 @@ internal fun FakeProductState.profileFields(id: UserId): ProfileFields {
     val details = profileDetails[id] ?: ProfileDetails()
     return ProfileFields(auth.names[id].orEmpty(), details.phone, details.organization, details.notifications)
 }
-data class FakeDocumentsPolicy(val resendCooldown: Duration = Duration.ofMinutes(1)) {
-    init { require(resendCooldown > Duration.ZERO) }
-}
 internal class FakeProfileDocumentsOperations(private val state: MutableStateFlow<FakeProductState>, private val lock: Mutex,
     private val clock: Clock, private val authClock: Clock, private val storage: FakeAuthStorage,
-    private val auth: FakeAuthRepository, private val policy: FakeDocumentsPolicy,
+    private val auth: FakeAuthRepository,
     private val beforeOperation: suspend (String) -> Unit) : ProfileRepository, DocumentsRepository {
     private fun profile(s: FakeProductState): ProfileResult {
         if (!s.auth.healthy) return ProfileResult.Failed(ProfileError.STORAGE_UNAVAILABLE)
@@ -112,20 +108,5 @@ internal class FakeProfileDocumentsOperations(private val state: MutableStateFlo
         if (snapshot is DocumentSnapshot.Ticket && s.tickets.single { it.snapshot.ticketId == snapshot.request.ticketId }.snapshot != snapshot.ticket)
             return DocumentError.NOT_CURRENT
         return null
-    }
-    override suspend fun resendTicket(ticketId: TicketId): ResendResult {
-        auth.initialize(); val generation = state.value.auth.generation; beforeOperation("resend")
-        return withContext(Dispatchers.IO) { lock.withLock {
-            currentCoroutineContext().ensureActive(); val s = state.value
-            if (s.auth.generation != generation) return@withLock ResendResult.Failed(DocumentError.SESSION_CHANGED)
-            access(s, DocumentRequest.TicketPdf(ticketId))?.let { return@withLock ResendResult.Failed(it) }
-            s.nextDocumentError?.let { state.value = s.copy(nextDocumentError = null); return@withLock ResendResult.Failed(it) }
-            val now = authClock.instant()
-            s.ticketResendAt[ticketId]?.takeIf { now < it }?.let { return@withLock ResendResult.Cooldown(it) }
-            val t = s.tickets.single { it.snapshot.ticketId == ticketId }; val r = s.registrations.single { it.id == t.registrationId }
-            val retryAt = now.plus(policy.resendCooldown)
-            state.value = s.copy(outbox = s.outbox + FakeTicketEmail(r.attendeeEmail, ticketId), ticketResendAt = s.ticketResendAt + (ticketId to retryAt))
-            ResendResult.Queued(retryAt)
-        } }
     }
 }

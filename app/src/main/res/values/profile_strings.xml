@@ -16,12 +16,18 @@
     <string name="profile_delete_unavailable">Удаление аккаунта пока недоступно: согласуются последствия для мероприятий, билетов и истории проходов.</string>
     <string name="document_pdf">Сохранить PDF билета</string>
     <string name="document_xlsx">Экспорт участников в XLSX</string>
-    <string name="document_resend">Повторить письмо с билетом</string>
     <string name="document_saved">Файл сохранён</string>
-    <string name="document_queued">Demo: письмо добавлено в outbox</string>
-    <string name="document_retry_at">Повтор письма доступен после %1$s</string>
     <string name="document_retry_hint">Повторите действие кнопкой выше. Сохранение снова откроет выбор файла.</string>
     <string name="document_write_failed">Не удалось записать файл. Возможно, осталась неполная копия — проверьте выбранную папку.</string>
     <string name="document_provider_missing">Хранилище недоступно. Выберите другое место сохранения.</string>
     <string name="document_not_current">Билет больше не активен. Обновите список билетов.</string>
+    <string name="m08_profile_edit">Изменить профиль</string>
+    <string name="m08_profile_busy">Дождитесь завершения текущего действия.</string>
+    <string name="m08_email_taken">Этот email уже занят другим аккаунтом.</string>
+    <string name="m08_delete_title">Удалить аккаунт</string>
+    <string name="m08_delete_confirm">Подтверждаю удаление</string>
+    <string name="m08_delete_cascade">Будут удалены аккаунт, созданные вами мероприятия и билеты всех участников на эти мероприятия. Действие необратимо. Продолжить?</string>
+    <string name="m08_delete_unknown">Результат удаления не подтверждён. Проверка доступа к аккаунту не доказывает удаление всех данных. Нажмите «Проверить», прежде чем повторять удаление.</string>
+    <string name="m08_delete_check">Проверить результат</string>
+    <string name="m08_delete_present">Аккаунт по-прежнему доступен. Автоматического повтора не было. Если вы хотите удалить его, подтвердите действие ещё раз.</string>
 </resources>

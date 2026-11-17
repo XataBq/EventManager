@@ -31,6 +31,11 @@ class RemoteOrganizerRepository(private val api: AuthHttp, private val auth: Rem
     private val pending = java.util.concurrent.ConcurrentHashMap<String, Create>()
     private val uncertain = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private var lastContext: PublicReadContext? = null
+    init {auth.onPrivateSessionClosed {
+        synchronized(editors) {editors.values.forEach {it.state.value=null};editors.clear()}
+        synchronized(lists) {lists.values.forEach {it.state.value=null};lists.clear()}
+        identities.clear();pending.clear();uncertain.clear();fresh.clear();lastContext=null
+    }}
     private fun discardStale(c: PublicReadContext) = synchronized(editors) {
         if(!auth.isCurrentPublicRead(c)) return@synchronized
         val old = lastContext

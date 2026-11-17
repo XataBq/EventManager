@@ -135,7 +135,7 @@ Configuration dispose SAF не завершает entry operation: Route пер�
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance подключён в M07; profile mutations/XLSX/resend cleanup относятся к M08–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance подключён в M07; profile/delete/XLSX подключены в M08; product resend удалён; M09 — интеграционная стабилизация.
 
 ## M03: регистрации, билеты и PDF
 
@@ -160,3 +160,7 @@ GET scanner → server access/info; POST scan с прежним code/key при 
 ## M07: dashboard/участники
 
 Stats + первая страница одной revision принимаются вместе. STALE_PAGE сбрасывает цепочку и bounded reload; ticketId cancel требует server подтверждения, затем visible E/query read и адресная ticket/scanner invalidation без polling hidden tab. [Текущая модель](t10-dashboard-attendees.md), [реальная проверка и ограничения](../validation/t10-m07-implementation.md).
+
+## M08: profile/delete/documents
+
+Profile PATCH отправляет только changed fields с explicit null/false; old profile GET fenced version. Delete требует confirmation/204, unknown → explicit me сверка. XLSX format=xlsx — server download/MIME/ZIP/XML/bounds → existing SAF, без query/page/local fallback. Ticket resend удалён, auth resend/initial outbox остаются. [Текущие владельцы](t10-profile-delete-documents.md), [compile/NOT_RUN](../validation/t10-m08-implementation.md).

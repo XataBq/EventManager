@@ -29,6 +29,7 @@ class RemoteEventRepository(
     }
     private class Stamped(val context: PublicReadContext, val value: PublicEventResult, val confirmed: Boolean)
     private val entries = linkedMapOf<PublicEventReference.Slug, Entry>()
+    init {auth.onPrivateSessionClosed {synchronized(entries) {entries.values.forEach {it.state.value=null};entries.clear()}}}
 
     override fun observePublicEvent(eventId: EventId): Flow<PublicEventResult> =
         observePublicEvent(PublicEventReference.Internal(eventId))

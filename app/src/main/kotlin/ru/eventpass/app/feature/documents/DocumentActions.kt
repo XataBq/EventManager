@@ -38,12 +38,8 @@ fun DocumentActions(request: DocumentRequest, visible: Boolean = true, enabled: 
     } }
     EventPassButton(stringResource(if(request is DocumentRequest.TicketPdf) R.string.document_pdf else R.string.document_xlsx),
         {vm.begin(request)},Modifier.testTag("document-export"),loading=s.busy,enabled=visible && enabled)
-    if(request is DocumentRequest.TicketPdf && request.guestAccess == null && ru.eventpass.app.BuildConfig.FLAVOR == "demo") EventPassButton(stringResource(R.string.document_resend),{vm.resend(request.ticketId)},
-        Modifier.testTag("ticket-resend"),style=ActionStyle.Secondary,enabled=visible && enabled && !s.busy)
     s.error?.let { InlineError(stringResource(documentErrorResource(it))); Text(stringResource(R.string.document_retry_hint)) }
     if(s.saved) Text(stringResource(R.string.document_saved),Modifier.testTag("document-saved"))
-    if(s.mailQueued) Text(stringResource(R.string.document_queued),Modifier.testTag("mail-queued"))
-    s.retryAt?.let { Text(stringResource(R.string.document_retry_at,it.toString()),Modifier.testTag("mail-retry-at")) }
 }
 fun documentErrorResource(error: DocumentError): Int=when(error) {
     DocumentError.FEATURE_UNAVAILABLE -> R.string.feature_unavailable

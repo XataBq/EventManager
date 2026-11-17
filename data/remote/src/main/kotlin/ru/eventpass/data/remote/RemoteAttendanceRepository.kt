@@ -31,6 +31,7 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
     private val entries=mutableMapOf<Key,Entry>()
     private val writes=java.util.concurrent.ConcurrentHashMap<EventId,Mutex>()
     private var lastContext:PublicReadContext?=null
+    init {auth.onPrivateSessionClosed {synchronized(entries) {entries.values.forEach {it.version.incrementAndGet();it.state.value=null};entries.clear();lastContext=null}}}
     private fun entry(key:Key,c:PublicReadContext):Entry=synchronized(entries) {
         if(lastContext?.let {!auth.isCurrentPublicRead(it)}==true) {
             entries.values.forEach {it.version.incrementAndGet();it.state.value=null};entries.clear()

@@ -27,10 +27,9 @@ class DocumentsViewModelTest {
         fun login() {val n=values.value.generation+1;values.value=SessionSnapshot(n,SessionState.Authenticated(Session("session-$n",account,Instant.MAX)))}
     }
     private inner class Repo : DocumentsRepository {
-        var prepares=0;var sends=0;var prepare: suspend()->DocumentResult={DocumentResult.Ready(snapshot)}
+        var prepares=0;var prepare: suspend()->DocumentResult={DocumentResult.Ready(snapshot)}
         override suspend fun prepare(request: DocumentRequest): DocumentResult {prepares++;return prepare()}
         override suspend fun validate(snapshot: DocumentSnapshot): DocumentError?=null
-        override suspend fun resendTicket(ticketId: TicketId): ResendResult {sends++;return ResendResult.Queued(Instant.EPOCH)}
     }
     private class Files : DocumentFiles {
         var writes=0;var result: DocumentError?=null
@@ -89,14 +88,6 @@ class DocumentsViewModelTest {
             vm.destination(next,"content://test/new");runCurrent();pending[0].resume(DocumentResult.Ready(snapshot));runCurrent()
             assertTrue(vm.state.value.busy);assertEquals(0,files.writes)
             pending[1].resume(DocumentResult.Ready(snapshot));runCurrent();assertTrue(vm.state.value.saved);assertEquals(1,files.writes)
-        } finally {vm.viewModelScope.cancel();Dispatchers.resetMain()}
-    }
-    @Test fun resendBusyAndSessionCleanupDoNotRetainOldMessages()=runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler));val auth=AuthFixture();val repo=Repo();val vm=DocumentsViewModel(repo,Files(),auth)
-        try {
-            vm.resend(request.ticketId);vm.resend(request.ticketId);runCurrent();assertEquals(1,repo.sends);assertTrue(vm.state.value.mailQueued)
-            auth.logout();runCurrent();assertFalse(vm.state.value.mailQueued);assertNull(vm.state.value.retryAt)
-            vm.begin(request);assertEquals(DocumentError.AUTHENTICATION_REQUIRED,vm.state.value.error)
         } finally {vm.viewModelScope.cancel();Dispatchers.resetMain()}
     }
 }

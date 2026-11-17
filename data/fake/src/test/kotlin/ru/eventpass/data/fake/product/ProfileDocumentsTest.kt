@@ -138,14 +138,4 @@ class ProfileDocumentsTest {
         val cancelled=(e.documents.prepare(mixed.request) as DocumentResult.Ready).snapshot as DocumentSnapshot.Attendance
         assertEquals(TicketStatus.CANCELLED,cancelled.rows.single().status); assertEquals(TicketStatus.ACTIVE,mixed.rows.single().status)
     }
-    @Test fun resendUsesRegisteredRecipientSharedOutboxAuthClockCooldownAndNeverMutatesTicket() = runTest {
-        val time=Time(); val e=env(time=time); e.scenarios.signInAs(FakeFixtures.ALEX); val t=own(e)
-        e.profiles.saveProfile(changed); e.scenarios.failNextDocument(DocumentError.NETWORK)
-        assertEquals(ResendResult.Failed(DocumentError.NETWORK),e.documents.resendTicket(t.snapshot.ticketId)); assertTrue(e.scenarios.outbox().isEmpty())
-        val first=e.documents.resendTicket(t.snapshot.ticketId) as ResendResult.Queued
-        assertEquals(listOf(FakeTicketEmail("alex@example.com",t.snapshot.ticketId)),e.scenarios.outbox())
-        assertEquals(ResendResult.Cooldown(first.retryAt),e.documents.resendTicket(t.snapshot.ticketId)); assertEquals(t,own(e))
-        time.now=first.retryAt; assertTrue(e.documents.resendTicket(t.snapshot.ticketId) is ResendResult.Queued); assertEquals(2,e.scenarios.outbox().size)
-        e.scenarios.signInAs(FakeFixtures.HOST); assertEquals(ResendResult.Failed(DocumentError.FORBIDDEN),e.documents.resendTicket(t.snapshot.ticketId))
-    }
 }

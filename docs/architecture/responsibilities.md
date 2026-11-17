@@ -91,7 +91,7 @@ EventPassRefresh (core:designsystem) отвечает за nested-scroll/indicat
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance подключён в M07; profile mutations/XLSX/resend cleanup относятся к M08–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance подключён в M07; profile/delete/XLSX подключены в M08; product resend удалён; M09 — интеграционная стабилизация.
 
 ## M03: регистрации, билеты и PDF
 
@@ -114,3 +114,7 @@ RemoteCheckInRepository / RemoteVolunteersRepository — HTTP, event authority, 
 ## M07: dashboard/участники
 
 RemoteAttendanceRepository — header/stats/page/owner cancel и private snapshot authority; существующий M04 mapper и M06 VolunteerRepository переиспользуются. Dashboard VM — atomic accept, query/page owners; Room/DTO/HTTP в UI нет. [Текущая модель](t10-dashboard-attendees.md), [реальная проверка и ограничения](../validation/t10-m07-implementation.md).
+
+## M08: profile/delete/documents
+
+RemoteAuthRepository владеет canonical User/profile/delete и shared retire cleanup; M05 callback scoped по account. AndroidDocumentFiles владеет temp/SAF, Remote document source — server bytes/validation. Local writers перенесены в app/demo, product resend отсутствует. [Текущие владельцы](t10-profile-delete-documents.md), [compile/NOT_RUN](../validation/t10-m08-implementation.md).

@@ -105,7 +105,7 @@ Tickets/MyEvents/Event, как Dashboard/Volunteers/Profile, запускают 
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance подключён в M07; profile mutations/XLSX/resend cleanup относятся к M08–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/volunteers подключены в M06; attendance подключён в M07; profile/delete/XLSX подключены в M08; product resend удалён; M09 — интеграционная стабилизация.
 
 ## M03: регистрации, билеты и PDF
 
@@ -130,3 +130,7 @@ Credential/key/firstAttempt живут у ScanCommand текущей Scanner VM,
 ## M07: dashboard/участники
 
 Query живёт у DashboardKey VM и сохраняется при rotation/возврате дочернего entry, не process death/SavedState. Raw attendee answers/selection/PII не persist. Страницы принадлежат actor/event/query/revision; смена owner отменяет read/finally, auth denial очищает VM. [Текущая модель](t10-dashboard-attendees.md), [реальная проверка и ограничения](../validation/t10-m07-implementation.md).
+
+## M08: profile/delete/documents
+
+Profile edit revision сохраняет B при save A; имя/email кандидат только у VM, подтверждённая Account одна. Same-user email change не уничтожает private owners. Delete неизвестен до204; epoch/Session cleanup отменяет owners/jobs, Room/files purge account-scoped. Export context проверяется в source и каждом SAF chunk. [Текущие владельцы](t10-profile-delete-documents.md), [compile/NOT_RUN](../validation/t10-m08-implementation.md).

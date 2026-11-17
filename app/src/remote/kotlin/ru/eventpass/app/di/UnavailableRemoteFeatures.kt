@@ -38,5 +38,4 @@ internal object UnavailableRemoteFeatures : EventRepository, RegistrationReposit
  override suspend fun cancelRegistration(eventId: EventId, registrationId: String) = OwnerCancelResult.Failed(AttendanceError.FEATURE_UNAVAILABLE)
  override suspend fun prepare(request: DocumentRequest) = DocumentResult.Failed(DocumentError.FEATURE_UNAVAILABLE)
  override suspend fun validate(snapshot: DocumentSnapshot) = DocumentError.FEATURE_UNAVAILABLE
- override suspend fun resendTicket(ticketId: TicketId) = ResendResult.Failed(DocumentError.FEATURE_UNAVAILABLE)
 }

@@ -1,6 +1,6 @@
 # Как читать документацию
 
-**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](architecture/t10-dashboard-attendees.md), [compile и ограничения](validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
+**17 ноября — M08 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote profile PATCH/delete и server XLSX подключены к общим UI/ports; product ticket resend удалён. [Архитектура M08](architecture/t10-profile-delete-documents.md), [compile/NOT_RUN](validation/t10-m08-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. Старые review/H-пункты не закрыты. M09 TODO, ручная приёмка после M09.
 
 Это точка входа в действующую спецификацию. Архитектура UI сверена по `c569152` (T01–T06), подключены [T07 UI/lifecycle](architecture/t07-ui-lifecycle.md) и [T08 attendance](architecture/t08-attendance.md), [T09 profile/files](architecture/t09-profile-files.md) на общем store; статусы задач/приёмок — в [плане](06-delivery-plan.md), сборка и команды — в [README](../README.md). Не определять текущее состояние по старому отчёту или порядку абзацев разных дат.
 

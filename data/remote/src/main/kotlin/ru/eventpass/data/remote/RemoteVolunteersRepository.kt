@@ -24,6 +24,7 @@ class RemoteVolunteersRepository(private val api:AuthHttp,private val auth:Remot
     }
     private val entries=mutableMapOf<EventId,Entry>()
     private var lastContext:PublicReadContext?=null
+    init {auth.onPrivateSessionClosed {synchronized(entries) {entries.values.forEach {it.version.incrementAndGet();it.state.value=null};entries.clear();lastContext=null}}}
     private fun entry(id:EventId,c:PublicReadContext):Entry=synchronized(entries) {
         if(lastContext?.let {!auth.isCurrentPublicRead(it)}==true) {
             entries.values.forEach {it.version.incrementAndGet();it.state.value=null};entries.clear()

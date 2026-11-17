@@ -72,7 +72,7 @@ Remote M01 игнорирует ACTION_VIEW и очищает secret URI. App Li
 
 ## Реестр 18 mobile-frame — продуктовый ориентир
 
-G01–G05/P01/P02 и O01/V01/O02/O03 представлены текущим срезом с изменениями B02/B04. P03 — профиль с dirty/save/discard и настройкой напоминаний; deletion/Q10 недоступен. V02–V05/O05 подключены в T07, O04 подключён в T08; обе camera/UI и общая H3 ждут человека. Упомянутый будущий route в таблице не означает наличие реализации.
+G01–G05/P01/P02 и O01/V01/O02/O03 представлены текущим срезом с изменениями B02/B04. P03 — профиль с dirty/save/discard и настройкой напоминаний; remote deletion подключён в M08, legacy demo deletion недоступен. V02–V05/O05 подключены в T07, O04 подключён в T08; обе camera/UI и общая H3 ждут человека. Упомянутый будущий route в таблице не означает наличие реализации.
 
 
 Все ссылки ведут в один файл. «Состояние» означает переиспользование одного экрана, а не отдельную фичу.
@@ -128,3 +128,7 @@ MyEvents server summary открывает ScannerKey по internal eventId дл
 ## M07: remote DashboardKey
 
 MyEvents organizer открывает прежний DashboardKey по internal eventId; оттуда — общие Scanner/Volunteers того же E. Back возвращает в Dashboard с query живой VM; visible RESUMED перечитывает согласованный snapshot, скрытый родитель не поллится. Query/selection/PII не persist в SavedState/Room. Отказ очищает private состояние и возвращает сообщение; XLSX до M08 не предлагается. [Владельцы M07](architecture/t10-dashboard-attendees.md).
+
+## M08: ProfileEditKey и документы
+
+Remote root открывает общий P03 ProfileRoute через ProfileEditKey: email/publicId/notifications и local delete cascade confirmation, без password/demo tools. При204 cleanup переводит в guest и уничтожает private owners;401 сам по себе не сообщение «аккаунт удалён». Unknown предлагает явную me сверку. Profile raw input живёт у VM/recreation; server XLSX включён у Dashboard и использует прежний SAF owner. Product resend кнопки нет. [Lifecycle/cleanup M08](architecture/t10-profile-delete-documents.md).

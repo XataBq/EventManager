@@ -18,7 +18,13 @@ object DemoModule {
     @Provides fun provideProfiles(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.profile.ProfileRepository = environment.profiles
     @Provides fun provideDocuments(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.documents.DocumentsRepository = environment.documents
     @Provides @Singleton fun provideDocumentFiles(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context):
-        ru.eventpass.core.domain.documents.DocumentFiles = ru.eventpass.core.platform.AndroidDocumentFiles(context)
+        ru.eventpass.core.domain.documents.DocumentFiles = ru.eventpass.core.platform.AndroidDocumentFiles(context) {snapshot,output,check->
+            when(snapshot) {
+                is ru.eventpass.core.domain.documents.DocumentSnapshot.Ticket->ru.eventpass.core.platform.TicketPdfWriter.write(snapshot,output,check)
+                is ru.eventpass.core.domain.documents.DocumentSnapshot.Attendance->ru.eventpass.core.platform.AttendanceXlsxWriter.write(snapshot,output,check)
+                else->throw java.io.IOException("Not a demo document")
+            }
+        }
     @Provides fun provideAttendance(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.attendance.AttendanceRepository = environment.attendance
     @Provides fun provideCheckIns(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.checkin.CheckInRepository = environment.checkIns
     @Provides fun provideVolunteers(environment: FakeEventPassEnvironment): ru.eventpass.core.domain.checkin.VolunteerRepository = environment.volunteers

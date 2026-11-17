@@ -1,6 +1,6 @@
 # T10: последовательное исполнение и передача контекста
 
-**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](architecture/t10-dashboard-attendees.md), [compile и ограничения](validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
+**17 ноября — M08 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote profile PATCH/delete и server XLSX подключены к общим UI/ports; product ticket resend удалён. [Архитектура M08](architecture/t10-profile-delete-documents.md), [compile/NOT_RUN](validation/t10-m08-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. Старые review/H-пункты не закрыты. M09 TODO, ручная приёмка после M09.
 
 С 15 ноября 2026 по прямому решению пользователя **субагенты запрещены**, включая помощников реализации и ревьюеров. Разрешение на делегирование от 13 ноября отменено. Этапы M00–M09 и архитектурные критерии [34](34-api-migration-plan.md) сохранены; ручная проверка остаётся только в конце. Историческая передача M02 15 ноября: [handoff](validation/t10-m02-handoff-2026-11-15.md), [промпт](prompts/t10-m02-resume-single-agent.md).
 
@@ -50,7 +50,8 @@ CODE_REVIEW.md: дата, M, base/target commit или точный манифе
 | M05 | IMPLEMENTED/REVIEW_PENDING | Room/durable drafts/explicit sync/conflict/covers; [отчёт](validation/t10-m05-implementation.md) | Remote compile пройден; сценарии/lint/demo по команде пользователя NOT_RUN; M06 разрешён без review gate; M05 не TECH_ACCEPTED |
 | M06 | IMPLEMENTED/COMPILE_VERIFIED | Remote scanner/volunteers; [отчёт](validation/t10-m06-implementation.md) | Поведение NOT_VERIFIED; review/scenario/device только по команде |
 | M07 | IMPLEMENTED/COMPILE_VERIFIED | Remote dashboard/attendees/cancel; [отчёт](validation/t10-m07-implementation.md) | Поведение NOT_VERIFIED, без M06 review gate |
-| M08–M09 | TODO | Не запускались | Только по новой команде |
+| M08 | IMPLEMENTED/COMPILE_VERIFIED | Profile/delete/server XLSX/resend removal; [отчёт](validation/t10-m08-implementation.md) | Поведение NOT_VERIFIED; без M07 review gate |
+| M09 | TODO | Не запускался | Только по новой команде |
 
 Все H-проверки нового remote и непроверенный новый T09a UX ожидают единой финальной приёмки. Обновление этого журнала не закрывает их автоматически.
 

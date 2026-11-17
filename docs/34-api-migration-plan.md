@@ -1,6 +1,6 @@
 # T10: сравнение, миграция правил и интеграция API
 
-**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](architecture/t10-dashboard-attendees.md), [compile и ограничения](validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
+**17 ноября — M08 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote profile PATCH/delete и server XLSX подключены к общим UI/ports; product ticket resend удалён. [Архитектура M08](architecture/t10-profile-delete-documents.md), [compile/NOT_RUN](validation/t10-m08-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. Старые review/H-пункты не закрыты. M09 TODO, ручная приёмка после M09.
 
 Основание: Android `0493dbd2e328796cd963689cc25cf3d4d2bd40e1` плюс существующие незакоммиченные документы; backend `def65653b9e1f22dce8bc2d6f266b23ace6cd1d5`, OpenAPI/staging 1.1.1. Согласованные правила — [08](08-decisions.md), задание backend — [32](32-backend-final-requirements.md), проверка сервера — [33](33-backend-update-2026-11-13.md). Старое предложение 44 URL и B01–B08 не отменяют более поздних решений пользователя.
 
@@ -176,3 +176,7 @@ ADR-T10-03/05/06 реализованы узким draft store, без унив�
 ## M07 — согласованное чтение и ticket cancellation (17 ноября)
 
 Stats/page публикуются одним revision-bound snapshot; server revision не editor If-Match. Отсутствующие attendee registration/time/checker не выдумываются, исторические answers не перекодируются через текущие questions. Отмена по ticketId подтверждается backend; связанные read инвалидируются адресно. Query может содержать PII и остаётся только у живой VM. [Спецификация M07](architecture/t10-dashboard-attendees.md). Только compile подтверждён, M08 не начат.
+
+## M08 — Account update, delete204 и server XLSX (17 ноября)
+
+Profile email — кандидат, canonical Account/User один; PATCH меняет только diff, явный null и false сохранены. Тот же sessionId/userId не purge Room. Delete204 использует общий explicit logout cleanup; unknown требует me сверки,401 не доказывает каскад. Temp epoch/account scope и callbacks очищают private работу без пользовательских SAF файлов. Server XLSX format=xlsx идёт прежним Remote source, local writers только demo. Product resend удалён, auth/initial mails остаются. [Спецификация](architecture/t10-profile-delete-documents.md); только compile подтверждён, M09 не начат.

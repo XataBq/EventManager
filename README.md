@@ -1,6 +1,6 @@
 # EventPass — Android
 
-**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](docs/architecture/t10-dashboard-attendees.md), [compile и ограничения](docs/validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
+**17 ноября — M08 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote profile PATCH/delete и server XLSX подключены к общим UI/ports; product ticket resend удалён. [Архитектура M08](docs/architecture/t10-profile-delete-documents.md), [compile/NOT_RUN](docs/validation/t10-m08-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. Старые review/H-пункты не закрыты. M09 TODO, ручная приёмка после M09.
 
 **Backend 1.1.1 проверен на staging, 13 ноября.** Сегодняшние изменения `6960209` → `def6565` покрывают BK01–BK09; публичные API/OpenAPI доступны, 55 сценарных проверок + 3 cleanup прошли. Для начала T10 ручек достаточно. Осталось настроить ссылки документов согласия и обеспечить доступ к тестовой почте для полного auth smoke; `guest.phone` без значения передавать как `""`. Android App Links отложены пользователем. [Результаты и границы проверки](docs/33-backend-update-2026-11-13.md). Android-интеграция этим не реализована.
 

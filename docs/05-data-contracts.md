@@ -1,6 +1,6 @@
 # Текущие порты, remote и fake storage
 
-**17 ноября — M07 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote dashboard/участники/owner cancel подключены к общим UI/ports. [Архитектура M07](architecture/t10-dashboard-attendees.md), [compile и ограничения](validation/t10-m07-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. M05/M06 поведенчески не проверены; старые review/H-пункты не закрыты. M08–M09 TODO, ручная приёмка после M09.
+**17 ноября — M08 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote profile PATCH/delete и server XLSX подключены к общим UI/ports; product ticket resend удалён. [Архитектура M08](architecture/t10-profile-delete-documents.md), [compile/NOT_RUN](validation/t10-m08-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. Старые review/H-пункты не закрыты. M09 TODO, ручная приёмка после M09.
 
 ## Реализованные порты
 
@@ -49,7 +49,7 @@ flowchart LR
 
 ## Profile и документы T09
 
-ProfileRepository.observeProfile/refreshProfile перечитывает профиль; saveProfile меняет name/optional Russian phone/organization/notifications в прежнем store. Identity/email read-only; имя в AuthData.names, детали — profileDetails. Новые RegistrationContact получают name/phone, старые registrations/tickets/checkIns не переписываются. DocumentsRepository.prepare/validate/resendTicket отдаёт typed outcomes и immutable DocumentSnapshot, File port не зависит от Android Uri/Context. PDF только свой current Active, XLSX owner E/all registrations+answers независимо от query/pages, без credentials. VM/Compose не знают fake/DTO. [Исходники и операции](architecture/t09-profile-files.md).
+ProfileRepository.observeProfile/refreshProfile/saveProfile/deleteAccount/reconcileDeletion используют подтверждённую Account и typed outcomes. Remote PATCH partial включая email/null/false; ProfileFields.email — кандидат, подтверждённый Profile совпадает с Account. DocumentsRepository содержит только prepare/validate, server PDF/XLSX идут через transient Remote source, без workbook/DTO в UI. Product ticket resend удалён во всех flavor. [Текущие контракты и cleanup](architecture/t10-profile-delete-documents.md).
 
 ## Persistence и границы хранения
 
@@ -87,7 +87,7 @@ DemoModule инъектирует auth DemoClock (system UTC + temporary offset)
 
 Demo OpenDocument import немедленно копирует проверенные PNG/JPEG до 5 MiB в managed file. Domain хранит opaque EventCover. Preview sampled/EXIF на worker dispatcher. GC перед первым import нового процесса удаляет только unreferenced assets persisted records; при unhealthy snapshot пропускается. Это не atomic transaction вместе с snapshot, и несохранённая editor форма после process death не гарантируется.
 
-Demo письмо — запись прежнего outbox, не настоящая рассылка. DocumentsRepository.resendTicket защищён own/current Active guard, auth generation и централизованным cooldown по auth Clock; retryAt возвращается UI, recipients не вводятся. PDF/XLSX генерируются platform adapter за DocumentFiles после авторизованного snapshot и проверок до передачи/после close; это реальные demo-документы, а серверная генерация/доставка — T10. Guest download/recovery не добавлены. [Точный путь](architecture/t09-profile-files.md).
+Первоначальные ticket emails и auth verification/reset остаются прежним outbox demo; product resend удалён, runtime cooldown не persist. Local PDF/XLSX writers находятся в app/demo и передаются platform renderer callback только DemoModule. Remote получает серверный файл, проверяет MIME/ZIP/XML/bounds/context и сохраняет через private temp/SAF; не использует local fallback. [Lifetime и ограничения](architecture/t10-profile-delete-documents.md).
 
 ## S01–S14 — целевой реестр сценариев
 
@@ -116,7 +116,7 @@ Debug ScenarioController умеет выбрать seed, сменить тест
 
 ## Граница оставшейся миграции M05–M09
 
-Backend snapshot 1.1.1 и решения 13 ноября приняты; [mapping](api/migration-mapping.md) и [34](34-api-migration-plan.md) задают остаток. Remote M01–M04 auth/profile/public E/registration/tickets/PDF/online editor/MyEvents/covers реализованы. Offline drafts/Room подключены в M05; scan/grants/attendance/profile mutations/XLSX/delete/resend cleanup — следующие M. Demo guest уже создаёт passwordless account без session и использует EVT display/manual code, legacy proofs сохранены; ticket resend остаётся demo-only до M08. Старые 22/OpenAPI v0.1.0 не определяют текущий HTTP.
+Backend snapshot1.1.1 и решения13 ноября — текущий контракт. Remote M01–M08 подключены с ограниченными проверками; release/integration hardening — M09. Fake codec6/legacy proofs отдельно; ticket resend удалён без миграции persisted данных. Точный scope и NOT_VERIFIED каждого этапа — в текущих отчётах. Старые22/OpenAPI0.1.0 не задают HTTP.
 
 Реализованный независимый check-in: Active → Used, повтор AlreadyUsed, WrongEvent/Cancelled/Unknown → Invalid; связь/Timeout/Forbidden не Invalid/успех. Только после ответа repository можно разрешать проход. Offline admission не предусмотрен. Remote 24h idempotency/EVT-code приняты в 34, адаптация соответствующих команд — M03/M06; текущий demo manual credential отдельно от displayNumber/qrPayload. Сохранение/ошибки/владение state и ограничения — [независимая основа T07](architecture/t07-checkin-foundation.md). UI и CameraX/ZXing подключены к прежним портам; успешный JVM contract не означает допуск без ответа repository или production API.
 

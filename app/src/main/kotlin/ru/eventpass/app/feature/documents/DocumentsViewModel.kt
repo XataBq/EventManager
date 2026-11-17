@@ -4,17 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import ru.eventpass.core.domain.auth.*
 import ru.eventpass.core.domain.documents.*
-import ru.eventpass.core.domain.event.TicketId
 
 data class DocumentPicker(val id: String, val request: DocumentRequest, val launched: Boolean = false)
 data class DocumentsUiState(val busy: Boolean = false, val picker: DocumentPicker? = null,
-    val error: DocumentError? = null, val saved: Boolean = false, val mailQueued: Boolean = false, val retryAt: Instant? = null)
+    val error: DocumentError? = null, val saved: Boolean = false)
 @HiltViewModel
 class DocumentsViewModel @Inject constructor(private val repository: DocumentsRepository, private val files: DocumentFiles,
     private val auth: AuthRepository) : ViewModel() {
@@ -52,19 +50,6 @@ class DocumentsViewModel @Inject constructor(private val repository: DocumentsRe
                 }
                 currentCoroutineContext().ensureActive()
                 if(generation==owner && expected==auth.currentSession()) mutable.value=state.value.copy(error=error,saved=error==null)
-            } finally { if(generation==owner) mutable.value=state.value.copy(busy=false) }
-        }
-    }
-    fun resend(id: TicketId) {
-        if(state.value.busy) return
-        val generation=owner; resource=DocumentRequest.TicketPdf(id); session=auth.currentSession(); mutable.value=DocumentsUiState(busy=true)
-        job=viewModelScope.launch {
-            try { val result=repository.resendTicket(id); currentCoroutineContext().ensureActive()
-                if(generation==owner && session==auth.currentSession()) mutable.value=when(result) {
-                    is ResendResult.Queued -> DocumentsUiState(mailQueued=true,retryAt=result.retryAt)
-                    is ResendResult.Cooldown -> DocumentsUiState(retryAt=result.retryAt)
-                    is ResendResult.Failed -> DocumentsUiState(error=result.error)
-                }
             } finally { if(generation==owner) mutable.value=state.value.copy(busy=false) }
         }
     }

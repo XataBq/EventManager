@@ -45,7 +45,6 @@ class FakeEventPassEnvironment(
     authSecrets: FakeAuthSecrets = RandomAuthSecrets(),
     beforeAuthOperation: suspend (String) -> Unit = {},
     private val authClock: Clock = clock,
-    documentsPolicy: FakeDocumentsPolicy = FakeDocumentsPolicy(),
     beforeProfileDocumentOperation: suspend (String) -> Unit = {},
 ) {
 
@@ -62,7 +61,7 @@ class FakeEventPassEnvironment(
     val checkIns: ru.eventpass.core.domain.checkin.CheckInRepository = admission.checkIns
     val volunteers: ru.eventpass.core.domain.checkin.VolunteerRepository = admission.volunteers
     val attendance: ru.eventpass.core.domain.attendance.AttendanceRepository = FakeAttendanceOperations(state, lock, clock, authClock, authStorage, authBackend)
-    private val profileDocuments = FakeProfileDocumentsOperations(state, lock, clock, authClock, authStorage, authBackend, documentsPolicy, beforeProfileDocumentOperation)
+    private val profileDocuments = FakeProfileDocumentsOperations(state, lock, clock, authClock, authStorage, authBackend, beforeProfileDocumentOperation)
     val profiles: ru.eventpass.core.domain.profile.ProfileRepository = profileDocuments
     val documents: ru.eventpass.core.domain.documents.DocumentsRepository = profileDocuments
 
@@ -178,7 +177,6 @@ internal data class FakeProductState(
     val profileDetails: Map<UserId, ProfileDetails> = emptyMap(),
     val nextProfileError: ru.eventpass.core.domain.profile.ProfileError? = null,
     val nextDocumentError: ru.eventpass.core.domain.documents.DocumentError? = null,
-    val ticketResendAt: Map<TicketId, java.time.Instant> = emptyMap(),
 )
 
 internal fun FakeProductState.activeAccount(now: java.time.Instant): Account? = auth.session

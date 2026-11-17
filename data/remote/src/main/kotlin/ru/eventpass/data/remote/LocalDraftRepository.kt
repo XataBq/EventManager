@@ -29,6 +29,7 @@ class LocalDraftRepository(
     private val newIds=java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val locks=java.util.concurrent.ConcurrentHashMap<Pair<UserId,DraftId>,Mutex>()
     private val active=MutableStateFlow<Set<Work>>(emptySet())
+    init {auth.onPrivateSessionClosed {cachedScope=null;newIds.clear();active.value=emptySet()}}
     override fun beginDraft(id:DraftId) { newIds.add(id.value) }
     override suspend fun releaseCover(cover:EventCover) { clean(cover) }
 

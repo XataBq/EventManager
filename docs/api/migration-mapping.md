@@ -105,18 +105,20 @@ Revision — opaque consistency token **только чтения dashboard**. �
 
 ## ProfileRepository / DocumentsRepository — read profile M01, mutations M08; PDF M03
 
-Источники: [ProfileModels](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/profile/ProfileModels.kt), [DocumentModels](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/documents/DocumentModels.kt). Все 3 + 3 метода учтены.
+Источники: [ProfileModels](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/profile/ProfileModels.kt), [DocumentModels](../../core/domain/src/main/kotlin/ru/eventpass/core/domain/documents/DocumentModels.kt). Текущие5 profile и2 document метода, удалённый resend отмечен отдельно.
 
 | Метод | Решение / API | Input/output |
 |---|---|---|
 | observeProfile | CHANGE M01/GET `/me` | Единая User/Account проекция с session refresh |
 | refreshProfile | KEEP M01/GET `/me` | Проверенная session generation, недоступный сервер не выдумывает пустой профиль |
-| saveProfile | CHANGE/PATCH `/me` | partial `{fullName,email,phone,organization,notificationsEnabled}` → User; ProfileFields добавить email; неотправленное≠null |
-| prepare | CHANGE | TicketPdf → GET `/tickets/{ticket_id}/pdf[?token=...]`; AttendanceXlsx → GET `/events/{event_id}/attendees/export?format=xlsx`; download descriptor/private temp file вместо локального snapshot всех rows |
-| validate | CHANGE, локальный generation/access guard | Не отдельная HTTP-ручка. Backend проверяет доступ при скачивании; local guard до/во время SAF; revoked stale descriptor не основание выдавать cached файл |
-| resendTicket | REMOVE | Серверной операции нет, feature исключена пользователем. Удалить product UI/порт; не возвращать фальшивый Queued |
+| saveProfile | IMPLEMENTED M08/PATCH `/me` | partial `{fullName,email,phone,organization,notificationsEnabled}` → User; ProfileFields добавить email; неотправленное≠null |
+| prepare | IMPLEMENTED M03/M08 | TicketPdf → GET `/tickets/{ticket_id}/pdf[?token=...]`; AttendanceXlsx → GET `/events/{event_id}/attendees/export?format=xlsx`; download descriptor/private temp file вместо локального snapshot всех rows |
+| validate | IMPLEMENTED, локальный generation/access guard | Не отдельная HTTP-ручка. Backend проверяет доступ при скачивании; local guard до/во время SAF; revoked stale descriptor не основание выдавать cached файл |
+| resendTicket | REMOVED M08 | Серверной операции нет, feature исключена пользователем. Удалить product UI/порт; не возвращать фальшивый Queued |
 
-ADD M08: delete account `DELETE /me` → 204. Без password/preview. Перед командой local confirmation объясняет каскад мероприятий/чужих tickets; network timeout = unknown outcome, не success. Смена email сбрасывает emailVerified, но не очищает tickets по старому локальному email; backend привязка userId. User поля id/publicId/fullName/email/phone/organization/emailVerified/notificationsEnabled должны сохраняться без потери.
+IMPLEMENTED M08: deleteAccount/reconcileDeletion, delete account `DELETE /me` → 204. Без password/preview. Перед командой local confirmation объясняет каскад мероприятий/чужих tickets; network timeout = unknown outcome, не success. Смена email сбрасывает emailVerified, но не очищает tickets по старому локальному email; backend привязка userId. User поля id/publicId/fullName/email/phone/organization/emailVerified/notificationsEnabled должны сохраняться без потери.
+
+[Canonical User/profile, cleanup и server document границы](../architecture/t10-profile-delete-documents.md); compile пройден, scenario/live NOT_VERIFIED.
 
 ## Локальные порты, которые не превращаются в HTTP-ручки
 
