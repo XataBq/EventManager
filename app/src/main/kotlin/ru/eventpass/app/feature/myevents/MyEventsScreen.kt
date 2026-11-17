@@ -44,7 +44,7 @@ class MyEventsViewModel @Inject constructor(private val events: EventRepository,
             if(next is MyEventsResult.Ready) tabs[selected] = next
             if(next is MyEventsResult.Failed && next.error in setOf(EventEditError.AuthenticationRequired,EventEditError.Forbidden,EventEditError.SessionChanged)) tabs.clear()
             mutable.value = if (next is MyEventsResult.Failed && next.error in setOf(EventEditError.Network, EventEditError.Timeout, EventEditError.StorageUnavailable)
-                && old.content is MyEventsResult.Ready) old.copy(error = next.error, loading = false)
+                && old.content is MyEventsResult.Ready) old.copy(content=old.content.copy(localDrafts=next.localDrafts),error = next.error, loading = false)
             else old.copy(content = next, error = null, loading = false)
         } } }
     }
@@ -74,7 +74,7 @@ class MyEventsViewModel @Inject constructor(private val events: EventRepository,
 @Composable
 fun MyEventsRoute(onCreate: () -> Unit, onDraft: (String) -> Unit, onEdit: (String) -> Unit, onOpen: (String) -> Unit,
     onScan: (String) -> Unit, onVolunteers: (String) -> Unit, onDashboard: (String) -> Unit, visible: Boolean = true,
-    vm: MyEventsViewModel = hiltViewModel()) {
+    vm: MyEventsViewModel = hiltViewModel(), onRemoteDraft: (String) -> Unit = onDraft) {
     val data by vm.data.collectAsStateWithLifecycle(); val tab by vm.tab.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val context = LocalContext.current
@@ -85,13 +85,13 @@ fun MyEventsRoute(onCreate: () -> Unit, onDraft: (String) -> Unit, onEdit: (Stri
     MyEventsScreen(data.content, tab, vm::select, vm::refresh, onCreate, onDraft, onEdit, onOpen, { id ->
         (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
             .setPrimaryClip(android.content.ClipData.newPlainText("EventPass", if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") "https://staging.eventpass.dikanskii.ru/e/$id" else "eventpass-demo://demo/e/$id")); copied = true
-    }, copied, data.error, onScan, onVolunteers, onDashboard, data.refreshing, visible && !data.loading)
+    }, copied, data.error, onScan, onVolunteers, onDashboard, data.refreshing, visible && !data.loading, onRemoteDraft)
 }
 @Composable
 fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refresh: () -> Unit,
     create: () -> Unit, draft: (String) -> Unit, edit: (String) -> Unit, open: (String) -> Unit, copyLink: (String) -> Unit, copied: Boolean, readError: EventEditError?,
     scan: (String) -> Unit, volunteers: (String) -> Unit, dashboard: (String) -> Unit,
-    refreshing: Boolean = false, refreshEnabled: Boolean = true) {
+    refreshing: Boolean = false, refreshEnabled: Boolean = true, remoteDraft: (String) -> Unit = draft) {
     val denied = (data as? MyEventsResult.Failed)?.error in setOf(EventEditError.AuthenticationRequired, EventEditError.SessionChanged, EventEditError.Forbidden)
     EventPassRefresh(refreshing, refresh, Modifier.testTag("refresh-events"), enabled = refreshEnabled && !denied) {
     AuthColumn(Modifier.testTag("root-Events")) {
@@ -105,6 +105,15 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
         SegmentedTabs(options, tab, select)
         if (copied) Text(stringResource(R.string.editor_copied))
         readError?.let { InlineError(stringResource(editErrorResource(it))); TextAction(stringResource(R.string.ticket_retry), refresh) }
+        val locals=when(data) { is MyEventsResult.Ready->data.localDrafts; is MyEventsResult.Failed->data.localDrafts; else->emptyList() }
+        if(tab==2 && locals.isNotEmpty()) {
+            Text(stringResource(R.string.draft_device_heading),style=EventPassTypography.emphasis)
+            locals.forEach { local -> EventPassSection {
+                Text(local.title.ifBlank { stringResource(R.string.editor_untitled) })
+                Text(stringResource(ru.eventpass.app.feature.editor.draftStateResource(local.state)))
+                TextAction(stringResource(R.string.editor_continue),{draft(local.id.value)})
+            } }
+        }
         when (data) {
             null -> Text(stringResource(R.string.loading))
             is MyEventsResult.Failed -> {
@@ -113,13 +122,13 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
             }
             is MyEventsResult.Ready -> {
                 if(data.tab != null) {
-                    if(data.items.isEmpty()) Text(stringResource(R.string.my_empty))
-                    data.items.forEach { item -> EventPassSection {
+                    if(data.items.isEmpty() && locals.isEmpty()) Text(stringResource(R.string.my_empty))
+                    data.items.filterNot { item -> locals.any { it.remoteId==item.id } }.forEach { item -> EventPassSection {
                         Text(item.title.ifBlank { stringResource(R.string.editor_untitled) },style=EventPassTypography.emphasis)
                         item.startsAt?.let { Text(formatEventTime(it,"Europe/Moscow")) }
                         Text(item.location)
                         if(item.status == EventLifecycle.DRAFT) {
-                            TextAction(stringResource(R.string.editor_continue),{draft(item.id.value)})
+                            TextAction(stringResource(R.string.editor_continue),{remoteDraft(item.id.value)})
                         } else {
                             TextAction(stringResource(R.string.editor_open),{open(item.slug.value)})
                             if(data.tab == MyEventsTab.ORGANIZING && "organizer" in data.roles) {

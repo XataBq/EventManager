@@ -22,6 +22,10 @@ interface EventRepository {
     fun observeMyEvents(tab: MyEventsTab): Flow<MyEventsResult> = observeMyEvents()
     suspend fun refreshMyEvents(tab: MyEventsTab) = refreshMyEvents()
     suspend fun refreshEditor(target: EventEditorTarget) = refreshMyEvents()
+    suspend fun syncDraft(id:DraftId):EventEditResult<EventDraft> = EventEditResult.Failed(EventEditError.FeatureUnavailable)
+    suspend fun resolveDraft(id:DraftId,resolution:DraftResolution,merged:EventFields?=null):EventEditResult<EventDraft> = EventEditResult.Failed(EventEditError.FeatureUnavailable)
+    suspend fun discardDraft(id:DraftId):EventEditResult<Unit> = EventEditResult.Failed(EventEditError.FeatureUnavailable)
+    suspend fun releaseCover(cover:EventCover) {}
     fun beginDraft(id: DraftId) {}
     fun observeEditor(target: EventEditorTarget): Flow<EventEditorResult>
     suspend fun refreshMyEvents()

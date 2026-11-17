@@ -16,11 +16,18 @@ import ru.eventpass.data.remote.*
 object RemoteModule {
  @Provides @Singleton fun tokens(@ApplicationContext context: Context): SessionTokenStore = AndroidSessionTokenStore(context)
  @Provides @Singleton fun http() = AuthHttp("https://staging.eventpass.dikanskii.ru/api/")
- @Provides @Singleton fun auth(http: AuthHttp, tokens: SessionTokenStore) = RemoteAuthRepository(http,tokens)
+ @Provides @Singleton fun drafts(@ApplicationContext context: Context): ru.eventpass.core.domain.event.DraftStore = ru.eventpass.data.local.AndroidDraftStoreFactory.open(context)
+ @Provides @Singleton fun auth(http: AuthHttp, tokens: SessionTokenStore, drafts: ru.eventpass.core.domain.event.DraftStore, store: ru.eventpass.core.platform.AndroidEventCoverStore) = RemoteAuthRepository(http,tokens) { account ->
+  val removed=drafts.purge(account)
+  val retained=drafts.retainedCovers()
+  removed.filterNot { it in retained }.forEach { store.releaseId(it) }
+ }
  @Provides fun authPort(auth: RemoteAuthRepository): AuthRepository = auth
  @Provides fun profiles(auth: RemoteAuthRepository): ProfileRepository = auth.profileRepository
  @Provides fun clock(): java.time.Clock = java.time.Clock.systemUTC()
- @Provides @Singleton fun events(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.EventRepository = RemoteEventRepository(http,auth,RemoteOrganizerRepository(http,auth,UnavailableRemoteFeatures))
+ @Provides @Singleton fun events(http: AuthHttp, auth: RemoteAuthRepository, drafts: ru.eventpass.core.domain.event.DraftStore,
+  transfer: RemoteCoverTransfer, store: ru.eventpass.core.platform.AndroidEventCoverStore): ru.eventpass.core.domain.EventRepository =
+  RemoteEventRepository(http,auth,LocalDraftRepository(http,auth,RemoteOrganizerRepository(http,auth,UnavailableRemoteFeatures),drafts,transfer,store))
  @Provides @Singleton fun registrations(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.RegistrationRepository = RemoteRegistrations(http, auth)
  @Provides @Singleton fun tickets(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.TicketRepository = RemoteTickets(http, auth)
  @Provides fun checkins(): ru.eventpass.core.domain.checkin.CheckInRepository = UnavailableRemoteFeatures
@@ -30,8 +37,16 @@ object RemoteModule {
  @Provides @Singleton fun documentFiles(@ApplicationContext context: Context): ru.eventpass.core.domain.documents.DocumentFiles = ru.eventpass.core.platform.AndroidDocumentFiles(context)
  @Provides @Singleton fun coverStore(@ApplicationContext context: Context) = ru.eventpass.core.platform.AndroidEventCoverStore(context)
  @Provides @Singleton fun coverTransfer(http: AuthHttp,auth: RemoteAuthRepository,store: ru.eventpass.core.platform.AndroidEventCoverStore) = RemoteCoverTransfer(http,auth,store)
- @Provides fun covers(store: ru.eventpass.core.platform.AndroidEventCoverStore,transfer: RemoteCoverTransfer): ru.eventpass.core.domain.event.CoverImporter = object : ru.eventpass.core.domain.event.CoverImporter {
-  override suspend fun importCover(source: String) = transfer.importCover(source,store)
+ @Provides @Singleton fun covers(store: ru.eventpass.core.platform.AndroidEventCoverStore,drafts: ru.eventpass.core.domain.event.DraftStore): ru.eventpass.core.domain.event.CoverImporter = object : ru.eventpass.core.domain.event.CoverImporter {
+  private val lock=kotlinx.coroutines.sync.Mutex()
+  private var swept=false
+  override suspend fun importCover(source: String): ru.eventpass.core.domain.event.CoverImportResult {
+   lock.lock()
+   try {
+    if(!swept) { store.cleanupUnreferenced(drafts.retainedCovers()); swept=true }
+    return store.importCover(source)
+   } finally { lock.unlock() }
+  }
  }
  @Provides fun preview(store: ru.eventpass.core.platform.AndroidEventCoverStore,transfer: RemoteCoverTransfer): ru.eventpass.core.platform.EventCoverPreview = object : ru.eventpass.core.platform.EventCoverPreview {
   override suspend fun preview(cover: ru.eventpass.core.domain.event.EventCover) = cover.remoteAssetId?.let { previewRemote(it) } ?: store.preview(cover)

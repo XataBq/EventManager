@@ -1,6 +1,6 @@
 # T10: сравнение, миграция правил и интеграция API
 
-**17 ноября — M04 IMPLEMENTED/REVIEW_PENDING, M03 TECH_ACCEPTED.** Пользователь подтвердил повторное ревью `cec5520` без замечаний: [свидетельство](validation/t10-m03-user-review-confirmation.md). Реализованы online редактор/drafts, per-tab MyEvents и upload/attach обложки на общих ports. [Текущая архитектура M04](architecture/t10-editor-covers.md), [проверки и границы](validation/t10-m04-implementation.md). Новые APK не собираются; code23 не содержит M04. M02 fix-review открыт, M05–M09 TODO; ручная приёмка после M09.
+**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](architecture/t10-room-drafts.md), [объём и ограничения проверки](validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
 
 Основание: Android `0493dbd2e328796cd963689cc25cf3d4d2bd40e1` плюс существующие незакоммиченные документы; backend `def65653b9e1f22dce8bc2d6f266b23ace6cd1d5`, OpenAPI/staging 1.1.1. Согласованные правила — [08](08-decisions.md), задание backend — [32](32-backend-final-requirements.md), проверка сервера — [33](33-backend-update-2026-11-13.md). Старое предложение 44 URL и B01–B08 не отменяют более поздних решений пользователя.
 
@@ -164,3 +164,7 @@ TicketEvent не содержит organizerId/questions/permissions: введё�
 ### ADR-T10-09: online owner projection и явный retry (M04, 17 ноября)
 
 Server MyEvents возвращает typed summary только выбранного tab; nullable draft не превращается в выдуманный published Event. Remote revision/preconditions отсутствуют (null), terminal задаёт серверный read. Editor VM хранит pending create body в памяти, saved state — только marker/local ID/подтверждённый server ID. Adapter хранит ограниченный fingerprint/key/context/retention/cooldown; неизвестный create без тела после process loss не отправляется заново. PATCH включает лишь изменённые поля, null отличается от omission; uncertain PATCH/publish/finish требует read-сверки. Conditional write и durable offline merge не заявлены, остаются M05. RemoteCoverTransfer выполняет один upload с managed source и finally release, затем explicit attach/null detach; preview читает assetId через API origin без bearer на произвольный URL. [Текущие owners/ports/guards/tests](architecture/t10-editor-covers.md).
+
+## Фактическое решение M05
+
+ADR-T10-03/05/06 реализованы узким draft store, без универсальной очереди. [Schema1/owners/commit/retention](architecture/t10-room-drafts.md). Account partition и lease/incarnation CAS отделены от auth; confirmed/base/pending и immutable create command durable. Локальная ревизия не server lock. Source обложки noBackup, descriptor записывается до attach. Остаточный GET→PATCH race и неизвестный upload сохранены как ограничения. M05 IMPLEMENTED/REVIEW_PENDING с ограниченной проверкой по команде пользователя, M06 не начат.

@@ -48,14 +48,17 @@ data class EventDraft(
     val id: DraftId, val ownerId: UserId, val revision: Long?, val fields: EventFields,
     /** Retained privately as the idempotent publication receipt; excluded from the drafts list. */
     val publishedEventId: EventId? = null,
+    val remoteEventId: EventId? = null,
+    val slug: EventSlug? = null,
 )
 
 sealed interface EventEditorTarget {
     data class Draft(val id: DraftId) : EventEditorTarget
     data class Published(val id: EventId) : EventEditorTarget
+    data class RemoteDraft(val id: EventId) : EventEditorTarget
 }
 sealed interface EventEditorResult {
-    data class Draft(val draft: EventDraft) : EventEditorResult
+    data class Draft(val draft: EventDraft,val local:LocalDraftState?=null) : EventEditorResult
     data class Published(val event: Event, val questionsLocked: Boolean, val now: Instant,
         val terminal: Boolean = event.statusAt(now) in setOf(EventLifecycle.FINISHED,EventLifecycle.CANCELLED)) : EventEditorResult
     data class Failed(val error: EventEditError) : EventEditorResult
@@ -68,8 +71,9 @@ data class MyEventSummary(val id: EventId, val slug: EventSlug, val title: Strin
 sealed interface MyEventsResult {
     data class Ready(val organizing: List<Event>, val volunteering: List<Event>, val drafts: List<EventDraft>, val now: Instant,
         val tab: MyEventsTab? = null, val items: List<MyEventSummary> = emptyList(),
-        val roles: Set<String> = emptySet(), val counters: Map<MyEventsTab, Int> = emptyMap()) : MyEventsResult
-    data class Failed(val error: EventEditError) : MyEventsResult
+        val roles: Set<String> = emptySet(), val counters: Map<MyEventsTab, Int> = emptyMap(),
+        val localDrafts:List<LocalDraftSummary> = emptyList()) : MyEventsResult
+    data class Failed(val error: EventEditError,val localDrafts:List<LocalDraftSummary> = emptyList()) : MyEventsResult
 }
 sealed interface EventEditResult<out T> {
     data class Saved<T>(val value: T) : EventEditResult<T>

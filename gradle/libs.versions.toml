@@ -1,4 +1,6 @@
 [versions]
+room = "2.8.5"
+sqlite = "2.7.1"
 okhttp = "5.5.1"
 agp = "9.3.3"
 kotlin = "2.4.21"
@@ -19,6 +21,9 @@ zxing = "3.5.4"
 camerax = "1.6.2"
 
 [libraries]
+room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 okhttp = { module = "com.squareup.okhttp3:okhttp-jvm", version.ref = "okhttp" }
 mockwebserver = { module = "com.squareup.okhttp3:mockwebserver3", version.ref = "okhttp" }
 camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }

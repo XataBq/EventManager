@@ -47,6 +47,7 @@ class RemoteOrganizerRepository(private val api: AuthHttp, private val auth: Rem
     private fun id(target: EventEditorTarget) = when(target) {
         is EventEditorTarget.Draft -> target.id.value
         is EventEditorTarget.Published -> target.id.value
+        is EventEditorTarget.RemoteDraft -> target.id.value
     }
     private fun path(vararg parts: String) = "https://path.invalid/".toHttpUrl().newBuilder().apply {
         parts.forEach { addPathSegment(it) }
@@ -216,7 +217,7 @@ class RemoteOrganizerRepository(private val api: AuthHttp, private val auth: Rem
             } catch(e: Exception) { uncertain.add(key); throw e }
         }
     }
-    private fun mapEditor(dto: EventDto, c: PublicReadContext): EventEditorResult {
+    internal fun mapEditor(dto: EventDto, c: PublicReadContext): EventEditorResult {
         require(dto.organizerId == c.profile?.account?.id?.value)
         if(dto.status == "draft") return EventEditorResult.Draft(EventDraft(DraftId(dto.id),UserId(dto.organizerId),null,
             EventFields(dto.title,dto.startsAt?.let(Instant::parse),dto.endsAt?.let(Instant::parse),venue=dto.location,

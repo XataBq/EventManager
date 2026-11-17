@@ -1,0 +1,175 @@
+[
+  {
+    "group": "com.google.devtools.ksp",
+    "artifact": "symbol-processing-api",
+    "version": "2.0.10-1.0.24",
+    "url": "https://repo1.maven.org/maven2/com/google/devtools/ksp/symbol-processing-api/2.0.10-1.0.24/symbol-processing-api-2.0.10-1.0.24.jar",
+    "sha256": "dd7dde070be54de66c7bdd4de04c43fb429e0c62bb132a6448cfa33653afb229"
+  },
+  {
+    "group": "com.intellij",
+    "artifact": "annotations",
+    "version": "12.0",
+    "url": "https://repo1.maven.org/maven2/com/intellij/annotations/12.0/annotations-12.0.jar",
+    "sha256": "f8ab13b14be080fe2f617f90e55599760e4a1b4deeea5c595df63d0d6375ed6d"
+  },
+  {
+    "group": "com.squareup",
+    "artifact": "kotlinpoet-javapoet",
+    "version": "2.0.0",
+    "url": "https://repo1.maven.org/maven2/com/squareup/kotlinpoet-javapoet/2.0.0/kotlinpoet-javapoet-2.0.0.jar",
+    "sha256": "2929f3b9a8d739d0aea40bf3c7bd01fad3a7cd2d0fb56f2de248ebb9b46774a4"
+  },
+  {
+    "group": "commons-codec",
+    "artifact": "commons-codec",
+    "version": "1.15",
+    "url": "https://repo1.maven.org/maven2/commons-codec/commons-codec/1.15/commons-codec-1.15.jar",
+    "sha256": "b3e9f6d63a790109bf0d056611fbed1cf69055826defeb9894a71369d246ed63"
+  },
+  {
+    "group": "org.jetbrains.kotlin",
+    "artifact": "kotlin-metadata-jvm",
+    "version": "2.2.0",
+    "url": "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-metadata-jvm/2.2.0/kotlin-metadata-jvm-2.2.0.jar",
+    "sha256": "501222ae7d63527e55f2e5e645f18d4eff2c19074c85b9bc055866e3ed2b17bf"
+  },
+  {
+    "group": "com.squareup",
+    "artifact": "kotlinpoet-jvm",
+    "version": "2.0.0",
+    "url": "https://repo1.maven.org/maven2/com/squareup/kotlinpoet-jvm/2.0.0/kotlinpoet-jvm-2.0.0.jar",
+    "sha256": "65e2d5e1c7844861d134635692791f7dbac808adb060da7329c18c4bd88d2acb"
+  },
+  {
+    "group": "org.jetbrains.kotlin",
+    "artifact": "kotlin-reflect",
+    "version": "2.0.10",
+    "url": "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-reflect/2.0.10/kotlin-reflect-2.0.10.jar",
+    "sha256": "77ff5b0a597ba697c97556d661f68991a019ca71d40c49e8ccb6991f4f93e308"
+  },
+  {
+    "group": "org.jetbrains.kotlinx",
+    "artifact": "kotlinx-serialization-core-jvm",
+    "version": "1.8.1",
+    "url": "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-core-jvm/1.8.1/kotlinx-serialization-core-jvm-1.8.1.jar",
+    "sha256": "3565b6d4d789bf70683c45566944287fc1d8dc75c23d98bd87d01059cc76f2b3"
+  },
+  {
+    "group": "org.jetbrains.kotlinx",
+    "artifact": "kotlinx-serialization-json-jvm",
+    "version": "1.8.1",
+    "url": "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-json-jvm/1.8.1/kotlinx-serialization-json-jvm-1.8.1.jar",
+    "sha256": "8769e5647557e3700919c32d508f5c5dad53c5d8234cd10846354fbcff14aa24"
+  },
+  {
+    "group": "org.xerial",
+    "artifact": "sqlite-jdbc",
+    "version": "3.41.2.2",
+    "url": "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/3.41.2.2/sqlite-jdbc-3.41.2.2.jar",
+    "sha256": "0cdab410947e04b6743df99cf1543267ddd107357d6f76948d145be590fd497d"
+  },
+  {
+    "group": "com.google.guava",
+    "artifact": "guava",
+    "version": "33.2.1-jre",
+    "url": "https://repo1.maven.org/maven2/com/google/guava/guava/33.2.1-jre/guava-33.2.1-jre.jar",
+    "sha256": "452b2d9787b7d366fa8cf5ed9a1c40404542d05effa7a598da03bbbbb76d9f31"
+  },
+  {
+    "group": "org.checkerframework",
+    "artifact": "checker-qual",
+    "version": "3.42.0",
+    "url": "https://repo1.maven.org/maven2/org/checkerframework/checker-qual/3.42.0/checker-qual-3.42.0.jar",
+    "sha256": "ccaedd33af0b7894d9f2f3b644f4d19e43928e32902e61ac4d10777830f5aac7"
+  },
+  {
+    "group": "com.google.errorprone",
+    "artifact": "error_prone_annotations",
+    "version": "2.26.1",
+    "url": "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_annotations/2.26.1/error_prone_annotations-2.26.1.jar",
+    "sha256": "de25f2d9a2156529bd765f51d8efdfc0dfa7301e04efb9cc75b7f10cf5d0e0fb"
+  },
+  {
+    "group": "org.apache.commons",
+    "artifact": "commons-parent",
+    "version": "52",
+    "url": "https://repo1.maven.org/maven2/org/apache/commons/commons-parent/52/commons-parent-52.pom",
+    "pomOnly": true,
+    "sha256": "75dbe8f34e98e4c3ff42daae4a2f9eb4cbcd3b5f1047d54460ace906dbb4502e"
+  },
+  {
+    "group": "org.apache",
+    "artifact": "apache",
+    "version": "23",
+    "url": "https://repo1.maven.org/maven2/org/apache/apache/23/apache-23.pom",
+    "pomOnly": true,
+    "sha256": "bc10624e0623f36577fac5639ca2936d3240ed152fb6d8d533ab4d270543491c"
+  },
+  {
+    "group": "org.jetbrains.kotlinx",
+    "artifact": "kotlinx-serialization-bom",
+    "version": "1.8.1",
+    "url": "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-bom/1.8.1/kotlinx-serialization-bom-1.8.1.pom",
+    "pomOnly": true,
+    "sha256": "00f3555ae7624851c67db12c308bc9ce26ae327cf0d724766a401e5ba00608c7"
+  },
+  {
+    "group": "com.google.guava",
+    "artifact": "guava-parent",
+    "version": "33.2.1-jre",
+    "url": "https://repo1.maven.org/maven2/com/google/guava/guava-parent/33.2.1-jre/guava-parent-33.2.1-jre.pom",
+    "pomOnly": true,
+    "sha256": "9095f6d8ee3765950207510785830cc2280e781067915fa99cfe1740d4865c14"
+  },
+  {
+    "group": "com.google.errorprone",
+    "artifact": "error_prone_parent",
+    "version": "2.26.1",
+    "url": "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_parent/2.26.1/error_prone_parent-2.26.1.pom",
+    "pomOnly": true,
+    "sha256": "4a6ad00d31b0a5adcd9a4f605065d5b445fae4a04cbf827e5d1ac1077e2f814d"
+  },
+  {
+    "group": "androidx.room",
+    "artifact": "room-runtime-android",
+    "version": "2.8.5",
+    "url": "https://dl.google.com/dl/android/maven2/androidx/room/room-runtime-android/2.8.5/room-runtime-android-2.8.5.aar",
+    "sha256": "ab6f951f6e7b63ed419eaf740b34dbe51560532f78289fd9c5dadabf46401dba"
+  },
+  {
+    "group": "androidx.sqlite",
+    "artifact": "sqlite-bundled-android",
+    "version": "2.7.1",
+    "url": "https://dl.google.com/dl/android/maven2/androidx/sqlite/sqlite-bundled-android/2.7.1/sqlite-bundled-android-2.7.1.aar",
+    "sha256": "b5e01f31b0cc42b01a9f12836bfb6ee745b389e5be53a0813acfe12b445788a1"
+  },
+  {
+    "group": "androidx.sqlite",
+    "artifact": "sqlite-framework",
+    "version": "2.7.1",
+    "url": "https://dl.google.com/dl/android/maven2/androidx/sqlite/sqlite-framework/2.7.1/sqlite-framework-2.7.1.metadata",
+    "sha256": "ad25e2623feb1e0d3092d319abc2f780cd7576318536d659afec1441cb33e936"
+  },
+  {
+    "group": "androidx.sqlite",
+    "artifact": "sqlite-framework-android",
+    "version": "2.7.1",
+    "url": "https://dl.google.com/dl/android/maven2/androidx/sqlite/sqlite-framework-android/2.7.1/sqlite-framework-android-2.7.1.aar",
+    "sha256": "18ccafddeae782ee2dbf763190bc7b9ce8f46e95f2b9b88de16924019a4c1a5f"
+  },
+  {
+    "group": "androidx.sqlite",
+    "artifact": "sqlite-android",
+    "version": "2.7.1",
+    "url": "https://dl.google.com/dl/android/maven2/androidx/sqlite/sqlite-android/2.7.1/sqlite-android-2.7.1.aar",
+    "sha256": "1f4c8887570a1cca255fd263ddb29a34c77eee64ada1cf8062de6aa23bf649b6"
+  },
+  {
+    "group": "androidx.annotation",
+    "artifact": "annotation-experimental",
+    "version": "1.5.0",
+    "url": "https://dl.google.com/dl/android/maven2/androidx/annotation/annotation-experimental/1.5.0/annotation-experimental-1.5.0.aar",
+    "sha256": "02b0a4256618f85386c92e5cec166dc7f300820888a290227a3c0c65b82cbb36"
+  }
+]

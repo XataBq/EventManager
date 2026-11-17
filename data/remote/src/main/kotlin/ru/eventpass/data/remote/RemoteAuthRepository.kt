@@ -12,7 +12,8 @@ import kotlinx.serialization.SerializationException
 import ru.eventpass.core.domain.auth.*
 import ru.eventpass.core.domain.profile.*
 
-class RemoteAuthRepository(private val api: AuthHttp, private val tokens: SessionTokenStore) : AuthRepository {
+class RemoteAuthRepository(private val api: AuthHttp, private val tokens: SessionTokenStore,
+ private val onExplicitLogout:suspend (ru.eventpass.core.domain.event.UserId)->Unit = {}) : AuthRepository {
  private val lock = Mutex()
  private val mutable = MutableStateFlow(SessionSnapshot(0, SessionState.Unknown))
  private var token: AuthSecret? = null
@@ -74,7 +75,10 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
   } catch(e: RemoteFailure) {
    lock.withLock { if(epoch.get() == captured.first && token === captured.second) {
     if(e.error == AuthError.Unauthorized) { epoch.incrementAndGet(); clearMemory(); publish(SessionState.Guest); try { withContext(NonCancellable) { tokens.clear() } } catch(e: IOException) { publish(SessionState.Recovery(AuthError.StorageUnavailable)) } }
-    else publish(SessionState.Recovery(e.error))
+    else if(mutable.value.state is SessionState.Authenticated && user!=null &&
+        (e.error in setOf(AuthError.Network,AuthError.Timeout,AuthError.ServerUnavailable) || e.error is AuthError.Cooldown)) {
+     // Warm validated identity may edit its own local drafts. DB contents never establish a cold session.
+    } else publish(SessionState.Recovery(e.error))
    } }
   } catch(e: SerializationException) { recovery(captured.first, AuthError.Protocol) }
     catch(e: IllegalArgumentException) { recovery(captured.first, AuthError.Protocol) }
@@ -106,8 +110,11 @@ class RemoteAuthRepository(private val api: AuthHttp, private val tokens: Sessio
  override suspend fun signIn(email: String, password: AuthSecret) = authenticate(api.json.encodeToString(Credentials(email,password.value)), "auth/login")
  override suspend fun signOut() {
   epoch.incrementAndGet() // Revoke in-flight acceptance before waiting on an unrelated store write.
-  val old = withContext(NonCancellable) { lock.withLock { epoch.incrementAndGet(); val old=token; clearMemory(); publish(SessionState.Guest); try { tokens.clear() } catch(e: IOException) { publish(SessionState.Recovery(AuthError.StorageUnavailable)) } finally { initialized = true }; old } }
-  if(old != null) try { api.request("auth/logout", "{}", old) } catch(_: RemoteFailure) { /* Local logout is authoritative locally, remote revocation is best effort. */ }
+  val old = withContext(NonCancellable) { lock.withLock { epoch.incrementAndGet(); val old=token to user?.account()?.id; clearMemory(); publish(SessionState.Guest); try { tokens.clear() } catch(e: IOException) { publish(SessionState.Recovery(AuthError.StorageUnavailable)) } finally { initialized = true }; old } }
+  old.second?.let { account -> withContext(NonCancellable) {
+   try { onExplicitLogout(account) } catch(e:CancellationException){throw e} catch(e:Exception){lock.withLock {publish(SessionState.Recovery(AuthError.StorageUnavailable))}}
+  } }
+  if(old.first != null) try { api.request("auth/logout", "{}", old.first) } catch(_: RemoteFailure) { /* Local logout is authoritative locally, remote revocation is best effort. */ }
  }
  private suspend fun dispatch(path: String, email: String): AuthResult<EmailDispatch> = try { api.request(path, api.json.encodeToString(EmailBody(email))); AuthResult.Success(EmailDispatch()) } catch(e: RemoteFailure) { AuthResult.Failed(e.error) }
  override suspend fun requestVerification(email: String) = dispatch("auth/resend-verification", email)

@@ -72,6 +72,7 @@ dependencies {
     "demoImplementation"(project(":data:fake"))
     "testDemoImplementation"(project(":data:fake"))
     "remoteImplementation"(project(":data:remote"))
+    "remoteImplementation"(project(":data:local"))
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)

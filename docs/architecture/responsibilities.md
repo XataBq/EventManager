@@ -13,6 +13,9 @@ T01–T06 UI сверено по `c569152`; добавлена независи�
 | `core/domain` | Чистые модели, порты, validation/access/edit policies | Android Context, Resources, Parcelable, Hilt, DTO |
 | `core/designsystem` | Токены, Inter, компоненты, визуальные состояния | Repository, роли/сессия, навигация приложения |
 | `core/platform` | Parser ссылок, QR encoder/decoder, CameraX preview/analyzer, import/preview managed cover | Решение о выдаче билета или разрешении прохода |
+| `app/src/remote` | Remote Hilt wiring, Room factory/auth purge/managed files | Fake fallback, хранение HTTP DTO в UI |
+| `data/local` | Account-scoped Room draft schema/DAO/codec/CAS, без HTTP | Auth authority, transport DTO, ContentResolver/bitmap |
+| `data/remote` | HTTP adapters и LocalDraftRepository coordinator | SQL/Android UI, выдуманная server revision |
 | `data/fake` | Один локальный backend, операции, общий state, codec и fixtures | UI state/guest lookup, Android platform API, обещание production security |
 
 `feature/*` — пакеты внутри `app`, а не Gradle-модули. Новый модуль требует конкретной причины: изоляция зависимости, отдельное владение или измеренная проблема сборки. Количество классов само по себе такой причиной не является.
@@ -88,12 +91,18 @@ EventPassRefresh (core:designsystem) отвечает за nested-scroll/indicat
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; оставшиеся offline/scanner/attendance/profile mutations/XLSX/resend cleanup относятся к M05–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; Room/offline drafts подключены в M05; scanner/attendance/profile mutations/XLSX/resend cleanup относятся к M06–M09.
 
 ## M03: регистрации, билеты и PDF
 
 [Текущие модели, owners, операции, guards, storage и test pointers](t10-registration-tickets.md), [evidence/ограничения](../validation/t10-m03-implementation.md). RemoteRegistrations/RemoteTickets/RemoteTicketDocuments отвечают за protocol/actor/transport; EventViewModel — immutable pending command/receipt; TicketsViewModel — scope/card/visible refresh; DocumentsViewModel + AndroidDocumentFiles — transient SAF и отмена. После ревью 3277e90 исправлены две P2; [проверки исправлений](../validation/t10-m03-p2-fixes.md), повторное ревью cec5520 принято пользователем 17 ноября: [свидетельство](../validation/t10-m03-user-review-confirmation.md).
 
-## M04: online editor, scoped MyEvents и covers
+## M04–M05: owner editor, Room и обложки
 
-[Текущая спецификация и source/test pointers](t10-editor-covers.md), [проверки и ограничения](../validation/t10-m04-implementation.md). EditorKey владеет raw/dirty/pending body только в памяти и safe saved metadata; MyEvents VM — tab readiness и late-result guards. RemoteOrganizerRepository владеет server details/scoped list projections, captured actor, create fingerprint/key/retention и read reconciliation; RemoteCoverTransfer — один upload, ограниченный GET, late-actor guards и release managed source. Серверный terminal read не заменяется часами телефона. Nullable remote revisions не превращаются в выдуманные preconditions. Room/offline/merge и полная конфликтная защита — M05.
+RemoteEventRepository оставляет public reads и делегирует draft-операции LocalDraftRepository; RemoteOrganizerRepository обслуживает server MyEvents и online published edit/finish. data:local — Android Room library без HTTP/DTO; domain DraftStore задаёт узкую границу. App/remote DI открывает private noBackup DB и связывает auth purge, managed files и coordinator. В demo Room не подключён.
+
+EventDraft.local ID, remoteEventId и slug различаются. DraftStore хранит account partition, incarnation/storage CAS, confirmed/base/pending, localRevision, неизменную create-команду и pending cover reference. LocalDraftState отличается от серверного успеха; localDrafts не входят в server items/counters. EditorKey.remoteDraftId адресует серверный draft, safe saved metadata сохраняет разрешённый local ID; fields/command восстанавливаются из Room после валидного входа того же account.
+
+Save пишет только на устройство; sync — отдельная foreground команда. Room-транзакции короткие, HTTP/file IO вне них. ACK A сохраняет pending B; logout/deletion fence запрещает позднему ответу создать запись заново. После неизвестного PATCH — GET, затем ack или явный конфликт base/local/remote. Merge сохраняет stable IDs; выбор пользователя сначала локален. Publish/finish online. Pending cover копируется в private durable file, upload descriptor фиксируется до attach; release только после перехода DB/проверки ссылок. GET→PATCH не атомарен без server precondition.
+
+[Таблица состояний, доступ, retention и точки commit](t10-room-drafts.md). [Проверки и NOT_RUN](../validation/t10-m05-implementation.md). M03 registration replay/server list scope не переписаны; их повторные регрессии в M05 не запускались по команде пользователя.

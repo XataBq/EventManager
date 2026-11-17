@@ -50,6 +50,7 @@ internal class FakeEventEditingOperations(
                 }
             }
             is EventEditorTarget.Published -> published(s, target.id, actor)
+            is EventEditorTarget.RemoteDraft -> EventEditorResult.Failed(EventEditError.FeatureUnavailable)
         }
     }.distinctUntilChanged()
 

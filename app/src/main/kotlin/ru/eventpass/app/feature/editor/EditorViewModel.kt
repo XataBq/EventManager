@@ -55,7 +55,8 @@ data class EditorState(val loading: Boolean = true, val allowed: Boolean = false
     val terminal: Boolean = false, val saved: Boolean = false, val publishedId: String? = null,
     val confirmExit: Boolean = false, val exit: Boolean = false, val coverError: CoverImportResult? = null,
     val publicSlug: String? = null, val pendingCreate: Boolean = false, val refreshing: Boolean = false,
-    val recoveryRequired: Boolean = false)
+    val recoveryRequired: Boolean = false, val local: LocalDraftState? = null, val syncing: Boolean = false,
+    val merging: Boolean = false, val mergeConflicts: Set<String> = emptySet())
 
 @HiltViewModel
 class EditorViewModel @Inject constructor(private val events: EventRepository, private val covers: CoverImporter,
@@ -63,6 +64,8 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
     private val mutable = MutableStateFlow(EditorState()); val state = mutable.asStateFlow()
     private var observation: Job? = null; private var operation: Job? = null
     private var read: Job? = null
+    private var sync: Job? = null; private var syncGeneration=0L
+    private var observedFields: EventFields? = null
     private var identity: String? = null; private var generation = 0L
     private var draftId: DraftId? = null; private var event: Event? = null; private var revision: Long? = null
     private var target: EventEditorTarget? = null
@@ -71,19 +74,19 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
     private var recoveryBlocked = false
     private var readGeneration = 0L
     private var publishedTarget = false
-    fun bind(draft: String?, published: String?, create: Boolean) {
-        val key = "$draft/$published/$create"; if (identity == key) return
+    fun bind(draft: String?, published: String?, create: Boolean, remoteDraft: String? = null) {
+        val key = "$draft/$published/$create/$remoteDraft"; if (identity == key) return
         val previousDraft = savedState.get<String>("editorLocalDraft")
         if((identity != null && identity != key) || (previousDraft != null && previousDraft != draft)) {
             pendingFields=null; recoveryBlocked=false
-            savedState.remove<String>("editorServerDraft"); savedState.remove<Boolean>("editorCreatePending")
+            savedState.remove<String>("editorResolvedLocal"); savedState.remove<String>("editorServerDraft"); savedState.remove<Boolean>("editorCreatePending")
         }
         savedState["editorLocalDraft"] = draft
-        leave(); identity = key; draftId = (savedState.get<String>("editorServerDraft") ?: draft)?.let(::DraftId); mutable.value = EditorState()
-        if ((draft == null) == (published == null) || !EventEditingPolicy.validId(draft ?: published.orEmpty())) {
+        leave(); identity = key; draftId = (savedState.get<String>("editorResolvedLocal") ?: savedState.get<String>("editorServerDraft") ?: draft)?.let(::DraftId); mutable.value = EditorState()
+        if (listOfNotNull(draft,published,remoteDraft).size != 1 || !EventEditingPolicy.validId(draft ?: published ?: remoteDraft.orEmpty())) {
             mutable.value = EditorState(loading = false, error = EventEditError.NotFound); return
         }
-        val target = if (published != null) EventEditorTarget.Published(EventId(published)) else EventEditorTarget.Draft(draftId!!)
+        val target = if (published != null) EventEditorTarget.Published(EventId(published)) else if(draftId != null) EventEditorTarget.Draft(draftId!!) else EventEditorTarget.RemoteDraft(EventId(remoteDraft!!))
         this.target = target; creating = create && savedState.get<String>("editorServerDraft") == null; publishedTarget = published != null
         if (creating) events.beginDraft(draftId!!)
         if (savedState.get<Boolean>("editorCreatePending") == true && pendingFields == null) {
@@ -101,8 +104,16 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
             val old = mutable.value
             when (result) {
                 is EventEditorResult.Draft -> {
-                    if (!old.dirty && !old.busy) { revision = result.draft.revision; mutable.value = old.copy(input = EditorInput.from(result.draft.fields)) }
-                    mutable.value = mutable.value.copy(loading = false, allowed = true, error = old.error?.takeUnless(::transient))
+                    val local=result.local
+                    if(local!=null) {
+                        draftId=result.draft.id; savedState["editorResolvedLocal"]=result.draft.id.value
+                        this@EditorViewModel.target=EventEditorTarget.Draft(result.draft.id)
+                        observedFields=result.draft.fields
+                    }
+                    if (!old.dirty && !old.busy && !old.merging) { revision = result.draft.revision; mutable.value = old.copy(input = EditorInput.from(result.draft.fields)) }
+                    mutable.value = mutable.value.copy(loading = false, allowed = true, error = old.error?.takeUnless(::transient),local=local,
+                        terminal=local?.terminal ?: old.terminal, publicSlug=result.draft.slug?.value ?: old.publicSlug,
+                        publishedId=if(local?.state==DraftSyncState.PUBLISHED && local.conflict==null) result.draft.publishedEventId?.value else old.publishedId)
                 }
                 is EventEditorResult.Published -> {
                     if (!old.dirty && !old.busy) { event = result.event; revision = result.event.revision; mutable.value = old.copy(input = EditorInput.from(result.event.toFields())) }
@@ -128,8 +139,8 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
         readGeneration++; observation?.cancel(); read?.cancel()
         mutable.value = mutable.value.copy(refreshing=false)
         if(cancelOperation) {
-            generation++; operation?.cancel()
-            mutable.value = mutable.value.copy(busy=false,pendingCreate=pendingFields != null)
+            generation++; operation?.cancel(); syncGeneration++; sync?.cancel()
+            mutable.value = mutable.value.copy(busy=false,syncing=false,pendingCreate=pendingFields != null)
         }
     }
     fun edit(input: EditorInput) {
@@ -156,6 +167,7 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
     fun save(publish: Boolean = false, exit: Boolean = false) {
         val s = mutable.value
         if (!s.allowed || s.busy || s.terminal || s.publishedId != null) return
+        if(publish && (s.syncing || s.local?.conflict!=null)) return
         val (inputFields, errors) = s.input.resolved()
         val fields = pendingFields ?: inputFields
         if (errors.isNotEmpty()) { mutable.value = s.copy(error = EventEditError.Validation(errors)); return }
@@ -167,7 +179,7 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
                     is EventEditResult.Saved -> { event = result.value; revision = result.value.revision; accepted(exit) }
                 }
             } else {
-                if (creating) { pendingFields = fields; savedState["editorCreatePending"] = true }
+                if (creating && s.local==null) { pendingFields = fields; savedState["editorCreatePending"] = true }
                 when (val saved = current { events.saveDraft(requireNotNull(draftId), revision, fields) }) {
                     is EventEditResult.Failed -> {
                         val unknown = saved.error is EventEditError.RateLimited || saved.error in setOf(EventEditError.Network, EventEditError.Timeout, EventEditError.Protocol, EventEditError.ServerUnavailable)
@@ -176,10 +188,12 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
                         fail(saved.error)
                     }
                     is EventEditResult.Saved -> {
-                        savedState["editorServerDraft"] = saved.value.id.value
+                        if(s.local==null) savedState["editorServerDraft"] = saved.value.id.value
+                        else savedState["editorResolvedLocal"] = saved.value.id.value
                         creating = false; pendingFields = null; savedState.remove<Boolean>("editorCreatePending")
                         mutable.value = mutable.value.copy(pendingCreate = false)
-                        revision = saved.value.revision; accepted(false)
+                        revision = saved.value.revision; observedFields=saved.value.fields; accepted(false)
+                        if(s.local!=null) mutable.value=mutable.value.copy(local=s.local.copy(state=if(s.local.conflict==null) DraftSyncState.LOCAL else DraftSyncState.CONFLICT))
                         if (publish) when (val result = current { events.publishDraft(requireNotNull(draftId), saved.value.revision) }) {
                             is EventEditResult.Failed -> fail(result.error)
                             is EventEditResult.Saved -> mutable.value = mutable.value.copy(publishedId = result.value.value, saved = false)
@@ -211,6 +225,50 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
             }
         }
     }
+    fun synchronize() {
+        val id=draftId ?: return
+        if(state.value.local==null || state.value.busy || state.value.dirty || sync?.isActive==true) return
+        val token=++syncGeneration
+        mutable.value=mutable.value.copy(syncing=true,error=null)
+        sync=viewModelScope.launch {
+            try { when(val result=events.syncDraft(id)) {
+                is EventEditResult.Failed -> if(token==syncGeneration) fail(result.error)
+                is EventEditResult.Saved -> Unit // Only the Room observer may declare server acknowledgement.
+            } } finally { if(token==syncGeneration) mutable.value=mutable.value.copy(syncing=false) }
+        }
+    }
+    fun beginMerge() {
+        val conflict=state.value.local?.conflict ?: return
+        val proposal=DraftMergePolicy.merge(conflict.base,conflict.local,conflict.remote)
+        mutable.value=mutable.value.copy(input=EditorInput.from(proposal.fields),merging=true,mergeConflicts=proposal.conflicts,dirty=true,error=null)
+    }
+    fun mergeCollection(remote: Boolean) {
+        val conflict=state.value.local?.conflict ?: return
+        val source=if(remote) conflict.remote else conflict.local
+        edit(state.value.input.copy(fields=state.value.input.fields.copy(questions=source.questions,sections=source.sections)))
+    }
+    fun resolve(resolution: DraftResolution) {
+        val id=draftId ?: return
+        if(state.value.busy || state.value.syncing) return
+        val (fields,errors)=state.value.input.resolved()
+        if(resolution!=DraftResolution.REMOTE && errors.isNotEmpty()) { fail(EventEditError.Validation(errors));return }
+        runOperation { when(val result=current {events.resolveDraft(id,resolution,fields)}) {
+            is EventEditResult.Failed -> fail(result.error)
+            is EventEditResult.Saved -> {
+                observedFields=result.value.fields
+                mutable.value=mutable.value.copy(input=EditorInput.from(result.value.fields),merging=false,mergeConflicts=emptySet())
+                accepted(false)
+            }
+        } }
+    }
+    fun discardPersisted() {
+        val id=draftId ?: return
+        if(state.value.busy || state.value.syncing) return
+        runOperation { when(val result=current { events.discardDraft(id) }) {
+            is EventEditResult.Failed -> fail(result.error)
+            is EventEditResult.Saved -> mutable.value=mutable.value.copy(exit=true,dirty=false,confirmExit=false)
+        } }
+    }
     private fun accepted(exit: Boolean) { mutable.value = mutable.value.copy(dirty = false, saved = true, error = null, confirmExit = false, exit = exit) }
     private fun fail(error: EventEditError) {
         if(error in setOf(EventEditError.AuthenticationRequired,EventEditError.Forbidden,EventEditError.SessionChanged)) {
@@ -233,5 +291,5 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
             try { block() } finally { if (token == generation) mutable.value = mutable.value.copy(busy = false) }
         }
     }
-    fun leave() { generation++; readGeneration++; observation?.cancel(); read?.cancel(); operation?.cancel(); identity = null; revision = null; event = null }
+    fun leave() { generation++; readGeneration++; observation?.cancel(); read?.cancel(); operation?.cancel(); syncGeneration++; sync?.cancel(); observedFields=null; identity = null; revision = null; event = null }
 }

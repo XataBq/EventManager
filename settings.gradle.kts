@@ -18,3 +18,4 @@ rootProject.name = "EventPass"
 include(":app", ":core:domain", ":core:designsystem", ":core:platform", ":data:fake")
 
 include(":data:remote")
+include(":data:local", ":data:local:verification")

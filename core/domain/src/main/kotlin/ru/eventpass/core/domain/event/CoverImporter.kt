@@ -7,6 +7,7 @@ interface CoverImporter {
 interface CoverAssetReader {
     suspend fun read(cover: EventCover): ByteArray?
     suspend fun release(cover: EventCover) {}
+    suspend fun releaseId(assetId:String) {}
 }
 sealed interface CoverImportResult {
     data class Imported(val cover: EventCover) : CoverImportResult

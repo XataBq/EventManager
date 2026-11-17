@@ -68,12 +68,12 @@ fun ManagedCover(cover: EventCover?, serverId: String? = null) {
 
 @Composable
 fun EditorRoute(draftId: String?, eventId: String?, create: Boolean, onBack: () -> Unit, onOpen: (String) -> Unit,
-    registerBack: ((() -> Unit)?) -> Unit, visible: Boolean = true) {
+    registerBack: ((() -> Unit)?) -> Unit, visible: Boolean = true, remoteDraftId: String? = null) {
     val vm: EditorViewModel = hiltViewModel()
     val s by vm.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val activity = androidx.activity.compose.LocalActivity.current
-    LaunchedEffect(draftId, eventId, create) { vm.bind(draftId, eventId, create) }
+    LaunchedEffect(draftId, eventId, create,remoteDraftId) { vm.bind(draftId, eventId, create,remoteDraftId) }
     LaunchedEffect(lifecycle,visible) { if(visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
         vm.resumeReading()
         try { kotlinx.coroutines.awaitCancellation() } finally { vm.pauseReading(activity?.isChangingConfigurations != true) }
@@ -92,7 +92,8 @@ fun EditorRoute(draftId: String?, eventId: String?, create: Boolean, onBack: () 
         val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, link) }
         context.startActivity(Intent.createChooser(send, shareTitle))
     }) else EditorScreen(s, eventId != null, vm::edit, { vm.save() }, { vm.save(publish = true) },
-        { picker.launch(arrayOf("image/png", "image/jpeg")) }, vm::refresh, vm::manage, { ManagedCover(s.input.fields.cover,s.input.fields.remoteCoverAssetId) },refreshEnabled=visible)
+        { picker.launch(arrayOf("image/png", "image/jpeg")) }, vm::refresh, vm::manage, { ManagedCover(s.input.fields.cover,s.input.fields.remoteCoverAssetId) },refreshEnabled=visible,
+        onSync=vm::synchronize,onResolve=vm::resolve,onMerge=vm::beginMerge,onMergeCollection=vm::mergeCollection,onDiscardPersisted=vm::discardPersisted)
     if (s.confirmExit) AlertDialog(onDismissRequest = vm::stay,
         title = { Text(stringResource(R.string.editor_unsaved)) },
         text = { Text(stringResource(R.string.editor_unsaved_hint)) },
@@ -117,7 +118,9 @@ fun PublishedScreen(link: String, copied: Boolean, onOpen: () -> Unit, onCopy: (
 
 @Composable
 fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Unit, onSave: () -> Unit, onPublish: () -> Unit,
-    onCover: () -> Unit, onRefresh: () -> Unit, onManage: (Boolean) -> Unit, cover: @Composable () -> Unit, refreshEnabled: Boolean = true) {
+    onCover: () -> Unit, onRefresh: () -> Unit, onManage: (Boolean) -> Unit, cover: @Composable () -> Unit, refreshEnabled: Boolean = true,
+    onSync: () -> Unit = {}, onResolve: (DraftResolution) -> Unit = {}, onMerge: () -> Unit = {},
+    onMergeCollection: (Boolean) -> Unit = {}, onDiscardPersisted: () -> Unit = {}) {
     EventPassRefresh(s.refreshing,onRefresh,Modifier.testTag("refresh-editor"),enabled=refreshEnabled && s.allowed && !s.busy && !s.pendingCreate && !s.confirmExit) {
     AuthColumn(Modifier.semantics { testTagsAsResourceId = true }.testTag("editor-screen")) {
         Text(stringResource(if (published) R.string.editor_edit else R.string.editor_new), style = EventPassTypography.heading)
@@ -126,6 +129,34 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
         if(s.recoveryRequired) Text(stringResource(R.string.editor_recovery_required))
         if (s.error != null) TextAction(stringResource(R.string.ticket_retry), onRefresh)
         if (!s.allowed) return@AuthColumn
+        s.local?.let { local -> EventPassSection {
+            Text(stringResource(draftStateResource(local.state)),style=EventPassTypography.emphasis)
+            if(local.problem==DraftProblem.EXPIRED_CREATE) Text(stringResource(R.string.draft_create_expired))
+            if(local.problem==DraftProblem.UPLOAD_UNKNOWN) Text(stringResource(R.string.draft_upload_unknown))
+            local.retryAt?.let { Text(stringResource(R.string.draft_retry_later)) }
+            if(local.state!=DraftSyncState.UNSAVED && local.conflict==null) {
+                EventPassButton(stringResource(R.string.draft_sync),onSync,enabled=!s.busy && !s.dirty && !s.syncing,loading=s.syncing)
+                Text(stringResource(R.string.draft_sync_hint),style=EventPassTypography.hint)
+            }
+            local.conflict?.let { conflict ->
+                Text(stringResource(R.string.draft_conflict_hint))
+                DraftVariant(R.string.draft_base,conflict.base)
+                DraftVariant(R.string.draft_local,conflict.local)
+                DraftVariant(R.string.draft_remote,conflict.remote)
+                TextAction(stringResource(R.string.draft_accept_remote),{onResolve(DraftResolution.REMOTE)},enabled=!s.busy && !s.syncing)
+                if(!local.terminal) {
+                    TextAction(stringResource(R.string.draft_keep_local),{onResolve(DraftResolution.LOCAL)},enabled=!s.busy && !s.syncing)
+                    TextAction(stringResource(R.string.draft_merge),onMerge,enabled=!s.busy && !s.syncing)
+                }
+                if(s.merging) {
+                    Text(stringResource(if(s.mergeConflicts.isEmpty()) R.string.draft_merge_ready else R.string.draft_merge_review))
+                    TextAction(stringResource(R.string.draft_collections_local),{onMergeCollection(false)},enabled=!s.busy)
+                    TextAction(stringResource(R.string.draft_collections_remote),{onMergeCollection(true)},enabled=!s.busy)
+                    EventPassButton(stringResource(R.string.draft_confirm_merge),{onResolve(DraftResolution.MERGED)},enabled=!s.busy && !s.syncing)
+                }
+            }
+            if(local.state!=DraftSyncState.UNSAVED) TextAction(stringResource(R.string.draft_discard_pending),onDiscardPersisted,enabled=!s.busy && !s.syncing)
+        } }
         if(s.pendingCreate) Text(stringResource(R.string.editor_pending_create))
         val input = s.input; val fields = input.fields; val enabled = !s.busy && !s.terminal
         fun change(f: EventFields) = onEdit(input.copy(fields = f))
@@ -149,6 +180,7 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
             FormField(input.end, { onEdit(input.copy(end = it)) }, stringResource(R.string.editor_end), Modifier.testTag("editor-end"), enabled = enabled, error = error("endsAt"))
             FormField(fields.zoneId, { change(fields.copy(zoneId = it)) }, stringResource(R.string.editor_zone), enabled = enabled, error = error("zoneId"))
             FormField(fields.venue, { change(fields.copy(venue = it)) }, stringResource(R.string.editor_venue), Modifier.testTag("editor-venue"), enabled = enabled, error = error("venue"))
+            FormField(fields.description,{change(fields.copy(description=it))},stringResource(R.string.draft_description),enabled=enabled)
             FormField(input.capacity, { onEdit(input.copy(capacity = it)) }, stringResource(R.string.editor_capacity), enabled = enabled, error = error("capacity"))
             if ("datesLocked" in invalid) InlineError(stringResource(R.string.editor_dates_locked))
         }
@@ -169,18 +201,48 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
                 }, enabled = enabled)
             }
         }
+        if(s.local!=null) EventPassSection {
+            Text(stringResource(R.string.draft_sections),style=EventPassTypography.emphasis)
+            fields.sections.forEach { section -> key(section.id) {
+                FormField(section.title,{text->change(fields.copy(sections=fields.sections.map {if(it.id==section.id) it.copy(title=text) else it}))},stringResource(R.string.draft_section_title),enabled=enabled)
+                FormField(section.time,{text->change(fields.copy(sections=fields.sections.map {if(it.id==section.id) it.copy(time=text) else it}))},stringResource(R.string.draft_section_time),enabled=enabled)
+                TextAction(stringResource(R.string.editor_remove),{change(fields.copy(sections=fields.sections.filterNot {it.id==section.id}))},enabled=enabled)
+            } }
+            TextAction(stringResource(R.string.draft_section_add),{change(fields.copy(sections=fields.sections+EventSection("","")))},enabled=enabled)
+        }
         Text(stringResource(R.string.editor_public_hint), style = EventPassTypography.hint)
-        if (s.saved) Text(stringResource(R.string.editor_saved), Modifier.testTag("editor-saved"), color = EventPassColors.success)
+        if (s.saved) Text(stringResource(if(s.local!=null) R.string.draft_saved_device else R.string.editor_saved), Modifier.testTag("editor-saved"), color = EventPassColors.success)
         if (s.terminal) Text(stringResource(R.string.editor_terminal))
         EventPassButton(stringResource(if (published) R.string.editor_save_changes else R.string.editor_save), onSave, Modifier.testTag("save-draft"), enabled = enabled, loading = s.busy, style = ActionStyle.Secondary)
-        if (!published) EventPassButton(stringResource(R.string.editor_publish), onPublish, Modifier.testTag("publish-event"), enabled = enabled, loading = s.busy)
+        if (!published) EventPassButton(stringResource(R.string.editor_publish), onPublish, Modifier.testTag("publish-event"), enabled = enabled && !s.syncing && s.local?.conflict==null, loading = s.busy)
         if (published && !s.terminal) {
             Text(stringResource(R.string.editor_manage_hint), style = EventPassTypography.hint)
             EventPassButton(stringResource(R.string.editor_finish), { onManage(true) }, Modifier.testTag("finish-event"), enabled = enabled && !s.dirty, style = ActionStyle.Danger)
         }
     }
 }
+}
 
+fun draftStateResource(state: DraftSyncState): Int = when(state) {
+    DraftSyncState.UNSAVED -> R.string.editor_unsaved
+    DraftSyncState.LOCAL -> R.string.draft_saved_device
+    DraftSyncState.SYNCING -> R.string.draft_syncing
+    DraftSyncState.SYNCED -> R.string.draft_saved_server
+    DraftSyncState.UNCERTAIN -> R.string.draft_uncertain
+    DraftSyncState.CONFLICT -> R.string.editor_conflict
+    DraftSyncState.PUBLISHED -> R.string.editor_published
+}
+
+@Composable
+private fun DraftVariant(label: Int, fields: EventFields) {
+    Text(stringResource(label),style=EventPassTypography.emphasis)
+    Text(fields.title.ifBlank { stringResource(R.string.editor_untitled) })
+    Text(fields.venue)
+    Text(fields.description)
+    Text(stringResource(R.string.draft_variant_dates,fields.startsAt?.toString().orEmpty(),fields.endsAt?.toString().orEmpty(),fields.capacity?.toString().orEmpty()))
+    Text(stringResource(R.string.draft_variant_counts,fields.questions.size,fields.sections.size))
+    fields.questions.forEach { q -> Text(q.title); q.options.forEach { Text(it.title) } }
+    fields.sections.forEach { Text(it.title);Text(it.time) }
 }
 
 fun questionKindResource(kind: QuestionKind) = when (kind) {

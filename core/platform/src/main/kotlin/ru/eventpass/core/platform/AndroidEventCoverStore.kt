@@ -24,7 +24,7 @@ class AndroidEventCoverStore(context: Context) : CoverImporter, EventCoverPrevie
     suspend fun cleanupUnreferenced(retained: Set<String>) = withContext(Dispatchers.IO) {
         // Invoked once before the first import in a fresh process, before any unsaved asset exists.
         directory.listFiles()?.filter { it.isFile && it.name.matches(Regex("[A-Za-z0-9_-]{1,80}\\.(image|tmp)")) }
-            ?.filter { it.name.removeSuffix(".image") !in retained }?.forEach { it.delete() }
+            ?.asSequence()?.filter { it.name.removeSuffix(".image") !in retained }?.take(128)?.forEach { it.delete() }
         Unit
     }
     override suspend fun importCover(source: String): CoverImportResult = withContext(Dispatchers.IO) {
@@ -90,7 +90,11 @@ class AndroidEventCoverStore(context: Context) : CoverImporter, EventCoverPrevie
         return if (matrix.isIdentity) bitmap else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true).also { if (it !== bitmap) bitmap.recycle() }
     }
     private fun file(cover: EventCover) = File(directory, "${cover.assetId}.image")
-    override suspend fun release(cover: EventCover) = withContext(Dispatchers.IO) { file(cover).delete(); Unit }
+    override suspend fun release(cover: EventCover) = releaseId(cover.assetId)
+    override suspend fun releaseId(assetId:String) = withContext(Dispatchers.IO) {
+        if(assetId.matches(Regex("[A-Za-z0-9_-]{1,80}"))) File(directory,"$assetId.image").delete()
+        Unit
+    }
     override suspend fun read(cover: EventCover): ByteArray? = withContext(Dispatchers.IO) {
         val source = file(cover)
         if(!source.isFile || source.length() != cover.byteCount || source.length() > 5_242_880) null

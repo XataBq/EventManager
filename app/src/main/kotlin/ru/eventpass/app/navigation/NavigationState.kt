@@ -27,7 +27,7 @@ data object GalleryKey : NavKey
 @Serializable data object DemoToolsKey : NavKey
 @Serializable data object OutboxKey : NavKey
 @Serializable data class EditorKey(val draftId: String? = null, val eventId: String? = null, val create: Boolean = false,
-    val entryId: String = UUID.randomUUID().toString()) : NavKey
+    val entryId: String = UUID.randomUUID().toString(), val remoteDraftId: String? = null) : NavKey
 @Serializable data class EventKey(val eventId: String, val flowId: String = UUID.randomUUID().toString(), val publicSlug: String? = null) : NavKey
 @Serializable data class TicketKey(val ticketId: String? = null) : NavKey
 @Serializable data class ScannerKey(val eventId: String, val entryId: String = UUID.randomUUID().toString()) : NavKey

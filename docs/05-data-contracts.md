@@ -1,6 +1,6 @@
 # Текущие порты, remote и fake storage
 
-M01–M04 работают за общими ports; M03 принят пользователем на `cec5520`, M04 IMPLEMENTED/REVIEW_PENDING. M02 fix-review открыт. Online редактор/неполные drafts, per-tab server MyEvents и обложки — [текущая архитектура M04](architecture/t10-editor-covers.md). M05–M09 остаются недоступными в remote; demo продолжает использовать общий fake/schema6. Ручная приёмка после M09, новых APK нет.
+**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](architecture/t10-room-drafts.md), [объём и ограничения проверки](validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
 
 ## Реализованные порты
 
@@ -116,11 +116,11 @@ Debug ScenarioController умеет выбрать seed, сменить тест
 
 ## Граница оставшейся миграции M05–M09
 
-Backend snapshot 1.1.1 и решения 13 ноября приняты; [mapping](api/migration-mapping.md) и [34](34-api-migration-plan.md) задают остаток. Remote M01–M04 auth/profile/public E/registration/tickets/PDF/online editor/MyEvents/covers реализованы. Offline drafts/Room — M05, scan/grants/attendance/profile mutations/XLSX/delete/resend cleanup — следующие M. Demo guest уже создаёт passwordless account без session и использует EVT display/manual code, legacy proofs сохранены; ticket resend остаётся demo-only до M08. Старые 22/OpenAPI v0.1.0 не определяют текущий HTTP.
+Backend snapshot 1.1.1 и решения 13 ноября приняты; [mapping](api/migration-mapping.md) и [34](34-api-migration-plan.md) задают остаток. Remote M01–M04 auth/profile/public E/registration/tickets/PDF/online editor/MyEvents/covers реализованы. Offline drafts/Room подключены в M05; scan/grants/attendance/profile mutations/XLSX/delete/resend cleanup — следующие M. Demo guest уже создаёт passwordless account без session и использует EVT display/manual code, legacy proofs сохранены; ticket resend остаётся demo-only до M08. Старые 22/OpenAPI v0.1.0 не определяют текущий HTTP.
 
 Реализованный независимый check-in: Active → Used, повтор AlreadyUsed, WrongEvent/Cancelled/Unknown → Invalid; связь/Timeout/Forbidden не Invalid/успех. Только после ответа repository можно разрешать проход. Offline admission не предусмотрен. Remote 24h idempotency/EVT-code приняты в 34, адаптация соответствующих команд — M03/M06; текущий demo manual credential отдельно от displayNumber/qrPayload. Сохранение/ошибки/владение state и ограничения — [независимая основа T07](architecture/t07-checkin-foundation.md). UI и CameraX/ZXing подключены к прежним портам; успешный JVM contract не означает допуск без ответа repository или production API.
 
-Продолжение: отдельное ревью M04 → gate M05; историческое M02 fix-review остаётся открытым. Финальная человеческая проверка только после M09; локальные tests/optional live smoke не закрывают её.
+Продолжение: отдельное ревью M05 → gate M06; историческое M02 fix-review остаётся открытым. Финальная человеческая проверка только после M09; локальные tests/optional live smoke не закрывают её.
 
 История прежних контрактов — [архив](history/2026-10-30-architecture/README.md). При новом порте/snapshot изменить эту страницу и [операции/инварианты](architecture/operations.md) в том же изменении.
 
@@ -138,6 +138,12 @@ TicketRepository имеет scope-aware observe/refresh overloads (upcoming/past
 
 DocumentSnapshot.Remote/DocumentSource — transient PDF download; DocumentStamp.accountId=null только для живого guest capability request. AndroidDocumentFiles сохраняет источник через private temporary и SAF с generation/cancellation guards. Request/источник/bytes не сериализуются в VM; SavedState guest исключение содержит только компактный QR/capability текущего flow. [Подробные инварианты и ограничения](architecture/t10-registration-tickets.md).
 
-## M04: online owner editor и обложки
+## M04–M05: owner editor, Room и обложки
 
-EventRepository получил beginDraft, per-tab observe/refreshMyEvents и адресный refreshEditor. MyEventsResult.Ready содержит typed summary/items/tab/roles/counters; remote не создаёт Event из неполного summary. EventDraft.revision/expected versions nullable, remote null; fake codec пишет только положительные локальные версии без изменения schema6. RemoteOrganizerRepository обслуживает create/read/PATCH/publish/finish, immutable create fingerprint/key и read-сверку uncertain PATCH. CoverAssetReader/RemoteCoverTransfer разделяют managed local asset и server assetId; bounded multipart/GET не используют произвольный URL, локальный upload source освобождается в finally. [Модели, владельцы, операции и тесты](architecture/t10-editor-covers.md).
+RemoteEventRepository оставляет public reads и делегирует draft-операции LocalDraftRepository; RemoteOrganizerRepository обслуживает server MyEvents и online published edit/finish. data:local — Android Room library без HTTP/DTO; domain DraftStore задаёт узкую границу. App/remote DI открывает private noBackup DB и связывает auth purge, managed files и coordinator. В demo Room не подключён.
+
+EventDraft.local ID, remoteEventId и slug различаются. DraftStore хранит account partition, incarnation/storage CAS, confirmed/base/pending, localRevision, неизменную create-команду и pending cover reference. LocalDraftState отличается от серверного успеха; localDrafts не входят в server items/counters. EditorKey.remoteDraftId адресует серверный draft, safe saved metadata сохраняет разрешённый local ID; fields/command восстанавливаются из Room после валидного входа того же account.
+
+Save пишет только на устройство; sync — отдельная foreground команда. Room-транзакции короткие, HTTP/file IO вне них. ACK A сохраняет pending B; logout/deletion fence запрещает позднему ответу создать запись заново. После неизвестного PATCH — GET, затем ack или явный конфликт base/local/remote. Merge сохраняет stable IDs; выбор пользователя сначала локален. Publish/finish online. Pending cover копируется в private durable file, upload descriptor фиксируется до attach; release только после перехода DB/проверки ссылок. GET→PATCH не атомарен без server precondition.
+
+[Таблица состояний, доступ, retention и точки commit](architecture/t10-room-drafts.md). [Проверки и NOT_RUN](validation/t10-m05-implementation.md). M03 registration replay/server list scope не переписаны; их повторные регрессии в M05 не запускались по команде пользователя.

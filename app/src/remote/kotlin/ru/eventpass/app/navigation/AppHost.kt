@@ -76,7 +76,8 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
      { stack.add(EditorKey(draftId=java.util.UUID.randomUUID().toString(),create=true)) },
      { stack.add(EditorKey(draftId=it)) },{ stack.add(EditorKey(eventId=it)) },
      { stack.add(EventKey("",publicSlug=it)) },{ stack.add(RemoteUnavailableKey) },
-     { stack.add(RemoteUnavailableKey) },{ stack.add(RemoteUnavailableKey) },visible=stack.lastOrNull() == root)
+     { stack.add(RemoteUnavailableKey) },{ stack.add(RemoteUnavailableKey) },visible=stack.lastOrNull() == root,
+     onRemoteDraft={stack.add(EditorKey(remoteDraftId=it))})
     else {
     val vm: ProfileViewModel=hiltViewModel()
     val state by vm.state.collectAsStateWithLifecycle()
@@ -93,7 +94,7 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
     }
    }
    entry<EditorKey> { key -> ru.eventpass.app.feature.editor.EditorRoute(key.draftId,key.eventId,key.create,
-    { stack.removeLastOrNull() },{ stack.add(EventKey("",publicSlug=it)) },{},visible=stack.lastOrNull() == key) }
+    { stack.removeLastOrNull() },{ stack.add(EventKey("",publicSlug=it)) },{},visible=stack.lastOrNull() == key,remoteDraftId=key.remoteDraftId) }
    entry<EventKey> { key -> EventRoute(key.eventId, { _, _, _ -> stack.add(RemoteUnavailableKey) }, { stack.add(TicketKey(it)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
    entry<TicketKey> { key -> var initial by rememberSaveable { mutableStateOf(key.ticketId) }; TicketsRoute(initial, { initial = null }, { slug -> stack.add(EventKey("", publicSlug = slug)) }, {}, {}, {}, visible = stack.lastOrNull() == key) }
    entry<RemoteUnavailableKey> { AuthColumn { Text(stringResource(R.string.feature_unavailable)); TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()}) } }

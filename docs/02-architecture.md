@@ -1,10 +1,10 @@
 # Фактическая архитектура EventPass Android
 
-M01–M04 работают за общими ports; M03 принят пользователем на `cec5520`, M04 IMPLEMENTED/REVIEW_PENDING. M02 fix-review открыт. Online редактор/неполные drafts, per-tab server MyEvents и обложки — [текущая архитектура M04](architecture/t10-editor-covers.md). M05–M09 остаются недоступными в remote; demo продолжает использовать общий fake/schema6. Ручная приёмка после M09, новых APK нет.
+**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](architecture/t10-room-drafts.md), [объём и ограничения проверки](validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
 
-Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 TECH_ACCEPTED по подтверждению пользователя; M04 реализован, ожидает отдельного ревью, M05–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
+Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 TECH_ACCEPTED по подтверждению пользователя; M04 принят пользователем; M05 реализован с ограниченной проверкой, M06–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
 
-Текущий срез M01–M04: remote auth/profile, public GET, registration/tickets/PDF, owner editor/scoped MyEvents/covers и общие модели/renderer. M05–M09 недоступны в remote, demo product adapters/schema6 сохранены. [M04](architecture/t10-editor-covers.md). Прежняя demo-приёмка не является финальной приёмкой T10.
+Текущий срез M01–M04: remote auth/profile, public GET, registration/tickets/PDF, owner editor/scoped MyEvents/covers и общие модели/renderer. M06–M09 недоступны в remote, demo product adapters/schema6 сохранены. [M04](architecture/t10-editor-covers.md). Прежняя demo-приёмка не является финальной приёмкой T10.
 
 ## Модули и зависимости исходников
 
@@ -81,7 +81,7 @@ erDiagram
 
 | Область | Текущая реализация | Будущее |
 |---|---|---|
-| Данные | Один FakeProductState, StateFlow/Mutex, полный schema 6 snapshot, AtomicFile adapter | M03–M09 product adapters, Room draft в M05 |
+| Данные | Один FakeProductState, StateFlow/Mutex, полный schema 6 snapshot, AtomicFile adapter | M03–M05 remote adapters / Room draft schema1, остальные M06–M09 |
 | UI | Auth, common E/форма/guest QR/manual, Tickets, MyEvents/editor/cover/publish, Volunteers/Scanner/Dashboard, Profile и SAF documents | Remote M03–M09 и единая финальная ручная приёмка |
 | Связность | Внутри одного процесса/сохранённых demo-данных | Синхронизация между телефонами требует backend |
 | Offline | Управляемый локальный fake; Network/Timeout как отдельные сценарии | Проверенный production cache/remote recovery не реализованы |
@@ -106,6 +106,12 @@ erDiagram
 
 EventSlug/PublicEventReference отделены от внутренних EventId. Remote GET кодирует ровно один segment; viewer/contact/ticket привязаны к проверенной сессии и очищаются при logout/401. EventRoute/VM сохраняют entry ownership и visible/RESUMED. Unknown question type блокирует submit, null обязательных published полей — Protocol. [M02 public E/schema6](architecture/t10-public-event.md).
 
-## M04: online owner editor и обложки
+## M04–M05: owner editor, Room и обложки
 
-EventRepository получил beginDraft, per-tab observe/refreshMyEvents и адресный refreshEditor. MyEventsResult.Ready содержит typed summary/items/tab/roles/counters; remote не создаёт Event из неполного summary. EventDraft.revision/expected versions nullable, remote null; fake codec пишет только положительные локальные версии без изменения schema6. RemoteOrganizerRepository обслуживает create/read/PATCH/publish/finish, immutable create fingerprint/key и read-сверку uncertain PATCH. CoverAssetReader/RemoteCoverTransfer разделяют managed local asset и server assetId; bounded multipart/GET не используют произвольный URL, локальный upload source освобождается в finally. [Модели, владельцы, операции и тесты](architecture/t10-editor-covers.md).
+RemoteEventRepository оставляет public reads и делегирует draft-операции LocalDraftRepository; RemoteOrganizerRepository обслуживает server MyEvents и online published edit/finish. data:local — Android Room library без HTTP/DTO; domain DraftStore задаёт узкую границу. App/remote DI открывает private noBackup DB и связывает auth purge, managed files и coordinator. В demo Room не подключён.
+
+EventDraft.local ID, remoteEventId и slug различаются. DraftStore хранит account partition, incarnation/storage CAS, confirmed/base/pending, localRevision, неизменную create-команду и pending cover reference. LocalDraftState отличается от серверного успеха; localDrafts не входят в server items/counters. EditorKey.remoteDraftId адресует серверный draft, safe saved metadata сохраняет разрешённый local ID; fields/command восстанавливаются из Room после валидного входа того же account.
+
+Save пишет только на устройство; sync — отдельная foreground команда. Room-транзакции короткие, HTTP/file IO вне них. ACK A сохраняет pending B; logout/deletion fence запрещает позднему ответу создать запись заново. После неизвестного PATCH — GET, затем ack или явный конфликт base/local/remote. Merge сохраняет stable IDs; выбор пользователя сначала локален. Publish/finish online. Pending cover копируется в private durable file, upload descriptor фиксируется до attach; release только после перехода DB/проверки ссылок. GET→PATCH не атомарен без server precondition.
+
+[Таблица состояний, доступ, retention и точки commit](architecture/t10-room-drafts.md). [Проверки и NOT_RUN](validation/t10-m05-implementation.md). M03 registration replay/server list scope не переписаны; их повторные регрессии в M05 не запускались по команде пользователя.

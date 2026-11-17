@@ -9,6 +9,20 @@ import ru.eventpass.core.domain.auth.AuthError
 
 /** Upload has no retry or invented idempotency. A lost response can leave an orphan server asset. */
 class RemoteCoverTransfer(private val api: AuthHttp, private val auth: RemoteAuthRepository, private val reader: CoverAssetReader) {
+    /** M05 retains its durable managed source until descriptor/attach is acknowledged by storage. */
+    internal suspend fun uploadPending(cover:EventCover,context:PublicReadContext):EventCover {
+        val token=context.token ?: throw RemoteFailure(AuthError.Unauthorized)
+        val bytes=reader.read(cover) ?: throw RemoteFailure(AuthError.StorageUnavailable)
+        if(!auth.isCurrentPublicRead(context)) throw RemoteFailure(AuthError.SessionChanged)
+        try {
+            val dto=api.json.decodeFromString<UploadedCover>(api.uploadCover(bytes,cover.mimeType,token))
+            currentCoroutineContext().ensureActive()
+            if(!auth.isCurrentPublicRead(context)) throw RemoteFailure(AuthError.SessionChanged)
+            require(dto.assetId.isNotBlank() && dto.assetId.length<=300 && dto.byteCount==bytes.size.toLong() && dto.mimeType==cover.mimeType)
+            require(dto.width in 1..32768 && dto.height in 1..32768)
+            return cover.copy(remoteAssetId=dto.assetId)
+        } catch(e:RemoteFailure) {if(e.error==AuthError.Unauthorized) auth.rejectUnauthorized(context);throw e}
+    }
     suspend fun importCover(source: String, local: CoverImporter): CoverImportResult {
         val c = auth.capturePublicRead()
         if(c.token == null) return CoverImportResult.Unavailable

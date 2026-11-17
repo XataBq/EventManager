@@ -1,6 +1,6 @@
 # Как читать документацию
 
-**17 ноября — M04 IMPLEMENTED/REVIEW_PENDING, M03 TECH_ACCEPTED.** Пользователь подтвердил повторное ревью `cec5520` без замечаний: [свидетельство](validation/t10-m03-user-review-confirmation.md). Реализованы online редактор/drafts, per-tab MyEvents и upload/attach обложки на общих ports. [Текущая архитектура M04](architecture/t10-editor-covers.md), [проверки и границы](validation/t10-m04-implementation.md). Новые APK не собираются; code23 не содержит M04. M02 fix-review открыт, M05–M09 TODO; ручная приёмка после M09.
+**17 ноября — M05 IMPLEMENTED/REVIEW_PENDING; M04 принят пользователем на `8da678a`.** Room-черновики, явная синхронизация, pending обложки и разрешение конфликтов подключены только к remote. [Архитектура M05](architecture/t10-room-drafts.md), [объём и ограничения проверки](validation/t10-m05-implementation.md). По последней команде пользователя проверена только компиляция remote; сквозные сценарии, lint, demo и APK не запускались. M02 fix-review открыт; M06–M09 TODO, ручная приёмка после M09.
 
 Это точка входа в действующую спецификацию. Архитектура UI сверена по `c569152` (T01–T06), подключены [T07 UI/lifecycle](architecture/t07-ui-lifecycle.md) и [T08 attendance](architecture/t08-attendance.md), [T09 profile/files](architecture/t09-profile-files.md) на общем store; статусы задач/приёмок — в [плане](06-delivery-plan.md), сборка и команды — в [README](../README.md). Не определять текущее состояние по старому отчёту или порядку абзацев разных дат.
 
