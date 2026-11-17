@@ -16,9 +16,9 @@ internal object UnavailableRemoteFeatures : EventRepository, RegistrationReposit
  override fun observeEditor(target: EventEditorTarget) = flowOf(EventEditorResult.Failed(EventEditError.FeatureUnavailable))
  override suspend fun refreshMyEvents() = Unit
  override suspend fun saveDraft(id: DraftId, expectedRevision: Long?, fields: EventFields) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
- override suspend fun publishDraft(id: DraftId, expectedRevision: Long) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
- override suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedLocalSchemaRevision: Int?, fields: EventFields) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
- override suspend fun finishEvent(id: EventId, expectedRevision: Long) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
+ override suspend fun publishDraft(id: DraftId, expectedRevision: Long?) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
+ override suspend fun updateEvent(id: EventId, expectedRevision: Long?, expectedLocalSchemaRevision: Int?, fields: EventFields) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
+ override suspend fun finishEvent(id: EventId, expectedRevision: Long?) = EventEditResult.Failed(EventEditError.FeatureUnavailable)
  override suspend fun submitGuest(command: GuestRegistrationCommand) = GuestRegistrationOutcome.Failed(RegistrationError.FeatureUnavailable)
  override suspend fun submitAuthenticated(command: AuthenticatedRegistrationCommand) = AuthenticatedRegistrationOutcome.Failed(RegistrationError.FeatureUnavailable)
  override fun observeMyTickets() = flowOf(MyTicketsResult.Failed(ProductReadError.FEATURE_UNAVAILABLE))

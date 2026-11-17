@@ -150,3 +150,7 @@ Idempotency-Key create/register/scan: 16–128 допустимых символ
 ## Контекст ревью
 
 На M00 source app/domain/fake/platform read-only, тесты старого demo не «исправляются» документацией. Устаревший пункт no-autoaccount в `.agents/skills/android-code-review/SKILL.md` не применяется к target T10: прямое решение пользователя/AGENTS/08/34 выше по приоритету. Сам защищённый skill не изменён. Каждое следующее ревью получает точный этап/base/diff и проверяет фактически изменённые contracts/потребителей/миграции, а не требует будущие M заранее. Текущий demo и история прежних проверок остаются отдельно от target mapping.
+
+## Реализованный срез M04 (17 ноября)
+
+Online owner EventRepository подключён: beginDraft, nullable local revisions, scoped MyEvents summaries/readiness/counters, create/read/changed-only PATCH/publish/finish и server terminal authority. CoverAssetReader + RemoteCoverTransfer обеспечивают bounded upload/GET и release временного source; server ID не равен local asset ID. Подтверждённый server draft ID сохраняется только в entry metadata; неизвестное тело не восстанавливается автоматически. Room/offline/pending merge остаются M05. [Фактические ports/owners/guards/tests](../architecture/t10-editor-covers.md), [evidence](../validation/t10-m04-implementation.md).

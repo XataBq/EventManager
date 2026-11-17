@@ -39,6 +39,42 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
  private val base = baseUrl.toHttpUrlStrict()
  private val http = client.newBuilder().retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false).build()
  init { require(base.encodedPath.endsWith("/")); require(base.scheme == "https" || base.host in setOf("localhost", "127.0.0.1", "::1")) }
+ internal suspend fun uploadCover(bytes: ByteArray, mime: String, token: AuthSecret): String = withContext(Dispatchers.IO) {
+  require(bytes.size in 1..5_242_880 && mime in setOf("image/png","image/jpeg"))
+  val body = MultipartBody.Builder().setType(MultipartBody.FORM).addFormDataPart("file","cover",bytes.toRequestBody(mime.toMediaType())).build()
+  val request = Request.Builder().url(base.newBuilder().addPathSegments("assets/event-covers").build())
+   .header("Authorization","Bearer " + token.value).header("Accept","application/json").post(body).build()
+  coverCall(request) { response -> decodeResponse(response,262144) }
+ }
+ internal suspend fun readCover(assetId: String, token: AuthSecret?): ByteArray = withContext(Dispatchers.IO) {
+  require(assetId.isNotBlank() && assetId.length <= 300 && assetId.none { it.isISOControl() })
+  val builder = Request.Builder().url(base.newBuilder().addPathSegments("assets/event-covers").addPathSegment(assetId).build())
+   .header("Accept","image/png, image/jpeg")
+  if(token != null) builder.header("Authorization","Bearer " + token.value)
+  coverCall(builder.build()) { response -> response.use {
+   if(!response.isSuccessful) { decodeResponse(response,262144); error("Unexpected response") }
+   val body = response.body
+   require(body.contentType()?.toString()?.substringBefore(';') in setOf("image/png","image/jpeg"))
+   require(body.contentLength() <= 5_242_880)
+   val source = body.source(); source.request(5_242_881)
+   val bytes = source.buffer.readByteArray()
+   require(bytes.size in 1..5_242_880)
+   bytes
+  } }
+ }
+ private suspend fun <T> coverCall(request: Request, decode: (Response) -> T): T = try {
+  suspendCancellableCoroutine { c ->
+   val call = http.newCall(request); c.invokeOnCancellation { call.cancel() }
+   call.enqueue(object : Callback {
+    override fun onFailure(call: Call, e: IOException) { if(c.isActive) c.resumeWithException(e) }
+    override fun onResponse(call: Call, response: Response) {
+     try { val value = decode(response); if(c.isActive) c.resume(value) }
+     catch(e: Exception) { response.close(); if(c.isActive) c.resumeWithException(e) }
+    }
+   })
+  }
+ } catch(e: SocketTimeoutException) { throw RemoteFailure(AuthError.Timeout) }
+ catch(e: IOException) { if(e is RemoteFailure) throw e; throw RemoteFailure(AuthError.Network) }
  internal suspend fun request(path: String, body: String? = null, token: AuthSecret? = null, method: String? = null, responseLimit: Int = 1_048_576, idempotencyKey: String? = null): String = withContext(Dispatchers.IO) {
   require(responseLimit in 1..33_554_432)
   require(!path.startsWith("/") && !path.contains(":") && path.split('/').none { it == "." || it == ".." })
@@ -49,7 +85,7 @@ class AuthHttp(baseUrl: String, client: OkHttpClient = OkHttpClient()) {
   if (idempotencyKey != null) { require(idempotencyKey.matches(Regex("[A-Za-z0-9._:-]{16,128}"))); builder.header("Idempotency-Key", idempotencyKey) }
   if (token != null) builder.header("Authorization", "Bearer " + token.value)
   if (body != null) builder.post(body.toRequestBody("application/json; charset=utf-8".toMediaType()))
-  if(method != null) builder.method(method, null)
+  if(method != null) builder.method(method, body?.toRequestBody("application/json; charset=utf-8".toMediaType()))
   try {
    suspendCancellableCoroutine<String> { c ->
     val call = http.newCall(builder.build()); c.invokeOnCancellation { call.cancel() }

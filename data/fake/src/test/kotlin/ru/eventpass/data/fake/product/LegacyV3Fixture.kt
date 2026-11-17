@@ -69,7 +69,7 @@ internal object LegacyV3Fixture {
             state.events.values.forEach { out.writeUTF(it.id.value); out.writeLong(requireNotNull(it.revision)); out.cover(it.cover) }
             out.writeInt(state.drafts.size)
             state.drafts.values.forEach { d ->
-                out.writeUTF(d.id.value); out.writeUTF(d.ownerId.value); out.writeLong(d.revision)
+                out.writeUTF(d.id.value); out.writeUTF(d.ownerId.value); out.writeLong(requireNotNull(d.revision))
                 out.writeUTF(d.publishedEventId?.value.orEmpty()); out.fields(d.fields)
             }
         }

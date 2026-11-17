@@ -1,10 +1,10 @@
 # Фактическая архитектура EventPass Android
 
-M01 auth/session, M02 public E и M03 registration/tickets/PDF реализованы за общими ports. M03 REVIEW_PENDING; M02 fix-review остаётся открытым. [M03: модели, ownership и ADR](architecture/t10-registration-tickets.md); оставшиеся M04–M09 product adapters remote ещё недоступны.
+M01–M04 работают за общими ports; M03 принят пользователем на `cec5520`, M04 IMPLEMENTED/REVIEW_PENDING. M02 fix-review открыт. Online редактор/неполные drafts, per-tab server MyEvents и обложки — [текущая архитектура M04](architecture/t10-editor-covers.md). M05–M09 остаются недоступными в remote; demo продолжает использовать общий fake/schema6. Ручная приёмка после M09, новых APK нет.
 
-Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 реализован/REVIEW_PENDING; M04–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
+Целевая адаптация к принятым серверным правилам описана в [34: ADR-T10-01–07 и M00–M09](34-api-migration-plan.md). M01 auth/profile уже реализован, M02 реализован и ожидает отдельного ревью; M03 TECH_ACCEPTED по подтверждению пользователя; M04 реализован, ожидает отдельного ревью, M05–M09 ещё не выполнены. Ниже product-поведение demo вне auth; его старые verify/form/lifecycle ограничения не являются новыми требованиями к remote. Обновлять соответствующие разделы вместе с кодом каждого M.
 
-Текущий срез M01–M03: remote auth/profile, public GET по slug, регистрации/билеты/PDF, общие Event/Question models/renderer и demo schema 6. M04–M09 остаются недоступными в remote; demo product adapters сохранены. [M02 public E/schema6](architecture/t10-public-event.md). Прежняя demo-приёмка не является финальной приёмкой T10.
+Текущий срез M01–M04: remote auth/profile, public GET, registration/tickets/PDF, owner editor/scoped MyEvents/covers и общие модели/renderer. M05–M09 недоступны в remote, demo product adapters/schema6 сохранены. [M04](architecture/t10-editor-covers.md). Прежняя demo-приёмка не является финальной приёмкой T10.
 
 ## Модули и зависимости исходников
 
@@ -105,3 +105,7 @@ erDiagram
 ## Публичная идентичность M02
 
 EventSlug/PublicEventReference отделены от внутренних EventId. Remote GET кодирует ровно один segment; viewer/contact/ticket привязаны к проверенной сессии и очищаются при logout/401. EventRoute/VM сохраняют entry ownership и visible/RESUMED. Unknown question type блокирует submit, null обязательных published полей — Protocol. [M02 public E/schema6](architecture/t10-public-event.md).
+
+## M04: online owner editor и обложки
+
+EventRepository получил beginDraft, per-tab observe/refreshMyEvents и адресный refreshEditor. MyEventsResult.Ready содержит typed summary/items/tab/roles/counters; remote не создаёт Event из неполного summary. EventDraft.revision/expected versions nullable, remote null; fake codec пишет только положительные локальные версии без изменения schema6. RemoteOrganizerRepository обслуживает create/read/PATCH/publish/finish, immutable create fingerprint/key и read-сверку uncertain PATCH. CoverAssetReader/RemoteCoverTransfer разделяют managed local asset и server assetId; bounded multipart/GET не используют произвольный URL, локальный upload source освобождается в finally. [Модели, владельцы, операции и тесты](architecture/t10-editor-covers.md).

@@ -20,7 +20,7 @@ object RemoteModule {
  @Provides fun authPort(auth: RemoteAuthRepository): AuthRepository = auth
  @Provides fun profiles(auth: RemoteAuthRepository): ProfileRepository = auth.profileRepository
  @Provides fun clock(): java.time.Clock = java.time.Clock.systemUTC()
- @Provides @Singleton fun events(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.EventRepository = RemoteEventRepository(http,auth,UnavailableRemoteFeatures)
+ @Provides @Singleton fun events(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.EventRepository = RemoteEventRepository(http,auth,RemoteOrganizerRepository(http,auth,UnavailableRemoteFeatures))
  @Provides @Singleton fun registrations(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.RegistrationRepository = RemoteRegistrations(http, auth)
  @Provides @Singleton fun tickets(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.TicketRepository = RemoteTickets(http, auth)
  @Provides fun checkins(): ru.eventpass.core.domain.checkin.CheckInRepository = UnavailableRemoteFeatures
@@ -28,6 +28,16 @@ object RemoteModule {
  @Provides fun attendance(): ru.eventpass.core.domain.attendance.AttendanceRepository = UnavailableRemoteFeatures
  @Provides @Singleton fun documents(http: AuthHttp, auth: RemoteAuthRepository): ru.eventpass.core.domain.documents.DocumentsRepository = RemoteTicketDocuments(http, auth)
  @Provides @Singleton fun documentFiles(@ApplicationContext context: Context): ru.eventpass.core.domain.documents.DocumentFiles = ru.eventpass.core.platform.AndroidDocumentFiles(context)
- @Provides fun covers(): ru.eventpass.core.domain.event.CoverImporter = object : ru.eventpass.core.domain.event.CoverImporter { override suspend fun importCover(source: String) = ru.eventpass.core.domain.event.CoverImportResult.Unavailable }
- @Provides fun preview(): ru.eventpass.core.platform.EventCoverPreview = object : ru.eventpass.core.platform.EventCoverPreview { override suspend fun preview(cover: ru.eventpass.core.domain.event.EventCover): android.graphics.Bitmap? = null }
+ @Provides @Singleton fun coverStore(@ApplicationContext context: Context) = ru.eventpass.core.platform.AndroidEventCoverStore(context)
+ @Provides @Singleton fun coverTransfer(http: AuthHttp,auth: RemoteAuthRepository,store: ru.eventpass.core.platform.AndroidEventCoverStore) = RemoteCoverTransfer(http,auth,store)
+ @Provides fun covers(store: ru.eventpass.core.platform.AndroidEventCoverStore,transfer: RemoteCoverTransfer): ru.eventpass.core.domain.event.CoverImporter = object : ru.eventpass.core.domain.event.CoverImporter {
+  override suspend fun importCover(source: String) = transfer.importCover(source,store)
+ }
+ @Provides fun preview(store: ru.eventpass.core.platform.AndroidEventCoverStore,transfer: RemoteCoverTransfer): ru.eventpass.core.platform.EventCoverPreview = object : ru.eventpass.core.platform.EventCoverPreview {
+  override suspend fun preview(cover: ru.eventpass.core.domain.event.EventCover) = cover.remoteAssetId?.let { previewRemote(it) } ?: store.preview(cover)
+  override suspend fun previewRemote(assetId: String): android.graphics.Bitmap? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+   val bytes = transfer.read(assetId) ?: return@withContext null
+   store.previewBytes(bytes)
+  }
+ }
 }

@@ -78,7 +78,7 @@ Receipt и fullscreen сейчас — состояния **того же** Even
 | SessionSnapshot.generation / PrivateScope | Auth/session coordinator/host | Старый аккаунт и недействительная сессия не возвращают приватный UI |
 | `commandGeneration` EventViewModel | UI, Long, только память | Exit/actor/resource/denial инвалидируют старые result/finally; questions refresh не теряет принятый submit |
 | Event.localSchemaRevision/revision | Nullable, fake-only локальные preconditions | Remote = null, backend formVersion/write precondition отсутствуют |
-| Event/Draft.revision | Domain + persisted editor | Lost update между устаревшими редакторами |
+| Event/Draft.revision | Nullable; positive только в локальном fake snapshot | Local lost-update проверка fake; remote null, conditional PATCH отсутствует |
 | `generation` EditorViewModel | UI, не сохраняется | Поздние save/cover/finally не меняют новую привязку entry |
 
 Не использовать один счётчик вместо другого. Отмена coroutine не является откатом уже выполненной disk-записи; UI обязан отбрасывать устаревший результат независимо от того, когда завершится вызов.
@@ -105,10 +105,14 @@ Tickets/MyEvents/Event, как Dashboard/Volunteers/Profile, запускают 
 
 ## M02: public resource и типизированная анкета
 
-Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; оставшиеся editor/scanner/attendance/profile mutations/XLSX/resend cleanup относятся к M04–M09.
+Реализованы отдельные EventSlug/PublicEventReference, RemoteEventRepository public GET, scoped session/owner read guards, совместимые typed answers и bounded UTF-8 schema6/legacy reset policy. Фактические владельцы/последовательности/migration bounds/test pointers — [M02 public E](t10-public-event.md); статус и запущенные проверки — [implementation](../validation/t10-m02-implementation.md). Guest/idempotency/manual-code/tickets/PDF мигрированы в M03; online editor/MyEvents/covers подключены в M04; оставшиеся offline/scanner/attendance/profile mutations/XLSX/resend cleanup относятся к M05–M09.
 
 ## M03: регистрации, билеты и PDF
 
 EventViewModel валидирует новую заявку по текущей анкете один раз; живой pending command сохраняет прежние answers/body/key для явного replay независимо от обновления questions. Saved state по-прежнему содержит только marker, без тела. TicketsViewModel отдельно владеет `data` списка выбранного scope и `selectedCard` с собственными ticket/event/now; Found карточки не изменяет list items/counters. Back/select(null)/смена сегмента очищают selectedCard, private denial/auth очищают приватную карточку/QR; stop отменяет оба observer, а восстановленная selection получает own observer до мгновенного ответа списка.
 
-[Текущие модели, owners, операции, guards, storage и test pointers](t10-registration-tickets.md), [evidence/ограничения](../validation/t10-m03-implementation.md). RemoteRegistrations/RemoteTickets/RemoteTicketDocuments отвечают за protocol/actor/transport; EventViewModel — immutable pending command/receipt; TicketsViewModel — scope/card/visible refresh; DocumentsViewModel + AndroidDocumentFiles — transient SAF и отмена. После ревью 3277e90 исправлены две P2; [проверки исправлений](../validation/t10-m03-p2-fixes.md), повторное независимое ревью ожидается (FIX_REVIEW_PENDING).
+[Текущие модели, owners, операции, guards, storage и test pointers](t10-registration-tickets.md), [evidence/ограничения](../validation/t10-m03-implementation.md). RemoteRegistrations/RemoteTickets/RemoteTicketDocuments отвечают за protocol/actor/transport; EventViewModel — immutable pending command/receipt; TicketsViewModel — scope/card/visible refresh; DocumentsViewModel + AndroidDocumentFiles — transient SAF и отмена. После ревью 3277e90 исправлены две P2; [проверки исправлений](../validation/t10-m03-p2-fixes.md), повторное ревью cec5520 принято пользователем 17 ноября: [свидетельство](../validation/t10-m03-user-review-confirmation.md).
+
+## M04: online editor, scoped MyEvents и covers
+
+[Текущая спецификация и source/test pointers](t10-editor-covers.md), [проверки и ограничения](../validation/t10-m04-implementation.md). EditorKey владеет raw/dirty/pending body только в памяти и safe saved metadata; MyEvents VM — tab readiness и late-result guards. RemoteOrganizerRepository владеет server details/scoped list projections, captured actor, create fingerprint/key/retention и read reconciliation; RemoteCoverTransfer — один upload, ограниченный GET, late-actor guards и release managed source. Серверный terminal read не заменяется часами телефона. Nullable remote revisions не превращаются в выдуманные preconditions. Room/offline/merge и полная конфликтная защита — M05.

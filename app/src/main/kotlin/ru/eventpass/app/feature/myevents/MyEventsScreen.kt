@@ -33,12 +33,16 @@ class MyEventsViewModel @Inject constructor(private val events: EventRepository,
     private val mutable = MutableStateFlow(MyEventsUiState()); val data = mutable.asStateFlow()
     private var active = false; private var owner = 0L
     private var observer: Job? = null; private var read: Job? = null
+    private val tabs = mutableMapOf<Int, MyEventsResult.Ready>()
     fun start() {
         if (active) return
         active = true; val generation = owner
         mutable.value = data.value.copy(loading = data.value.content == null)
-        observer = viewModelScope.launch { events.observeMyEvents().collect { next -> if (generation == owner) {
+        val selected = tab.value
+        observer = viewModelScope.launch { events.observeMyEvents(MyEventsTab.entries[selected]).collect { next -> if (generation == owner) {
             val old = data.value
+            if(next is MyEventsResult.Ready) tabs[selected] = next
+            if(next is MyEventsResult.Failed && next.error in setOf(EventEditError.AuthenticationRequired,EventEditError.Forbidden,EventEditError.SessionChanged)) tabs.clear()
             mutable.value = if (next is MyEventsResult.Failed && next.error in setOf(EventEditError.Network, EventEditError.Timeout, EventEditError.StorageUnavailable)
                 && old.content is MyEventsResult.Ready) old.copy(error = next.error, loading = false)
             else old.copy(content = next, error = null, loading = false)
@@ -47,12 +51,21 @@ class MyEventsViewModel @Inject constructor(private val events: EventRepository,
     fun stop() { active = false; owner++; observer?.cancel(); read?.cancel()
         mutable.value = data.value.copy(loading = false, refreshing = false) }
     val tab = saved.getStateFlow("myEventsTab", 0)
-    fun select(value: Int) { saved["myEventsTab"] = value.coerceIn(0, 2) }
+    fun select(value: Int) {
+        val next = value.coerceIn(0,2)
+        if(next == tab.value) return
+        val aggregate = (data.value.content as? MyEventsResult.Ready)?.tab == null && data.value.content is MyEventsResult.Ready
+        val restart = active && !aggregate
+        if(restart) stop()
+        saved["myEventsTab"] = next
+        if(!aggregate) mutable.value = MyEventsUiState(content=tabs[next],loading=tabs[next] == null)
+        if(restart) start()
+    }
     fun refresh() {
         if (!active || read?.isActive == true) return
         val generation = owner; mutable.value = data.value.copy(refreshing = !data.value.loading)
         val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
-            try { events.refreshMyEvents() }
+            try { events.refreshMyEvents(MyEventsTab.entries[tab.value]) }
             finally { if (generation == owner) mutable.value = data.value.copy(loading = false, refreshing = false) }
         }
         read = job; job.start()
@@ -71,7 +84,7 @@ fun MyEventsRoute(onCreate: () -> Unit, onDraft: (String) -> Unit, onEdit: (Stri
     } }
     MyEventsScreen(data.content, tab, vm::select, vm::refresh, onCreate, onDraft, onEdit, onOpen, { id ->
         (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
-            .setPrimaryClip(android.content.ClipData.newPlainText("EventPass", "eventpass-demo://demo/e/$id")); copied = true
+            .setPrimaryClip(android.content.ClipData.newPlainText("EventPass", if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") "https://staging.eventpass.dikanskii.ru/e/$id" else "eventpass-demo://demo/e/$id")); copied = true
     }, copied, data.error, onScan, onVolunteers, onDashboard, data.refreshing, visible && !data.loading)
 }
 @Composable
@@ -84,8 +97,12 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
     AuthColumn(Modifier.testTag("root-Events")) {
         Text(stringResource(R.string.events_title), style = EventPassTypography.heading)
         EventPassButton(stringResource(R.string.editor_new), create, Modifier.testTag("create-event"))
-        SegmentedTabs(listOf(SegmentOption(stringResource(R.string.my_organizing)), SegmentOption(stringResource(R.string.my_volunteering)),
-            SegmentOption(stringResource(R.string.my_drafts))), tab, select)
+        val options=listOf(R.string.my_organizing,R.string.my_volunteering,R.string.my_drafts).mapIndexed { index,title ->
+            val label=stringResource(title)
+            val count=(data as? MyEventsResult.Ready)?.counters?.get(MyEventsTab.entries[index])
+            SegmentOption(if(count == null) label else stringResource(R.string.my_events_tab_count,label,count))
+        }
+        SegmentedTabs(options, tab, select)
         if (copied) Text(stringResource(R.string.editor_copied))
         readError?.let { InlineError(stringResource(editErrorResource(it))); TextAction(stringResource(R.string.ticket_retry), refresh) }
         when (data) {
@@ -95,7 +112,23 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
                 TextAction(stringResource(R.string.ticket_retry), refresh)
             }
             is MyEventsResult.Ready -> {
-                if (tab == 2) {
+                if(data.tab != null) {
+                    if(data.items.isEmpty()) Text(stringResource(R.string.my_empty))
+                    data.items.forEach { item -> EventPassSection {
+                        Text(item.title.ifBlank { stringResource(R.string.editor_untitled) },style=EventPassTypography.emphasis)
+                        item.startsAt?.let { Text(formatEventTime(it,"Europe/Moscow")) }
+                        Text(item.location)
+                        if(item.status == EventLifecycle.DRAFT) {
+                            TextAction(stringResource(R.string.editor_continue),{draft(item.id.value)})
+                        } else {
+                            TextAction(stringResource(R.string.editor_open),{open(item.slug.value)})
+                            if(data.tab == MyEventsTab.ORGANIZING && "organizer" in data.roles) {
+                                TextAction(stringResource(R.string.editor_edit),{edit(item.id.value)})
+                                TextAction(stringResource(R.string.editor_copy),{copyLink(item.slug.value)})
+                            }
+                        }
+                    } }
+                } else if (tab == 2) {
                     if (data.drafts.isEmpty()) Text(stringResource(R.string.my_empty))
                     data.drafts.forEach { d -> EventPassSection {
                         Text(d.fields.title.ifBlank { stringResource(R.string.editor_untitled) }, style = EventPassTypography.emphasis)

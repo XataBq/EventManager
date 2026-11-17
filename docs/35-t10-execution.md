@@ -1,6 +1,6 @@
 # T10: последовательное исполнение и передача контекста
 
-**16 ноября — M03 IMPLEMENTED / REVIEW_PENDING.** Подключены remote guest/auth registration, idempotent retry, server ticket scopes/card/cancel и PDF/SAF; demo guest теперь создаёт passwordless account без session. M03 запущен прямой командой пользователя; M02 fix-review остаётся отдельным открытым пунктом. Субагенты не использовались, ручная приёмка после M09. [Отчёт M03](validation/t10-m03-implementation.md).
+**17 ноября — M04 IMPLEMENTED/REVIEW_PENDING, M03 TECH_ACCEPTED.** Пользователь подтвердил повторное ревью `cec5520` без замечаний: [свидетельство](validation/t10-m03-user-review-confirmation.md). Реализованы online редактор/drafts, per-tab MyEvents и upload/attach обложки на общих ports. [Текущая архитектура M04](architecture/t10-editor-covers.md), [проверки и границы](validation/t10-m04-implementation.md). Новые APK не собираются; code23 не содержит M04. M02 fix-review открыт, M05–M09 TODO; ручная приёмка после M09.
 
 С 15 ноября 2026 по прямому решению пользователя **субагенты запрещены**, включая помощников реализации и ревьюеров. Разрешение на делегирование от 13 ноября отменено. Этапы M00–M09 и архитектурные критерии [34](34-api-migration-plan.md) сохранены; ручная проверка остаётся только в конце. Историческая передача M02 15 ноября: [handoff](validation/t10-m02-handoff-2026-11-15.md), [промпт](prompts/t10-m02-resume-single-agent.md).
 
@@ -45,8 +45,9 @@ CODE_REVIEW.md: дата, M, base/target commit или точный манифе
 | M00 | TECH_ACCEPTED | aa5050f; m00_review: NO_CONFIRMED_FINDINGS, CODE_REVIEW.md:1830 | 48 методов/12 портов/33 операции; исходники не менялись |
 | M01 | TECH_ACCEPTED | 918f78e + fix4091c97; повторное m00_review CODE_REVIEW.md:1912: NO_CONFIRMED_FINDINGS | Legacy email P2 закрыта; текущий demo APK hash в fix report, remote hash прежний; human не закрыт |
 | M02 | FIX_REVIEW_PENDING | Реализация на базе a24da31/переданного 8448db9; [отчёт](validation/t10-m02-implementation.md), [архитектура](architecture/t10-public-event.md) | Повторное ревью fix a5daf87 остаётся открытым; M03 начат по прямой команде 16 ноября |
-| M03 | FIX_REVIEW_PENDING | CHANGES_REQUESTED на 3277e90; две P2 исправлены, [отчёт исправлений](validation/t10-m03-p2-fixes.md) | Повторное последовательное ревью; APK не пересобирались по указанию пользователя, human после M09 |
-| M04–M09 | TODO | Не запускались | После технического принятия M03 |
+| M03 | TECH_ACCEPTED | Исправления cec5520; [пользователь подтвердил повторное ревью](validation/t10-m03-user-review-confirmation.md) 17 ноября | Замечаний нет; CODE_REVIEW не дописывался автором, human после M09 |
+| M04 | REVIEW_PENDING | Online editor/drafts/MyEvents/covers; [отчёт](validation/t10-m04-implementation.md) | Проверки и отдельное ревью M04, без APK |
+| M05–M09 | TODO | Не запускались | После gate M04 |
 
 Все H-проверки нового remote и непроверенный новый T09a UX ожидают единой финальной приёмки. Обновление этого журнала не закрывает их автоматически.
 

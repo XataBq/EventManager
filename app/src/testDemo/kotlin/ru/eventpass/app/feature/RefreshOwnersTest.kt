@@ -55,6 +55,8 @@ class RefreshOwnersTest {
         val values=MutableStateFlow(e.events.observeMyEvents().first());val replies=mutableListOf<Continuation<Unit>>();var calls=0
         val repo=object: EventRepository by e.events {
             override fun observeMyEvents()=values
+            override fun observeMyEvents(tab:MyEventsTab)=values
+            override suspend fun refreshMyEvents(tab:MyEventsTab)=refreshMyEvents()
             override suspend fun refreshMyEvents() {calls++;suspendCoroutine<Unit>{replies+=it}}
             override suspend fun refreshPublicEvent(reference: PublicEventReference)=error("Hidden public read")
         }

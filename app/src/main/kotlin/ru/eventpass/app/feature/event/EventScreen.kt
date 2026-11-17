@@ -99,7 +99,7 @@ fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTi
         if (state.fullscreen) FullscreenTicketQr(receipt.ticket.qrPayload, receipt.ticket.displayNumber) { vm.fullscreen(false) }
     } else EventScreen(eventId, state, vm::edit, vm::submit, vm::refresh, { vm.openOwnTicket() }, {
         val email = state.form.email; vm.leaveForm(); onAuth(email, false, true)
-    }, cover = { cover -> ru.eventpass.app.feature.editor.ManagedCover(cover) }, visible = visible)
+    }, cover = { cover -> ru.eventpass.app.feature.editor.ManagedCover(cover,state.data?.event?.remoteCoverAssetId) }, visible = visible)
 }
 
 @Composable

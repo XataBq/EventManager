@@ -20,7 +20,7 @@ data class DraftQuestion(
 )
 
 /** Opaque app-owned asset ID, never an arbitrary file path/URI or image bytes. */
-data class EventCover(val assetId: String, val mimeType: String, val byteCount: Long) {
+data class EventCover(val assetId: String, val mimeType: String, val byteCount: Long, val remoteAssetId: String? = null) {
     init {
         require(assetId.matches(Regex("[a-zA-Z0-9_-]{1,80}")))
         require(mimeType in setOf("image/jpeg", "image/png"))
@@ -45,7 +45,7 @@ data class EventFields(
 )
 
 data class EventDraft(
-    val id: DraftId, val ownerId: UserId, val revision: Long, val fields: EventFields,
+    val id: DraftId, val ownerId: UserId, val revision: Long?, val fields: EventFields,
     /** Retained privately as the idempotent publication receipt; excluded from the drafts list. */
     val publishedEventId: EventId? = null,
 )
@@ -56,11 +56,19 @@ sealed interface EventEditorTarget {
 }
 sealed interface EventEditorResult {
     data class Draft(val draft: EventDraft) : EventEditorResult
-    data class Published(val event: Event, val questionsLocked: Boolean, val now: Instant) : EventEditorResult
+    data class Published(val event: Event, val questionsLocked: Boolean, val now: Instant,
+        val terminal: Boolean = event.statusAt(now) in setOf(EventLifecycle.FINISHED,EventLifecycle.CANCELLED)) : EventEditorResult
     data class Failed(val error: EventEditError) : EventEditorResult
 }
+enum class MyEventsTab { ORGANIZING, VOLUNTEERING, DRAFTS }
+/** Server summary is deliberately not a full Event. Nullable draft fields remain nullable. */
+data class MyEventSummary(val id: EventId, val slug: EventSlug, val title: String, val status: EventLifecycle,
+    val startsAt: Instant?, val endsAt: Instant?, val effectiveEndsAt: Instant?, val finishedAt: Instant?,
+    val location: String, val capacity: Int?, val registeredCount: Int, val checkedInCount: Int)
 sealed interface MyEventsResult {
-    data class Ready(val organizing: List<Event>, val volunteering: List<Event>, val drafts: List<EventDraft>, val now: Instant) : MyEventsResult
+    data class Ready(val organizing: List<Event>, val volunteering: List<Event>, val drafts: List<EventDraft>, val now: Instant,
+        val tab: MyEventsTab? = null, val items: List<MyEventSummary> = emptyList(),
+        val roles: Set<String> = emptySet(), val counters: Map<MyEventsTab, Int> = emptyMap()) : MyEventsResult
     data class Failed(val error: EventEditError) : MyEventsResult
 }
 sealed interface EventEditResult<out T> {
@@ -68,6 +76,7 @@ sealed interface EventEditResult<out T> {
     data class Failed(val error: EventEditError) : EventEditResult<Nothing>
 }
 sealed interface EventEditError {
+    data class RateLimited(val retryAt: Instant) : EventEditError
     data object Protocol : EventEditError
     data object ServerUnavailable : EventEditError
     data object FeatureUnavailable : EventEditError

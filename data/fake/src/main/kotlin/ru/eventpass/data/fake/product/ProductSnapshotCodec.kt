@@ -43,7 +43,7 @@ internal object ProductSnapshotCodec {
                 out.text(s.displayNumber); out.text(s.qrPayload); out.text(s.manualCode.value)
             }
             out.writeInt(state.grants.size); state.grants.forEach { out.text(it.eventId.value); out.text(it.userId.value); out.writeBoolean(it.active) }
-            out.writeInt(state.drafts.size); state.drafts.values.forEach { d -> out.text(d.id.value); out.text(d.ownerId.value); out.writeLong(d.revision); out.nullText(d.publishedEventId?.value); out.fields(d.fields) }
+            out.writeInt(state.drafts.size); state.drafts.values.forEach { d -> out.text(d.id.value); out.text(d.ownerId.value); out.writeLong(requireNotNull(d.revision)); out.nullText(d.publishedEventId?.value); out.fields(d.fields) }
             out.writeInt(state.checkIns.size); state.checkIns.forEach { c -> out.text(c.id); out.text(c.eventId.value); out.text(c.ticketId.value); out.text(c.checkerId.value); out.text(c.checkedAt.toString()); out.text(c.attendeeName); out.text(c.displayNumber) }
             out.writeInt(state.profileDetails.size); state.profileDetails.forEach { (id,p) -> out.text(id.value); out.nullText(p.phone); out.nullText(p.organization); out.writeBoolean(p.notifications) }
         }
@@ -93,7 +93,7 @@ internal object ProductSnapshotCodec {
             require(tickets.map{it.snapshot.manualCode}.distinct().size==tickets.size)
             require(grants.all{it.userId in accounts && events.any{e->e.id==it.eventId}})
             require(grants.map{it.eventId to it.userId}.distinct().size==grants.size)
-            require(drafts.map{it.id}.distinct().size==drafts.size && drafts.all{it.ownerId in accounts && it.revision>0 && (it.publishedEventId==null || events.any{e->e.id==it.publishedEventId && e.ownerId==it.ownerId})})
+            require(drafts.map{it.id}.distinct().size==drafts.size && drafts.all{it.ownerId in accounts && (it.revision ?: 0)>0 && (it.publishedEventId==null || events.any{e->e.id==it.publishedEventId && e.ownerId==it.ownerId})})
             require(checkIns.map{it.id}.distinct().size==checkIns.size && checkIns.map{it.ticketId}.distinct().size==checkIns.size)
             require(checkIns.all{c->c.checkerId in accounts && tickets.any{it.snapshot.ticketId==c.ticketId && it.snapshot.eventId==c.eventId && it.status==TicketStatus.USED}})
             return seed.copy(accounts=accounts,auth=auth,events=events.associateBy{it.id},registrations=registrations,tickets=tickets,grants=grants,drafts=drafts.associateBy{it.id},checkIns=checkIns,profileDetails=profiles,policy=policy,nextId=nextId)

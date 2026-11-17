@@ -19,12 +19,16 @@ interface EventRepository {
     fun observePublicEvent(eventId: EventId): Flow<PublicEventResult> = observePublicEvent(PublicEventReference.Internal(eventId))
     suspend fun refreshPublicEvent(eventId: EventId) = refreshPublicEvent(PublicEventReference.Internal(eventId))
     fun observeMyEvents(): Flow<MyEventsResult>
+    fun observeMyEvents(tab: MyEventsTab): Flow<MyEventsResult> = observeMyEvents()
+    suspend fun refreshMyEvents(tab: MyEventsTab) = refreshMyEvents()
+    suspend fun refreshEditor(target: EventEditorTarget) = refreshMyEvents()
+    fun beginDraft(id: DraftId) {}
     fun observeEditor(target: EventEditorTarget): Flow<EventEditorResult>
     suspend fun refreshMyEvents()
     suspend fun saveDraft(id: DraftId, expectedRevision: Long?, fields: EventFields): EventEditResult<EventDraft>
-    suspend fun publishDraft(id: DraftId, expectedRevision: Long): EventEditResult<EventId>
-    suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedLocalSchemaRevision: Int?, fields: EventFields): EventEditResult<Event>
-    suspend fun finishEvent(id: EventId, expectedRevision: Long): EventEditResult<Event>
+    suspend fun publishDraft(id: DraftId, expectedRevision: Long?): EventEditResult<EventId>
+    suspend fun updateEvent(id: EventId, expectedRevision: Long?, expectedLocalSchemaRevision: Int?, fields: EventFields): EventEditResult<Event>
+    suspend fun finishEvent(id: EventId, expectedRevision: Long?): EventEditResult<Event>
 }
 
 interface RegistrationRepository {

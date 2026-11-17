@@ -1,6 +1,6 @@
 # T10: сравнение, миграция правил и интеграция API
 
-**16 ноября — M03 FIX_REVIEW_PENDING.** После CHANGES_REQUESTED на `3277e90` исправлены две P2: replay неопределённой регистрации после изменения анкеты и попадание own-карточки вне scope в server list. [Исправления и проверки](validation/t10-m03-p2-fixes.md), [реализация M03](validation/t10-m03-implementation.md), [текущая архитектура](architecture/t10-registration-tickets.md). Новые APK по указанию пользователя не собираются; code23 не содержит этих исправлений. Следующий шаг — повторное независимое ревью M03. M02 fix-review открыт, M04–M09 TODO, ручная приёмка после M09.
+**17 ноября — M04 IMPLEMENTED/REVIEW_PENDING, M03 TECH_ACCEPTED.** Пользователь подтвердил повторное ревью `cec5520` без замечаний: [свидетельство](validation/t10-m03-user-review-confirmation.md). Реализованы online редактор/drafts, per-tab MyEvents и upload/attach обложки на общих ports. [Текущая архитектура M04](architecture/t10-editor-covers.md), [проверки и границы](validation/t10-m04-implementation.md). Новые APK не собираются; code23 не содержит M04. M02 fix-review открыт, M05–M09 TODO; ручная приёмка после M09.
 
 Основание: Android `0493dbd2e328796cd963689cc25cf3d4d2bd40e1` плюс существующие незакоммиченные документы; backend `def65653b9e1f22dce8bc2d6f266b23ace6cd1d5`, OpenAPI/staging 1.1.1. Согласованные правила — [08](08-decisions.md), задание backend — [32](32-backend-final-requirements.md), проверка сервера — [33](33-backend-update-2026-11-13.md). Старое предложение 44 URL и B01–B08 не отменяют более поздних решений пользователя.
 
@@ -93,7 +93,7 @@ Domain document port допускает server download и demo generation бе�
 
 ## 4. Последовательность этапов
 
-Текущий срез: M00/M01 TECH_ACCEPTED, M02 FIX_REVIEW_PENDING, M03 FIX_REVIEW_PENDING после исправления двух P2 ревью 3277e90, M04–M09 TODO. В каждой строке обязательны отдельный завершённый diff, релевантные проверки, обновление текущих страниц и ревью. Коммит фиксировать перед ревью, рабочую базу/посторонние изменения явно перечислить; не коммитить весь текущий dirty tree автоматически. Push не входит в план без команды.
+Текущий срез: M00/M01 TECH_ACCEPTED, M02 FIX_REVIEW_PENDING, M03 TECH_ACCEPTED по подтверждению пользователя 17 ноября, M04 IMPLEMENTED/REVIEW_PENDING, M05–M09 TODO. В каждой строке обязательны отдельный завершённый diff, релевантные проверки, обновление текущих страниц и ревью. Коммит фиксировать перед ревью, рабочую базу/посторонние изменения явно перечислить; не коммитить весь текущий dirty tree автоматически. Push не входит в план без команды.
 
 | Этап | Цельный результат / область | Минимальные доказательства выхода |
 |---|---|---|
@@ -160,3 +160,7 @@ M00 актуализирует инструкции и [mapping](api/migration-m
 TicketEvent не содержит organizerId/questions/permissions: введён TicketEventSummary, регистрационный ID remote отсутствует (null), OwnTicketResult не требует фиктивного Event. Server scope/counters/status определяют группировку и QR; client clock применяется только к demo Event. DocumentSnapshot.Remote содержит transient DocumentSource; bounded PDF bytes существуют только внутри data-download, platform пишет private temporary и затем SAF с повторными owner checks. Не сериализовать источник или токены. Guest capability — только текущий receipt owner. Подробности/ответственность — [M03](architecture/t10-registration-tickets.md).
 
 Прямое поручение пользователя 16 ноября «приступай к м03» отменило ожидание повторного M02 fix-review для этого запуска. Это не подтверждение приёмки M02, не отмена последующего ревью M03 и не разрешение агенту закрыть ручные H-пункты.
+
+### ADR-T10-09: online owner projection и явный retry (M04, 17 ноября)
+
+Server MyEvents возвращает typed summary только выбранного tab; nullable draft не превращается в выдуманный published Event. Remote revision/preconditions отсутствуют (null), terminal задаёт серверный read. Editor VM хранит pending create body в памяти, saved state — только marker/local ID/подтверждённый server ID. Adapter хранит ограниченный fingerprint/key/context/retention/cooldown; неизвестный create без тела после process loss не отправляется заново. PATCH включает лишь изменённые поля, null отличается от omission; uncertain PATCH/publish/finish требует read-сверки. Conditional write и durable offline merge не заявлены, остаются M05. RemoteCoverTransfer выполняет один upload с managed source и finally release, затем explicit attach/null detach; preview читает assetId через API origin без bearer на произвольный URL. [Текущие owners/ports/guards/tests](architecture/t10-editor-covers.md).

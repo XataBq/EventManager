@@ -1,6 +1,6 @@
 # Текущие порты, remote и fake storage
 
-M01–M03 реализованы за общими ports; M03 REVIEW_PENDING, M02 fix-review открыт. Remote registration/tickets/PDF работают с backend 1.1.1; M04–M09 пока FeatureUnavailable. [M03: новые projections, retry, PDF](architecture/t10-registration-tickets.md). Demo schema6 сохраняет passwordless accounts и старые credentials.
+M01–M04 работают за общими ports; M03 принят пользователем на `cec5520`, M04 IMPLEMENTED/REVIEW_PENDING. M02 fix-review открыт. Online редактор/неполные drafts, per-tab server MyEvents и обложки — [текущая архитектура M04](architecture/t10-editor-covers.md). M05–M09 остаются недоступными в remote; demo продолжает использовать общий fake/schema6. Ручная приёмка после M09, новых APK нет.
 
 ## Реализованные порты
 
@@ -85,7 +85,7 @@ AndroidFakeAuthStorage — синхронный adapter AtomicFile; вызыва
 
 DemoModule инъектирует auth DemoClock (system UTC + temporary offset) и event DemoEventClock (fixed fixture instant + отдельный offset). Это предотвращает зависимость демонстрационного E от даты запуска; offset не persist. Policy обязательно использует соответствующий Clock, а не случайный now устройства внутри UI/репозитория. Auth expiry refresh работает в STARTED; event/ticket reads обновляются соответствующим refresh.
 
-OpenDocument import немедленно копирует проверенные PNG/JPEG до 5 MiB в managed file. Domain хранит opaque EventCover. Preview sampled/EXIF на worker dispatcher. GC перед первым import нового процесса удаляет только unreferenced assets persisted records; при unhealthy snapshot пропускается. Это не atomic transaction вместе с snapshot, и несохранённая editor форма после process death не гарантируется.
+Demo OpenDocument import немедленно копирует проверенные PNG/JPEG до 5 MiB в managed file. Domain хранит opaque EventCover. Preview sampled/EXIF на worker dispatcher. GC перед первым import нового процесса удаляет только unreferenced assets persisted records; при unhealthy snapshot пропускается. Это не atomic transaction вместе с snapshot, и несохранённая editor форма после process death не гарантируется.
 
 Demo письмо — запись прежнего outbox, не настоящая рассылка. DocumentsRepository.resendTicket защищён own/current Active guard, auth generation и централизованным cooldown по auth Clock; retryAt возвращается UI, recipients не вводятся. PDF/XLSX генерируются platform adapter за DocumentFiles после авторизованного snapshot и проверок до передачи/после close; это реальные demo-документы, а серверная генерация/доставка — T10. Guest download/recovery не добавлены. [Точный путь](architecture/t09-profile-files.md).
 
@@ -114,13 +114,13 @@ Demo письмо — запись прежнего outbox, не настоящ�
 Debug ScenarioController умеет выбрать seed, сменить тестовую личность, изменить сетевой сценарий и воспроизвести внешнее событие (отзыв, проход другим пользователем). Не включать его в production release. Смена debug-личности не равна глобальному переключению роли.
 
 
-## Граница следующей миграции M03–M09
+## Граница оставшейся миграции M05–M09
 
-Backend 1.1.1 и решения 13 ноября приняты; [mapping](api/migration-mapping.md) и [34](34-api-migration-plan.md) задают остаток. M01 auth/profile и M02 public GET работают; remote registration/tickets/editor/scan/grants/attendance/files/delete ещё не реализованы и возвращают FeatureUnavailable. Demo product сценарии сохранены, guest пока без autoaccount, manual code и resend ещё старые до своих M. Room вводится в M05. Старые 22/OpenAPI v0.1.0 — история; они не определяют новый HTTP-клиент.
+Backend snapshot 1.1.1 и решения 13 ноября приняты; [mapping](api/migration-mapping.md) и [34](34-api-migration-plan.md) задают остаток. Remote M01–M04 auth/profile/public E/registration/tickets/PDF/online editor/MyEvents/covers реализованы. Offline drafts/Room — M05, scan/grants/attendance/profile mutations/XLSX/delete/resend cleanup — следующие M. Demo guest уже создаёт passwordless account без session и использует EVT display/manual code, legacy proofs сохранены; ticket resend остаётся demo-only до M08. Старые 22/OpenAPI v0.1.0 не определяют текущий HTTP.
 
 Реализованный независимый check-in: Active → Used, повтор AlreadyUsed, WrongEvent/Cancelled/Unknown → Invalid; связь/Timeout/Forbidden не Invalid/успех. Только после ответа repository можно разрешать проход. Offline admission не предусмотрен. Remote 24h idempotency/EVT-code приняты в 34, адаптация соответствующих команд — M03/M06; текущий demo manual credential отдельно от displayNumber/qrPayload. Сохранение/ошибки/владение state и ограничения — [независимая основа T07](architecture/t07-checkin-foundation.md). UI и CameraX/ZXing подключены к прежним портам; успешный JVM contract не означает допуск без ответа repository или production API.
 
-Продолжение: отдельное ревью M02 → закрытие находок → M03. Финальная человеческая проверка только после M09; локальные tests/optional live smoke не закрывают её.
+Продолжение: отдельное ревью M04 → gate M05; историческое M02 fix-review остаётся открытым. Финальная человеческая проверка только после M09; локальные tests/optional live smoke не закрывают её.
 
 История прежних контрактов — [архив](history/2026-10-30-architecture/README.md). При новом порте/snapshot изменить эту страницу и [операции/инварианты](architecture/operations.md) в том же изменении.
 
@@ -137,3 +137,7 @@ EventRepository.observe/refreshPublicEvent принимает Slug или явн
 TicketRepository имеет scope-aware observe/refresh overloads (upcoming/past), сохраняет server counters. Legacy no-arg методы для demo consumers остаются совместимыми. Ticket.summary — TicketEventSummary, не полный Event; registrationId remote=null. OwnTicketResult.Found.event nullable для server summary. Remote ticket metadata/guestAccess не persist в fake snapshot; ProductSnapshotCodec требует настоящий registrationId для fake записи.
 
 DocumentSnapshot.Remote/DocumentSource — transient PDF download; DocumentStamp.accountId=null только для живого guest capability request. AndroidDocumentFiles сохраняет источник через private temporary и SAF с generation/cancellation guards. Request/источник/bytes не сериализуются в VM; SavedState guest исключение содержит только компактный QR/capability текущего flow. [Подробные инварианты и ограничения](architecture/t10-registration-tickets.md).
+
+## M04: online owner editor и обложки
+
+EventRepository получил beginDraft, per-tab observe/refreshMyEvents и адресный refreshEditor. MyEventsResult.Ready содержит typed summary/items/tab/roles/counters; remote не создаёт Event из неполного summary. EventDraft.revision/expected versions nullable, remote null; fake codec пишет только положительные локальные версии без изменения schema6. RemoteOrganizerRepository обслуживает create/read/PATCH/publish/finish, immutable create fingerprint/key и read-сверку uncertain PATCH. CoverAssetReader/RemoteCoverTransfer разделяют managed local asset и server assetId; bounded multipart/GET не используют произвольный URL, локальный upload source освобождается в finally. [Модели, владельцы, операции и тесты](architecture/t10-editor-covers.md).

@@ -84,7 +84,7 @@ internal class FakeEventEditingOperations(
         }
     }
 
-    suspend fun publishDraft(id: DraftId, expectedRevision: Long): EventEditResult<EventId> = mutate { s, actor ->
+    suspend fun publishDraft(id: DraftId, expectedRevision: Long?): EventEditResult<EventId> = mutate { s, actor ->
         val draft = s.drafts[id] ?: return@mutate failure(s, EventEditError.NotFound)
         if (draft.ownerId != actor) return@mutate failure(s, EventEditError.Forbidden)
         if (draft.revision != expectedRevision) return@mutate failure(s, EventEditError.Conflict)
@@ -98,7 +98,7 @@ internal class FakeEventEditingOperations(
         s.copy(events = s.events + (eventId to event), drafts = s.drafts + (id to draft.copy(publishedEventId = eventId))) to EventEditResult.Saved(eventId)
     }
 
-    suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedLocalSchemaRevision: Int?, fields: EventFields): EventEditResult<Event> {
+    suspend fun updateEvent(id: EventId, expectedRevision: Long?, expectedLocalSchemaRevision: Int?, fields: EventFields): EventEditResult<Event> {
         val input = fields.detached()
         return changeEvent(id, expectedRevision) { s, event ->
             if (event.localSchemaRevision != expectedLocalSchemaRevision) return@changeEvent EventEditResult.Failed(EventEditError.StaleForm)
@@ -113,13 +113,13 @@ internal class FakeEventEditingOperations(
         }
     }
 
-    suspend fun finishEvent(id: EventId, expectedRevision: Long): EventEditResult<Event> = changeEvent(id, expectedRevision) { _, event ->
+    suspend fun finishEvent(id: EventId, expectedRevision: Long?): EventEditResult<Event> = changeEvent(id, expectedRevision) { _, event ->
         if (event.lifecycle == EventLifecycle.CANCELLED) EventEditResult.Failed(EventEditError.EventFinished)
         else EventEditResult.Saved(if (event.lifecycle == EventLifecycle.FINISHED) event else
             event.copy(lifecycle = EventLifecycle.FINISHED, finishedAt = clock.instant(), registrationOpen = false, revision = requireNotNull(event.revision) + 1))
     }
 
-    private suspend fun changeEvent(id: EventId, expectedRevision: Long,
+    private suspend fun changeEvent(id: EventId, expectedRevision: Long?,
         change: (FakeProductState, Event) -> EventEditResult<Event>): EventEditResult<Event> = mutate { s, actor ->
         val event = s.events[id] ?: return@mutate failure(s, EventEditError.NotFound)
         if (event.ownerId != actor) return@mutate failure(s, EventEditError.Forbidden)

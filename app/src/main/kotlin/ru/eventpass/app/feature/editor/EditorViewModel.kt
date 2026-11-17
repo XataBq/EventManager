@@ -1,6 +1,7 @@
 package ru.eventpass.app.feature.editor
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -52,22 +53,51 @@ data class EditorInput(val fields: EventFields = EventFields(), val start: Strin
 data class EditorState(val loading: Boolean = true, val allowed: Boolean = false, val input: EditorInput = EditorInput(),
     val busy: Boolean = false, val dirty: Boolean = false, val error: EventEditError? = null, val questionsLocked: Boolean = false,
     val terminal: Boolean = false, val saved: Boolean = false, val publishedId: String? = null,
-    val confirmExit: Boolean = false, val exit: Boolean = false, val coverError: CoverImportResult? = null)
+    val confirmExit: Boolean = false, val exit: Boolean = false, val coverError: CoverImportResult? = null,
+    val publicSlug: String? = null, val pendingCreate: Boolean = false, val refreshing: Boolean = false,
+    val recoveryRequired: Boolean = false)
 
 @HiltViewModel
-class EditorViewModel @Inject constructor(private val events: EventRepository, private val covers: CoverImporter) : ViewModel() {
+class EditorViewModel @Inject constructor(private val events: EventRepository, private val covers: CoverImporter,
+    private val savedState: SavedStateHandle) : ViewModel() {
     private val mutable = MutableStateFlow(EditorState()); val state = mutable.asStateFlow()
     private var observation: Job? = null; private var operation: Job? = null
+    private var read: Job? = null
     private var identity: String? = null; private var generation = 0L
     private var draftId: DraftId? = null; private var event: Event? = null; private var revision: Long? = null
+    private var target: EventEditorTarget? = null
+    private var creating = false
+    private var pendingFields: EventFields? = null
+    private var recoveryBlocked = false
+    private var readGeneration = 0L
+    private var publishedTarget = false
     fun bind(draft: String?, published: String?, create: Boolean) {
         val key = "$draft/$published/$create"; if (identity == key) return
-        leave(); identity = key; draftId = draft?.let(::DraftId); mutable.value = EditorState()
+        val previousDraft = savedState.get<String>("editorLocalDraft")
+        if((identity != null && identity != key) || (previousDraft != null && previousDraft != draft)) {
+            pendingFields=null; recoveryBlocked=false
+            savedState.remove<String>("editorServerDraft"); savedState.remove<Boolean>("editorCreatePending")
+        }
+        savedState["editorLocalDraft"] = draft
+        leave(); identity = key; draftId = (savedState.get<String>("editorServerDraft") ?: draft)?.let(::DraftId); mutable.value = EditorState()
         if ((draft == null) == (published == null) || !EventEditingPolicy.validId(draft ?: published.orEmpty())) {
             mutable.value = EditorState(loading = false, error = EventEditError.NotFound); return
         }
         val target = if (published != null) EventEditorTarget.Published(EventId(published)) else EventEditorTarget.Draft(draftId!!)
+        this.target = target; creating = create && savedState.get<String>("editorServerDraft") == null; publishedTarget = published != null
+        if (creating) events.beginDraft(draftId!!)
+        if (savedState.get<Boolean>("editorCreatePending") == true && pendingFields == null) {
+            recoveryBlocked = true
+            mutable.value = EditorState(loading = false, error = EventEditError.Conflict,recoveryRequired=true); return
+        }
+        resumeReading()
+    }
+    fun resumeReading() {
+        val target = target ?: return
+        if(recoveryBlocked || observation?.isActive == true) return
+        val token = ++readGeneration
         observation = viewModelScope.launch { events.observeEditor(target).collect { result ->
+            if(token != readGeneration) return@collect
             val old = mutable.value
             when (result) {
                 is EventEditorResult.Draft -> {
@@ -77,13 +107,14 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
                 is EventEditorResult.Published -> {
                     if (!old.dirty && !old.busy) { event = result.event; revision = result.event.revision; mutable.value = old.copy(input = EditorInput.from(result.event.toFields())) }
                     mutable.value = mutable.value.copy(loading = false, allowed = true, error = old.error?.takeUnless(::transient), questionsLocked = result.questionsLocked,
-                        terminal = EventEditingPolicy.updateError(result.event, result.event.toFields(), result.now, 0, false) == EventEditError.EventFinished,
-                        publishedId = if (published == null) result.event.id.value else old.publishedId)
+                        terminal = result.terminal,
+                        publicSlug = result.event.slug?.value,
+                        publishedId = if (!publishedTarget) result.event.id.value else old.publishedId)
                 }
                 is EventEditorResult.Failed -> {
                     if (old.allowed && transient(result.error)) {
                         mutable.value = old.copy(loading = false, error = result.error)
-                    } else if (create && result.error == EventEditError.NotFound && revision == null) {
+                    } else if (creating && result.error == EventEditError.NotFound && revision == null) {
                         mutable.value = old.copy(loading = false, allowed = true)
                     } else {
                         operation?.cancel(); generation++
@@ -93,32 +124,61 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
             }
         } }
     }
+    fun pauseReading(cancelOperation: Boolean = true) {
+        readGeneration++; observation?.cancel(); read?.cancel()
+        mutable.value = mutable.value.copy(refreshing=false)
+        if(cancelOperation) {
+            generation++; operation?.cancel()
+            mutable.value = mutable.value.copy(busy=false,pendingCreate=pendingFields != null)
+        }
+    }
     fun edit(input: EditorInput) {
         val s = mutable.value
-        if (!s.allowed || s.busy || s.terminal || s.publishedId != null) return
-        val fields = if (s.questionsLocked) input.fields.copy(questions = s.input.fields.questions) else input.fields
+        if (!s.allowed || s.busy || s.terminal || s.publishedId != null || s.pendingCreate) return
+        var fields = if (s.questionsLocked) input.fields.copy(questions = s.input.fields.questions) else input.fields
+        if(s.input.fields.cover != null && fields.cover == null) fields = fields.copy(remoteCoverAssetId = null,remoteCoverUrl = null)
         mutable.value = s.copy(input = input.copy(fields = fields), dirty = true, error = null, saved = false, coverError = null)
     }
-    fun refresh() { viewModelScope.launch { events.refreshMyEvents() } }
+    fun refresh() {
+        val resource = target ?: return
+        if(observation?.isActive != true || read?.isActive == true || state.value.busy) return
+        val token=readGeneration
+        mutable.value=mutable.value.copy(refreshing=true)
+        val job=viewModelScope.launch(start=kotlinx.coroutines.CoroutineStart.LAZY) {
+            try { events.refreshEditor(resource) }
+            finally { if(token == readGeneration) mutable.value=mutable.value.copy(refreshing=false) }
+        }
+        read=job;job.start()
+    }
     fun requestBack() { if (!mutable.value.busy) mutable.value = mutable.value.copy(confirmExit = mutable.value.dirty, exit = !mutable.value.dirty) }
     fun stay() { mutable.value = mutable.value.copy(confirmExit = false) }
     fun discard() { generation++; operation?.cancel(); mutable.value = mutable.value.copy(exit = true, busy = false, confirmExit = false) }
     fun save(publish: Boolean = false, exit: Boolean = false) {
         val s = mutable.value
         if (!s.allowed || s.busy || s.terminal || s.publishedId != null) return
-        val (fields, errors) = s.input.resolved()
+        val (inputFields, errors) = s.input.resolved()
+        val fields = pendingFields ?: inputFields
         if (errors.isNotEmpty()) { mutable.value = s.copy(error = EventEditError.Validation(errors)); return }
         runOperation {
             val existing = event
             if (existing != null) {
-                when (val result = current { events.updateEvent(existing.id, requireNotNull(revision), existing.localSchemaRevision, fields) }) {
+                when (val result = current { events.updateEvent(existing.id, revision, existing.localSchemaRevision, fields) }) {
                     is EventEditResult.Failed -> fail(result.error)
                     is EventEditResult.Saved -> { event = result.value; revision = result.value.revision; accepted(exit) }
                 }
             } else {
+                if (creating) { pendingFields = fields; savedState["editorCreatePending"] = true }
                 when (val saved = current { events.saveDraft(requireNotNull(draftId), revision, fields) }) {
-                    is EventEditResult.Failed -> fail(saved.error)
+                    is EventEditResult.Failed -> {
+                        val unknown = saved.error is EventEditError.RateLimited || saved.error in setOf(EventEditError.Network, EventEditError.Timeout, EventEditError.Protocol, EventEditError.ServerUnavailable)
+                        if (!unknown) { pendingFields = null; savedState.remove<Boolean>("editorCreatePending") }
+                        mutable.value = mutable.value.copy(pendingCreate = creating && unknown)
+                        fail(saved.error)
+                    }
                     is EventEditResult.Saved -> {
+                        savedState["editorServerDraft"] = saved.value.id.value
+                        creating = false; pendingFields = null; savedState.remove<Boolean>("editorCreatePending")
+                        mutable.value = mutable.value.copy(pendingCreate = false)
                         revision = saved.value.revision; accepted(false)
                         if (publish) when (val result = current { events.publishDraft(requireNotNull(draftId), saved.value.revision) }) {
                             is EventEditResult.Failed -> fail(result.error)
@@ -134,7 +194,7 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
         val existing = event ?: return
         runOperation {
             if (!finish) return@runOperation
-            val result = current { events.finishEvent(existing.id, requireNotNull(revision)) }
+            val result = current { events.finishEvent(existing.id, revision) }
             when (result) {
                 is EventEditResult.Failed -> fail(result.error)
                 is EventEditResult.Saved -> { event = result.value; revision = result.value.revision; accepted(false) }
@@ -142,17 +202,22 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
         }
     }
     fun importCover(source: String) {
-        if (mutable.value.busy || !mutable.value.allowed || mutable.value.terminal) return
+        if (mutable.value.busy || !mutable.value.allowed || mutable.value.terminal || mutable.value.pendingCreate) return
         runOperation {
             when (val result = current { covers.importCover(source) }) {
                 is CoverImportResult.Imported -> mutable.value = mutable.value.copy(input = mutable.value.input.let {
-                    it.copy(fields = it.fields.copy(cover = result.cover)) }, dirty = true, saved = false, coverError = null)
+                    it.copy(fields = it.fields.copy(cover = result.cover,remoteCoverAssetId = result.cover.remoteAssetId)) }, dirty = true, saved = false, coverError = null)
                 else -> mutable.value = mutable.value.copy(coverError = result)
             }
         }
     }
     private fun accepted(exit: Boolean) { mutable.value = mutable.value.copy(dirty = false, saved = true, error = null, confirmExit = false, exit = exit) }
-    private fun fail(error: EventEditError) { mutable.value = mutable.value.copy(error = error, confirmExit = false) }
+    private fun fail(error: EventEditError) {
+        if(error in setOf(EventEditError.AuthenticationRequired,EventEditError.Forbidden,EventEditError.SessionChanged)) {
+            pendingFields=null; savedState.remove<Boolean>("editorCreatePending"); event=null; revision=null
+            mutable.value=EditorState(loading=false,error=error)
+        } else mutable.value = mutable.value.copy(error = error, confirmExit = false)
+    }
     private fun transient(error: EventEditError) = error in setOf(EventEditError.Network, EventEditError.Timeout, EventEditError.StorageUnavailable)
     private suspend fun <T> current(block: suspend () -> T): T {
         val token = generation
@@ -168,5 +233,5 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
             try { block() } finally { if (token == generation) mutable.value = mutable.value.copy(busy = false) }
         }
     }
-    fun leave() { generation++; observation?.cancel(); operation?.cancel(); identity = null; revision = null; event = null }
+    fun leave() { generation++; readGeneration++; observation?.cancel(); read?.cancel(); operation?.cancel(); identity = null; revision = null; event = null }
 }

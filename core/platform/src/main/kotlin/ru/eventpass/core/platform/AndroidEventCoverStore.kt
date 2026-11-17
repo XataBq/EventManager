@@ -14,8 +14,11 @@ import kotlinx.coroutines.withContext
 import ru.eventpass.core.domain.event.*
 
 /** Copies bounded content to private durable storage; no dependency on temporary URI grants. */
-interface EventCoverPreview { suspend fun preview(cover: EventCover): Bitmap? }
-class AndroidEventCoverStore(context: Context) : CoverImporter, EventCoverPreview {
+interface EventCoverPreview {
+    suspend fun preview(cover: EventCover): Bitmap?
+    suspend fun previewRemote(assetId: String): Bitmap? = null
+}
+class AndroidEventCoverStore(context: Context) : CoverImporter, EventCoverPreview, CoverAssetReader {
     private val resolver = context.applicationContext.contentResolver
     private val directory = File(context.noBackupFilesDir, "event-covers")
     suspend fun cleanupUnreferenced(retained: Set<String>) = withContext(Dispatchers.IO) {
@@ -63,6 +66,18 @@ class AndroidEventCoverStore(context: Context) : CoverImporter, EventCoverPrevie
         if (options.outWidth <= 0 || options.outHeight <= 0) return@withContext null
         val bitmap = BitmapFactory.decodeFile(source.path, BitmapFactory.Options().apply { inSampleSize = sampleSize(options.outWidth, options.outHeight) }) ?: return@withContext null
         val orientation = runCatching { android.media.ExifInterface(source.path).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 1) }.getOrDefault(1)
+        orient(bitmap,orientation)
+    }
+    suspend fun previewBytes(bytes: ByteArray): Bitmap? = withContext(Dispatchers.IO) {
+        if(bytes.size !in 1..5_242_880) return@withContext null
+        val bounds=BitmapFactory.Options().apply { inJustDecodeBounds=true }
+        BitmapFactory.decodeByteArray(bytes,0,bytes.size,bounds)
+        if(bounds.outWidth !in 1..32768 || bounds.outHeight !in 1..32768) return@withContext null
+        val bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.size,BitmapFactory.Options().apply { inSampleSize=sampleSize(bounds.outWidth,bounds.outHeight) }) ?: return@withContext null
+        val orientation=runCatching { bytes.inputStream().use { android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1) } }.getOrDefault(1)
+        orient(bitmap,orientation)
+    }
+    private fun orient(bitmap: Bitmap, orientation: Int): Bitmap {
         val matrix = android.graphics.Matrix().apply { when (orientation) {
             2 -> setScale(-1f, 1f)
             3 -> setRotate(180f)
@@ -72,9 +87,25 @@ class AndroidEventCoverStore(context: Context) : CoverImporter, EventCoverPrevie
             7 -> { setRotate(-90f); postScale(-1f, 1f) }
             8 -> setRotate(-90f)
         } }
-        if (matrix.isIdentity) bitmap else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true).also { if (it !== bitmap) bitmap.recycle() }
+        return if (matrix.isIdentity) bitmap else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true).also { if (it !== bitmap) bitmap.recycle() }
     }
     private fun file(cover: EventCover) = File(directory, "${cover.assetId}.image")
+    override suspend fun release(cover: EventCover) = withContext(Dispatchers.IO) { file(cover).delete(); Unit }
+    override suspend fun read(cover: EventCover): ByteArray? = withContext(Dispatchers.IO) {
+        val source = file(cover)
+        if(!source.isFile || source.length() != cover.byteCount || source.length() > 5_242_880) null
+        else source.inputStream().use { input ->
+            val output = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            while(output.size() <= 5_242_880) {
+                currentCoroutineContext().ensureActive()
+                val count = input.read(buffer,0,minOf(buffer.size,5_242_881-output.size()))
+                if(count < 0) break
+                output.write(buffer,0,count)
+            }
+            output.toByteArray().takeIf { it.size.toLong() == cover.byteCount }
+        }
+    }
     private fun sampleSize(width: Int, height: Int): Int {
         var sample = 1
         while (maxOf(width, height) / sample > 1024) sample *= 2

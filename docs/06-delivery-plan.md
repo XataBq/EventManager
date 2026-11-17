@@ -1,6 +1,6 @@
 # План разработки для агентов
 
-**16 ноября — M03 FIX_REVIEW_PENDING.** После CHANGES_REQUESTED на `3277e90` исправлены две P2: replay неопределённой регистрации после изменения анкеты и попадание own-карточки вне scope в server list. [Исправления и проверки](validation/t10-m03-p2-fixes.md), [реализация M03](validation/t10-m03-implementation.md), [текущая архитектура](architecture/t10-registration-tickets.md). Новые APK по указанию пользователя не собираются; code23 не содержит этих исправлений. Следующий шаг — повторное независимое ревью M03. M02 fix-review открыт, M04–M09 TODO, ручная приёмка после M09.
+**17 ноября — M04 IMPLEMENTED/REVIEW_PENDING, M03 TECH_ACCEPTED.** Пользователь подтвердил повторное ревью `cec5520` без замечаний: [свидетельство](validation/t10-m03-user-review-confirmation.md). Реализованы online редактор/drafts, per-tab MyEvents и upload/attach обложки на общих ports. [Текущая архитектура M04](architecture/t10-editor-covers.md), [проверки и границы](validation/t10-m04-implementation.md). Новые APK не собираются; code23 не содержит M04. M02 fix-review открыт, M05–M09 TODO; ручная приёмка после M09.
 
 **T09a — READY_FOR_HUMAN (7 ноября):** адресное обновление видимой поверхности жестом реализовано на code 20. 187 JVM / 26 device + 9 повторов с жестами, assemble/lint/DI/isolation прошли; [результаты и новый checklist](30-t09a-refresh-validation.md). Новый UX ждёт человека; предыдущая приёмка 6 ноября сохраняется, Q10/T10 отдельно.
 

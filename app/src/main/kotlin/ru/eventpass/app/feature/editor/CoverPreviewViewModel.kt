@@ -19,12 +19,13 @@ class CoverPreviewViewModel @Inject constructor(private val preview: EventCoverP
     val image = mutable.asStateFlow()
     private var cover: EventCover? = null
     private var job: Job? = null
-    fun bind(value: EventCover?) {
-        if (cover == value) return
-        cover = value; job?.cancel(); mutable.value = null
-        if (value != null) job = viewModelScope.launch {
-            val bitmap = preview.preview(value)
-            if (cover == value) mutable.value = bitmap?.asImageBitmap()
+    private var remote: String? = null
+    fun bind(value: EventCover?, serverId: String? = null) {
+        if (cover == value && remote == serverId) return
+        cover = value; remote = serverId; job?.cancel(); mutable.value = null
+        if (value != null || serverId != null) job = viewModelScope.launch {
+            val bitmap = if(value != null) preview.preview(value) else preview.previewRemote(serverId!!)
+            if (cover == value && remote == serverId) mutable.value = bitmap?.asImageBitmap()
         }
     }
 }

@@ -118,7 +118,7 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                         navigation.select(RootTab.Tickets)
                     }, navigation::back, visible = navigation.currentTab == tab && navigation.currentStack.lastOrNull() == route) }
                     entry<EditorKey> { route -> ru.eventpass.app.feature.editor.EditorRoute(route.draftId, route.eventId, route.create,
-                        navigation::back, navigation::openEvent, { editorBack = it }) }
+                        navigation::back, navigation::openEvent, { editorBack = it },visible=navigation.currentStack.lastOrNull() == route) }
                     entry<ScannerKey> { route -> ru.eventpass.app.feature.checkin.ScannerRoute(route.eventId,
                         navigation.currentTab == tab && navigation.currentStack.lastOrNull() == route,
                         navigation::back, ::denied, { scannerBack = it }) }

@@ -27,9 +27,9 @@ internal class FakeTicketOperations(
         override fun observeEditor(target: EventEditorTarget) = editing.observeEditor(target)
         override suspend fun refreshMyEvents() = editing.refreshMyEvents()
         override suspend fun saveDraft(id: DraftId, expectedRevision: Long?, fields: EventFields) = editing.saveDraft(id, expectedRevision, fields)
-        override suspend fun publishDraft(id: DraftId, expectedRevision: Long) = editing.publishDraft(id, expectedRevision)
-        override suspend fun updateEvent(id: EventId, expectedRevision: Long, expectedLocalSchemaRevision: Int?, fields: EventFields) = editing.updateEvent(id, expectedRevision, expectedLocalSchemaRevision, fields)
-        override suspend fun finishEvent(id: EventId, expectedRevision: Long) = editing.finishEvent(id, expectedRevision)
+        override suspend fun publishDraft(id: DraftId, expectedRevision: Long?) = editing.publishDraft(id, expectedRevision)
+        override suspend fun updateEvent(id: EventId, expectedRevision: Long?, expectedLocalSchemaRevision: Int?, fields: EventFields) = editing.updateEvent(id, expectedRevision, expectedLocalSchemaRevision, fields)
+        override suspend fun finishEvent(id: EventId, expectedRevision: Long?) = editing.finishEvent(id, expectedRevision)
         override fun observePublicEvent(reference: PublicEventReference): Flow<PublicEventResult> = initialized().map { s ->
             val event = when (reference) { is PublicEventReference.Internal -> s.events[reference.id]; is PublicEventReference.Slug -> s.events.values.singleOrNull { it.slug == reference.slug } }
             val eventId = event?.id

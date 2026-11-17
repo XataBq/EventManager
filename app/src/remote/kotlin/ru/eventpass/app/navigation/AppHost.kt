@@ -71,19 +71,29 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
  NavDisplay(backStack=stack,onBack={ if(stack.size>1) stack.removeLastOrNull() },
   entryDecorators=listOf(rememberSaveableStateHolderNavEntryDecorator(),rememberViewModelStoreNavEntryDecorator(viewModelStoreOwner=session.owner(RootTab.Profile))),
   entryProvider=entryProvider {
-   entry<RootTab> {
+   entry<RootTab> { root ->
+    if(root == RootTab.Events) ru.eventpass.app.feature.myevents.MyEventsRoute(
+     { stack.add(EditorKey(draftId=java.util.UUID.randomUUID().toString(),create=true)) },
+     { stack.add(EditorKey(draftId=it)) },{ stack.add(EditorKey(eventId=it)) },
+     { stack.add(EventKey("",publicSlug=it)) },{ stack.add(RemoteUnavailableKey) },
+     { stack.add(RemoteUnavailableKey) },{ stack.add(RemoteUnavailableKey) },visible=stack.lastOrNull() == root)
+    else {
     val vm: ProfileViewModel=hiltViewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     DisposableEffect(vm) { vm.start(); onDispose { vm.stop() } }
     AuthColumn {
      EventPassButton(stringResource(R.string.tickets_title), { stack.add(TicketKey()) })
+     EventPassButton(stringResource(R.string.events_title), { stack.add(RootTab.Events) })
      PublicEventImport { stack.add(EventKey("", publicSlug = it)) }
      Text(stringResource(R.string.remote_profile_readonly))
      state.profile?.let { Text(it.fields.name); Text(it.account.email); Text(stringResource(if(it.account.emailVerified) R.string.auth_email_verified_status else R.string.auth_email_unverified_status)) }
      TextAction(stringResource(R.string.auth_request_verification),{session.prefill(session.account?.email.orEmpty());stack.add(VerificationKey)})
      EventPassButton(stringResource(R.string.auth_logout_action),{session.signOut()})
     }
+    }
    }
+   entry<EditorKey> { key -> ru.eventpass.app.feature.editor.EditorRoute(key.draftId,key.eventId,key.create,
+    { stack.removeLastOrNull() },{ stack.add(EventKey("",publicSlug=it)) },{},visible=stack.lastOrNull() == key) }
    entry<EventKey> { key -> EventRoute(key.eventId, { _, _, _ -> stack.add(RemoteUnavailableKey) }, { stack.add(TicketKey(it)) }, { stack.removeLastOrNull() }, publicSlug = key.publicSlug, visible = stack.lastOrNull() == key) }
    entry<TicketKey> { key -> var initial by rememberSaveable { mutableStateOf(key.ticketId) }; TicketsRoute(initial, { initial = null }, { slug -> stack.add(EventKey("", publicSlug = slug)) }, {}, {}, {}, visible = stack.lastOrNull() == key) }
    entry<RemoteUnavailableKey> { AuthColumn { Text(stringResource(R.string.feature_unavailable)); TextAction(stringResource(R.string.dismiss),{stack.removeLastOrNull()}) } }

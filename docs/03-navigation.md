@@ -107,10 +107,14 @@ Scanner Result Back → ready, затем Back → прежний родител
 
 ## Обновление видимого экрана T09a
 
-Pull принадлежит текущей видимой entry: Tickets/list/card, MyEvents/выбранный сегмент, public Event текущего eventId, Dashboard/Volunteers того же E, Profile. Tickets/MyEvents/Event больше не запускают read из скрытого STARTED owner; host передаёт visible по tab + верхнему ключу, lifecycle — RESUMED. Обновление не меняет стек/parent/выбор/query. Fullscreen/confirmation блокируют underlying gesture; auth/editor/Scanner/guest receipt не получают reload. SAF pending при configuration change сохраняется по прежнему c75ce56. [Адресное обновление T09a](architecture/t09a-refresh.md).
+Pull принадлежит текущей видимой entry: Tickets/list/card, MyEvents/выбранный сегмент, public Event текущего eventId, Dashboard/Volunteers того же E, Profile. Tickets/MyEvents/Event больше не запускают read из скрытого STARTED owner; host передаёт visible по tab + верхнему ключу, lifecycle — RESUMED. Обновление не меняет стек/parent/выбор/query. Fullscreen/confirmation блокируют underlying gesture; auth/Scanner/guest receipt не получают reload; editor M04 обновляет только свой owner target. SAF pending при configuration change сохраняется по прежнему c75ce56. [Адресное обновление T09a](architecture/t09a-refresh.md).
 
 ## Публичный slug в M02
 
 Remote host открывает общий EventRoute через явный импорт HTTPS `/e/{slug}` с allowlist; OS App Links остаются отключены. EventKey/ReturnDestination хранят publicSlug отдельно от internal eventId, без raw URI/token. Remote public/internal references не подменяются друг другом. Observe/refresh только у visible + RESUMED entry; back/dispose останавливает read. Root safeDrawing/IME защищают новые public поверхности. Login возвращает только к безопасному publicSlug, не к сохранённой анкете и не к autosubmit. Private M01 scope уничтожает старые owners; remote own-ticket/action ведёт к TicketKey общего TicketsRoute (M03). Подробный lifetime и constraints — [M02 public E/schema6](architecture/t10-public-event.md).
 
 В M03 выбранная own-карточка может отсутствовать в server scope списка. Она хранится отдельно от server items/counters; Back карточки очищает selection/selectedCard, не добавляя билет в исходный список. Восстановленный ticketSelection запускает собственный observer до ответа списка. Данные QR и status берутся из карточки с её event/now, а не из соседнего списка. [Владельцы и операции](architecture/t10-registration-tickets.md).
+
+## M04: remote MyEvents и EditorKey
+
+Remote shell открывает общий MyEventsRoute и EditorRoute; новые draft identities локальны до подтверждённого create. После успеха server draft ID хранится как safe metadata текущей entry, неизвестный create после process loss не отправляется заново. Copy/share/open используют HTTPS `/e/{slug}`. Visible + RESUMED ограничивает editor/list reads; dirty input и Back save/discard/stay сохраняются через Activity recreation. Pull editor адресует только свой event/draft. [Модель и lifecycle M04](architecture/t10-editor-covers.md).

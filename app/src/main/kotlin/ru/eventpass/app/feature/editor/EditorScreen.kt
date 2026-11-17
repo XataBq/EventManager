@@ -37,6 +37,7 @@ import ru.eventpass.core.domain.registration.RegistrationQuestion
 import java.util.UUID
 
 fun editErrorResource(error: EventEditError): Int = when (error) {
+    is EventEditError.RateLimited -> R.string.auth_cooldown
     EventEditError.FeatureUnavailable -> R.string.feature_unavailable
     is EventEditError.Validation -> R.string.editor_invalid
     EventEditError.Conflict, EventEditError.StaleForm -> R.string.editor_conflict
@@ -54,10 +55,10 @@ fun editErrorResource(error: EventEditError): Int = when (error) {
 }
 
 @Composable
-fun ManagedCover(cover: EventCover?) {
+fun ManagedCover(cover: EventCover?, serverId: String? = null) {
     val vm: CoverPreviewViewModel = hiltViewModel()
     val preview by vm.image.collectAsStateWithLifecycle()
-    LaunchedEffect(cover) { vm.bind(cover) }
+    LaunchedEffect(cover,serverId) { vm.bind(cover,serverId) }
     Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(EventPassShapes.section).background(EventPassColors.surface), contentAlignment = Alignment.Center) {
         val bitmap = preview
         if (bitmap != null) Image(bitmap, stringResource(R.string.event_cover), Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -67,27 +68,31 @@ fun ManagedCover(cover: EventCover?) {
 
 @Composable
 fun EditorRoute(draftId: String?, eventId: String?, create: Boolean, onBack: () -> Unit, onOpen: (String) -> Unit,
-    registerBack: ((() -> Unit)?) -> Unit) {
+    registerBack: ((() -> Unit)?) -> Unit, visible: Boolean = true) {
     val vm: EditorViewModel = hiltViewModel()
     val s by vm.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val activity = androidx.activity.compose.LocalActivity.current
     LaunchedEffect(draftId, eventId, create) { vm.bind(draftId, eventId, create) }
-    LaunchedEffect(lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.refresh() } }
+    LaunchedEffect(lifecycle,visible) { if(visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+        vm.resumeReading()
+        try { kotlinx.coroutines.awaitCancellation() } finally { vm.pauseReading(activity?.isChangingConfigurations != true) }
+    } }
     DisposableEffect(vm) { registerBack(vm::requestBack); onDispose { registerBack(null) } }
-    BackHandler { vm.requestBack() }
+    BackHandler(enabled=visible) { vm.requestBack() }
     LaunchedEffect(s.exit) { if (s.exit) onBack() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) vm.importCover(uri.toString()) }
     val context = LocalContext.current
     var shared by remember { mutableStateOf(false) }
     val shareTitle = stringResource(R.string.editor_share)
-    val link = s.publishedId?.let { "eventpass-demo://demo/e/$it" }
-    if (link != null) PublishedScreen(link, shared, { onOpen(s.publishedId!!) }, {
+    val link = s.publishedId?.let { if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") s.publicSlug?.let { slug -> "https://staging.eventpass.dikanskii.ru/e/$slug" } else "eventpass-demo://demo/e/$it" }
+    if (link != null) PublishedScreen(link, shared, { onOpen(if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") s.publicSlug!! else s.publishedId!!) }, {
         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("EventPass", link)); shared = true
     }, {
         val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, link) }
         context.startActivity(Intent.createChooser(send, shareTitle))
     }) else EditorScreen(s, eventId != null, vm::edit, { vm.save() }, { vm.save(publish = true) },
-        { picker.launch(arrayOf("image/png", "image/jpeg")) }, vm::refresh, vm::manage, { ManagedCover(s.input.fields.cover) })
+        { picker.launch(arrayOf("image/png", "image/jpeg")) }, vm::refresh, vm::manage, { ManagedCover(s.input.fields.cover,s.input.fields.remoteCoverAssetId) },refreshEnabled=visible)
     if (s.confirmExit) AlertDialog(onDismissRequest = vm::stay,
         title = { Text(stringResource(R.string.editor_unsaved)) },
         text = { Text(stringResource(R.string.editor_unsaved_hint)) },
@@ -112,18 +117,23 @@ fun PublishedScreen(link: String, copied: Boolean, onOpen: () -> Unit, onCopy: (
 
 @Composable
 fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Unit, onSave: () -> Unit, onPublish: () -> Unit,
-    onCover: () -> Unit, onRefresh: () -> Unit, onManage: (Boolean) -> Unit, cover: @Composable () -> Unit) {
+    onCover: () -> Unit, onRefresh: () -> Unit, onManage: (Boolean) -> Unit, cover: @Composable () -> Unit, refreshEnabled: Boolean = true) {
+    EventPassRefresh(s.refreshing,onRefresh,Modifier.testTag("refresh-editor"),enabled=refreshEnabled && s.allowed && !s.busy && !s.pendingCreate && !s.confirmExit) {
     AuthColumn(Modifier.semantics { testTagsAsResourceId = true }.testTag("editor-screen")) {
         Text(stringResource(if (published) R.string.editor_edit else R.string.editor_new), style = EventPassTypography.heading)
         if (s.loading) Text(stringResource(R.string.loading))
         s.error?.let { InlineError(stringResource(editErrorResource(it))) }
+        if(s.recoveryRequired) Text(stringResource(R.string.editor_recovery_required))
         if (s.error != null) TextAction(stringResource(R.string.ticket_retry), onRefresh)
         if (!s.allowed) return@AuthColumn
+        if(s.pendingCreate) Text(stringResource(R.string.editor_pending_create))
         val input = s.input; val fields = input.fields; val enabled = !s.busy && !s.terminal
         fun change(f: EventFields) = onEdit(input.copy(fields = f))
         cover()
         EventPassButton(stringResource(R.string.editor_cover), onCover, enabled = enabled, style = ActionStyle.Secondary)
-        if (fields.cover != null) TextAction(stringResource(R.string.editor_remove_cover), { change(fields.copy(cover = null)) }, enabled = enabled)
+        if (fields.cover != null || fields.remoteCoverAssetId != null) TextAction(stringResource(R.string.editor_remove_cover), { change(fields.copy(cover = null,remoteCoverAssetId = null,remoteCoverUrl = null)) }, enabled = enabled)
+        SegmentedTabs(listOf(SegmentOption(stringResource(R.string.editor_free)),SegmentOption(stringResource(R.string.editor_paid))),if(fields.priceType == PriceType.FREE) 0 else 1,
+            { if(enabled) change(fields.copy(priceType=if(it == 0) PriceType.FREE else PriceType.PAID)) })
         s.coverError?.let { InlineError(stringResource(when (it) {
             CoverImportResult.TooLarge -> R.string.editor_cover_large
             CoverImportResult.InvalidImage -> R.string.editor_cover_invalid
@@ -169,6 +179,8 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
             EventPassButton(stringResource(R.string.editor_finish), { onManage(true) }, Modifier.testTag("finish-event"), enabled = enabled && !s.dirty, style = ActionStyle.Danger)
         }
     }
+}
+
 }
 
 fun questionKindResource(kind: QuestionKind) = when (kind) {

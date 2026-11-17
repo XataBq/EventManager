@@ -22,7 +22,7 @@ class EditorViewModelTest {
     @Test fun explicitSaveIncompleteReloadAndPublishKeepsStableReceipt() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
-        val vm = EditorViewModel(e.events, covers); val second = EditorViewModel(e.events, covers)
+        val vm = EditorViewModel(e.events,covers,androidx.lifecycle.SavedStateHandle()); val second = EditorViewModel(e.events,covers,androidx.lifecycle.SavedStateHandle())
         try {
             vm.bind("one", null, true); vm.state.first { it.allowed }
             vm.edit(EditorInput(EventFields(title = "Неполное"))); vm.save()
@@ -38,7 +38,7 @@ class EditorViewModelTest {
     }
     @Test fun backSaveDiscardAndFailedWriteNeverClaimSaved() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
-        val vm = EditorViewModel(e.events, covers)
+        val vm = EditorViewModel(e.events,covers,androidx.lifecycle.SavedStateHandle())
         try {
             vm.bind("one", null, true); vm.state.first { it.allowed }; vm.edit(input()); vm.requestBack()
             assertTrue(vm.state.value.confirmExit); vm.stay(); assertFalse(vm.state.value.exit)
@@ -61,7 +61,7 @@ class EditorViewModelTest {
     }
     @Test fun foreignEditorIsDeniedAndLogoutClearsVisibleFields() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
-        val vm = EditorViewModel(e.events, covers)
+        val vm = EditorViewModel(e.events,covers,androidx.lifecycle.SavedStateHandle())
         try {
             vm.bind(null, FakeFixtures.VOLUNTEER.value, false)
             vm.state.first { !it.loading }; assertEquals(EventEditError.Forbidden, vm.state.value.error)
@@ -72,7 +72,7 @@ class EditorViewModelTest {
     }
     @Test fun transientReadFailureKeepsDirtyInputAndRetryClearsOnlyReadError() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
-        val vm = EditorViewModel(e.events, covers)
+        val vm = EditorViewModel(e.events,covers,androidx.lifecycle.SavedStateHandle())
         try {
             vm.bind(null, FakeFixtures.OWNED.value, false); vm.state.first { it.allowed }; vm.edit(input())
             e.scenarios.failNextRead(ProductReadError.NETWORK); vm.refresh()
@@ -83,7 +83,7 @@ class EditorViewModelTest {
     }
     @Test fun dirtyEditorDoesNotAdoptNewRevisionAndOverwriteExternalChange() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler)); val e = environment(); e.scenarios.signInAs(FakeFixtures.ALEX)
-        val vm = EditorViewModel(e.events, covers)
+        val vm = EditorViewModel(e.events,covers,androidx.lifecycle.SavedStateHandle())
         try {
             vm.bind(null, FakeFixtures.OWNED.value, false); vm.state.first { it.allowed }
             val old = (e.events.observePublicEvent(FakeFixtures.OWNED).first() as PublicEventResult.Found).event
@@ -100,9 +100,9 @@ class EditorViewModelTest {
         var publications = 0
         val repo = object : EventRepository by e.events {
             override suspend fun saveDraft(id: DraftId, expectedRevision: Long?, fields: EventFields): EventEditResult<EventDraft> = suspendCoroutine { pending += it }
-            override suspend fun publishDraft(id: DraftId, expectedRevision: Long): EventEditResult<EventId> { publications++; return e.events.publishDraft(id, expectedRevision) }
+            override suspend fun publishDraft(id: DraftId, expectedRevision: Long?): EventEditResult<EventId> { publications++; return e.events.publishDraft(id, expectedRevision) }
         }
-        val vm = EditorViewModel(repo, covers)
+        val vm = EditorViewModel(repo,covers,androidx.lifecycle.SavedStateHandle())
         try {
             vm.bind("old", null, true); vm.state.first { it.allowed }; vm.edit(input()); vm.save(publish = true); runCurrent()
             vm.bind("new", null, true); vm.state.first { it.allowed }; vm.edit(input()); vm.save(); runCurrent()
