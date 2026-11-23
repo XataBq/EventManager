@@ -117,3 +117,5 @@ fun rememberNavigationState(): NavigationState {
 @Serializable data object RemoteUnavailableKey : NavKey
 
 @Serializable data object PublicEventImportKey : NavKey
+
+@Serializable data class PdfVaultKey(val pickOnOpen: Boolean = false) : NavKey

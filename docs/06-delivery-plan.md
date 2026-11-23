@@ -4,6 +4,12 @@
 
 ## История промежуточных срезов
 
+**Code38 — мгновенная смена вкладок и экрана PDF.** `0.10.21-instant-navigation-remote`, `remoteDebug`, production API. APK собран и установлен на Redmi. На эмуляторе Android 9 прошли два навигационных теста demo и тест раскладки перехода в PDF для remote. [Правила переходов и сохранения вкладок](03-navigation.md).
+
+SHA-256 проверенного APK `e5331dfb957b6eb4082ead0b5f616d353038bf0003a2a3ab787b84f07b78912d`. На Redmi подтверждены установка и запуск. Сквозную приёмку code38 с production API и сборку release отдельно не проводили.
+
+**Code36 — заставка запуска и скелетоны.** Remote APK собран и установлен на Redmi, demo Kotlin скомпилирован. На Android 9 прошли три адресных UI-теста запуска. [Поведение и границы слоя](02-architecture.md#первый-запуск-и-загрузка-экранов).
+
 **17 ноября — M08 IMPLEMENTED/COMPILE_VERIFIED; поведение NOT_VERIFIED.** Remote profile PATCH/delete и server XLSX подключены к общим UI/ports; product ticket resend удалён. [Архитектура M08](architecture/t10-profile-delete-documents.md), [compile/NOT_RUN](validation/t10-m08-implementation.md). Одна remote Kotlin/Java/DI компиляция прошла; suites/lint/demo/staging/APK/device/review не запускались. Старые review/H-пункты не закрыты. M09 TODO, ручная приёмка после M09.
 
 **T09a — READY_FOR_HUMAN (7 ноября):** адресное обновление видимой поверхности жестом реализовано на code 20. 187 JVM / 26 device + 9 повторов с жестами, assemble/lint/DI/isolation прошли; [результаты и новый checklist](30-t09a-refresh-validation.md). Новый UX ждёт человека; предыдущая приёмка 6 ноября сохраняется, Q10/T10 отдельно.

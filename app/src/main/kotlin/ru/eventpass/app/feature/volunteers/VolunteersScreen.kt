@@ -14,6 +14,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.awaitCancellation
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.checkin.*
 
@@ -44,13 +46,14 @@ fun VolunteersScreen(s: VolunteersUiState, edit: (String) -> Unit, grant: () -> 
     AuthColumn(Modifier.testTag("volunteers-screen")) {
         Text(stringResource(R.string.volunteers_title), style = EventPassTypography.heading)
         Text(stringResource(R.string.volunteers_hint))
-        if (s.loading) Text(stringResource(R.string.loading))
-        if (s.revoke == null) s.error?.let { InlineError(stringResource(volunteerErrorResource(it)))
+        if (s.loading) LoadingSkeleton(LoadingLayout.List)
+        if (s.revoke == null) s.error?.takeUnless {it in setOf(VolunteerError.INVALID_TARGET,VolunteerError.ACCOUNT_NOT_FOUND)}?.let { InlineError(stringResource(volunteerErrorResource(it)))
             if (!s.denied) TextAction(stringResource(R.string.ticket_retry), grant, enabled = !s.busy) }
         s.readError?.let { InlineError(stringResource(volunteerErrorResource(it)))
             TextAction(stringResource(R.string.ticket_retry), retry, enabled = !s.busy) }
         if (!s.denied) {
-            FormField(s.input, edit, stringResource(R.string.volunteer_email), Modifier.testTag("volunteer-input"), enabled = !s.busy && !s.loading)
+            FormField(s.input, edit, stringResource(R.string.volunteer_email), Modifier.testTag("volunteer-input"), enabled = !s.busy && !s.loading,
+                error=s.error?.takeIf {s.revoke == null && it in setOf(VolunteerError.INVALID_TARGET,VolunteerError.ACCOUNT_NOT_FOUND)}?.let {stringResource(volunteerErrorResource(it))})
             EventPassButton(stringResource(R.string.volunteer_grant), grant, Modifier.testTag("volunteer-grant"),
                 loading = s.busy, enabled = s.input.isNotBlank() && !s.loading)
             if (!s.loading && s.volunteers.isEmpty()) Text(stringResource(R.string.volunteers_empty))

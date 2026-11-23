@@ -45,6 +45,9 @@ interface TicketRepository {
     suspend fun refreshMyTickets(scope: ru.eventpass.core.domain.registration.TicketScope) = refreshMyTickets()
     fun observeMyTickets(): Flow<MyTicketsResult>
     fun observeOwnTicket(ticketId: TicketId): Flow<OwnTicketResult>
+    /** Guest capability belongs only to the current receipt flow; implementations must not persist it. */
+    fun observeGuestTicket(ticketId: TicketId, guestAccess: String): Flow<OwnTicketResult> =
+        kotlinx.coroutines.flow.flowOf(OwnTicketResult.AuthenticationRequired)
     suspend fun refreshMyTickets()
     suspend fun cancelOwnTicket(ticketId: TicketId): CancelTicketOutcome
 }

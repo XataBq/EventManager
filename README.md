@@ -1,6 +1,6 @@
 # EventPass — Android
 
-Android MVP: Kotlin/Compose, Hilt/MVVM, minSdk28. Основная поставка — remote с реальным staging API; demo остаётся изолированным вариантом.
+Android MVP: Kotlin/Compose, Hilt/MVVM, minSdk28. Основная поставка — remote с production API; demo остаётся изолированным вариантом.
 
 **M09: PARTIAL_EXTERNAL / HUMAN_PENDING, code26.** Точный APK, commit, результаты и единый checklist — [отчёт M09](docs/validation/t10-m09-final-validation.md). Итоговую ручную приёмку подтверждает пользователь. Внешние mail/legal/staging ограничения не отмечаются PASS.
 
@@ -9,6 +9,12 @@ Android MVP: Kotlin/Compose, Hilt/MVVM, minSdk28. Основная постав�
 Три независимых корневых стека: билеты, мои мероприятия и профиль. Общие Event/Editor/Scanner/Volunteers/Dashboard/Profile обслуживаются repository ports через DI. Remote использует серверные id/slug, сессию, билеты, права и check-ins; локальные черновики хранятся в настоящем Room с явной синхронизацией. Сервер определяет права, места и успешность операций.
 
 Модули: app, core:domain, core:designsystem, core:platform, data:fake, data:remote, data:local. data:local:verification — отдельный JVM harness тех же production Room sources, не runtime модуль. Fake/tools/gallery и локальные PDF/XLSX writers подключены только demo. Remote загружает серверные файлы.
+
+Сборка **code38 / 0.10.21-instant-navigation-remote** переключает корневые вкладки без затухания и меняет экран вместе с шапкой при входе в «Билеты из PDF» и выходе обратно. APK установлен на Redmi. [Навигация](docs/03-navigation.md).
+
+Заставка запуска и скелетоны загрузки проверены тремя адресными UI-тестами на Android 9 в code36. [Запуск и загрузка экранов](docs/02-architecture.md#первый-запуск-и-загрузка-экранов).
+
+Горизонтальная анимация PDF-билетов в карточке и развёрнутом коде проверена двумя UI-тестами на Android 9 в code35. [Архитектура, обработка и результаты AIP-004](docs/architecture/aip004-ticketvault.md).
 
 ## Сборка и проверки
 
@@ -26,9 +32,9 @@ python scripts/verify-architecture-docs.py
 
 При ограничениях локального Maven cache точные использованные init scripts/offline команды приведены в отчёте M09. Не отключать проверку TLS. Staging JVM smoke включаются отдельно `EVENTPASS_STAGING_SMOKE=1` и создают только свои synthetic fixtures. Live device smoke требует `m09Staging=1` и изолированного AVD; обычные connected tests не должны запускать его без opt-in.
 
-`remoteRelease` оптимизируется R8/resource shrink и собирается **без подписи**. Production key/URL не предоставлены. Проверочная копия release подписывается только существующим debug test key для локального runtime smoke; это не production поставка. `demoRelease` отключён. Обычный acceptance APK — remoteDebug.
+`remoteRelease` оптимизируется R8/resource shrink и собирается **без подписи**. Production signing key не предоставлен; API URL настроен. Проверочная копия release подписывается только существующим debug test key для локального runtime smoke; это не production поставка. `demoRelease` отключён. Обычный acceptance APK — remoteDebug.
 
-API base по умолчанию `https://staging.eventpass.dikanskii.ru/api/`; build property `eventpass.apiBaseUrl` принимает только HTTPS directory без credentials/query/fragment. Frontend origins/App Links и production размещение требуют отдельной настройки; App Links отложены. Backend не предоставляет If-Match: ограничение двух устройств принято пользователем и не скрывается за localRevision.
+API base по умолчанию `https://eventpass.dikanskii.ru/api/`; build property `eventpass.apiBaseUrl` принимает только HTTPS directory без credentials/query/fragment. Ссылки мероприятий используют production origin; App Links отложены. Backend не предоставляет If-Match: ограничение двух устройств принято пользователем и не скрывается за localRevision.
 
 ## Приёмка и доступ
 

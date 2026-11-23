@@ -168,7 +168,9 @@ class EditorViewModel @Inject constructor(private val events: EventRepository, p
         val s = mutable.value
         if (!s.allowed || s.busy || s.terminal || s.publishedId != null) return
         if(publish && (s.syncing || s.local?.conflict!=null)) return
-        val (inputFields, errors) = s.input.resolved()
+        val (inputFields, inputErrors) = s.input.resolved()
+        val errors = inputErrors.toMutableSet()
+        if(publish && pendingFields == null) errors += EventEditingPolicy.publicationErrors(inputFields, java.time.Instant.now())
         val fields = pendingFields ?: inputFields
         if (errors.isNotEmpty()) { mutable.value = s.copy(error = EventEditError.Validation(errors)); return }
         runOperation {

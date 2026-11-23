@@ -42,6 +42,27 @@ class ProductBackNavigationTest {
         compose.onNodeWithTag("ticket-$ticketId").performScrollTo().assertIsDisplayed()
     }
 
+    @Test fun rapidTabChangesShowOnlyTheSelectedScreenWithTheAnimationClockPaused() {
+        compose.onNodeWithTag("root-Tickets").assertIsDisplayed()
+        compose.mainClock.autoAdvance = false
+        try {
+            val changes = listOf(
+                "Tickets" to "Events",
+                "Events" to "Profile",
+                "Profile" to "Tickets",
+            )
+            for ((previous, next) in changes) {
+                compose.onNodeWithTag("tab-$next").performClick()
+                compose.mainClock.advanceTimeByFrame()
+                compose.mainClock.advanceTimeByFrame()
+                compose.onNodeWithTag("root-$previous").assertDoesNotExist()
+                compose.onNodeWithTag("root-$next").assertIsDisplayed()
+            }
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
     @Test fun selectedTicketSystemBackReturnsToListAfterRecreation() {
         selectTicket()
         compose.activityRule.scenario.recreate()

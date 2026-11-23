@@ -26,6 +26,12 @@ TicketsViewModel подписывается на выбранный TicketScope.
 
 POST cancel применяет ответ сервера, различает TICKET_USED и NotFound; права/места решает сервер. Он инвалидирует upcoming/past; клиент не уменьшает счётчики локально как окончательную истину. QR доступен только Active при активном server event, Used/Cancelled показываются отдельно. Self cancel доступен для server Active согласно backend, без выдуманного отдельного регистрационного ID.
 
+## Наблюдение за использованием билета — 18 ноября
+
+Пока TicketsRoute видим и RESUMED, TicketsViewModel повторяет read своей текущей области каждые 5 секунд; refresh выбранной server-карточки не меняет чужой scope/счётчики. stop отменяет poll/read, owner guards запрещают поздние ответы. При Used карточка скрывает QR/fullscreen и показывает ResultMark с зелёной отметкой.
+
+GuestReceipt использует отдельный read-порт TicketRepository.observeGuestTicket(ticketId, guestAccess). Remote GET использует query token без bearer; capability остаётся только в SavedState текущего receipt, не в списках/кеше. Poll принадлежит видимому RESUMED receipt; ответ применяется по owner/идентичности receipt. Статус сохраняется только в saved state этого flow. При Used/Cancelled опрос останавливается. Это серверный read, клиент не выполняет check-in. [Поставка и NOT_RUN](../validation/2026-11-18-production-ui-fixes.md).
+
 ## PDF и SAF
 
 `DocumentSnapshot.Remote` содержит transient `DocumentSource`, stamp и request; DTO/HTTP/bytes не попадают в ViewModel. DocumentStamp допускает guest accountId=null. RemoteTicketDocuments выдаёт source только для TicketPdf, XLSX остаётся M08. Bearer отправляется только на API origin; guest PDF использует query capability из живого receipt и не отправляет её как bearer.
@@ -45,3 +51,11 @@ Schema6 сохраняется: nullable auth password proof уже поддер
 ## Проверки
 
 RemoteTicketsTest: guest without Session, typed payload, immutable retry, EMAIL_TAKEN, late actor, 429, scopes/counters/nullable Event, cancel/Used, ALREADY_REGISTERED, PDF capability/MIME. M03RegistrationStateTest: pending body/key после добавления обязательного/удаления отвеченного вопроса для guest и auth, no blind resend after restore, saved capability lifetime. M03TicketsStateTest: изоляция out-of-scope карточки при обоих порядках list/card и после Back, восстановление selection при немедленном list, refresh только карточки с её новым status/now, Forbidden cleanup. M03GuestRegistrationTest: fake replay/account/setup/manual login. Старые EventViewModel/RefreshOwners/Documents tests сохраняют lifecycle/SAF guards. StagingTicketsSmokeTest использует только синтетического owner и собственные event/ticket, затем DELETE /me; без создания неочищаемого guest account. Числа/команды/NOT_RUN — в отчётах реализации и исправлений, эти указатели сами по себе не являются новым прогоном.
+
+## Представление анкеты и билета — code28
+
+SELECT сохраняет доменный optionId, но отображается отдельным раскрывающимся SelectField, CHOICE — прежними вариантами. Вопросы всех типов разделены нумерованными карточками, ошибка/help остаются внутри своего вопроса. Inline TicketQr открывает прежний fullscreen через optional onOpen; у fullscreen onOpen отсутствует. EventPassSection и внутренний Column занимают доступную ширину независимо от QR/status. Ticket.category остаётся в серверной модели, но убран из карточки как невыбранная пользователем неоднозначная проекция первого choice; права по нему не определяются. [Поставка/NOT_RUN](../validation/2026-11-18-production-ui-followup.md).
+
+## Одиночный выбор — code30
+
+CHOICE в EventScreen использует RadioOption (стандартный Material3 RadioButton, parent selectable row, Role.RadioButton/selectableGroup) вместо OptionCard. SELECT сохраняет dropdown; transport остаётся Answer.SingleChoice с прежним optionId, новое поле/тип API не вводятся. [Поставка/NOT_RUN](../validation/2026-11-18-ui-spacing-actions.md).

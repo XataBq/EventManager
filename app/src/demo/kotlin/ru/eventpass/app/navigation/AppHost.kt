@@ -25,6 +25,8 @@ import ru.eventpass.app.feature.tools.DemoTools
 import ru.eventpass.app.feature.event.EventRoute
 import ru.eventpass.app.navigation.auth.*
 import ru.eventpass.core.designsystem.*
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 
 @Composable
 fun EventPassApp(session: AppSessionViewModel = hiltViewModel(), entryProbe: @Composable (RootTab) -> Unit = {}) {
@@ -39,9 +41,9 @@ fun EventPassApp(session: AppSessionViewModel = hiltViewModel(), entryProbe: @Co
             session.gate.collectLatest { session.awaitExpiry() }
         }
     }
-    when (val value = gate) {
+    AppLaunch(sessionOnly = gate == SessionGate.Login || gate is SessionGate.Recovery) { when (val value = gate) {
         is SessionGate.Shell -> if (session.isCurrent(value.scope)) key(value.scope) { PrivateShell(session, value, entryProbe) }
-            else Box(Modifier.safeDrawingPadding()) { Text(stringResource(R.string.loading)) }
+            else LoadingSkeleton(LoadingLayout.Form, Modifier.safeDrawingPadding().padding(EventPassDimens.page))
         else -> Box {
             // Keep one public registry while Unknown resolves to Guest after OS restoration.
             PublicNavigation(session)
@@ -49,13 +51,13 @@ fun EventPassApp(session: AppSessionViewModel = hiltViewModel(), entryProbe: @Co
                 Box(Modifier.safeDrawingPadding().imePadding()) {
                     if (loadingTools) DemoTools(false, {}, {}, {}, { session.receiveLink(it) }, session::guard)
                     else AuthColumn {
-                        Text(stringResource(R.string.loading))
+                        LoadingSkeleton(LoadingLayout.Form)
                         TextAction(stringResource(R.string.auth_demo_tools), { loadingTools = true })
                     }
                 }
             }
         }
-    }
+    } }
     if (forbidden != null) AlertDialog(onDismissRequest = session::dismissForbidden,
         text = { Text(stringResource(R.string.auth_forbidden)) },
         confirmButton = { TextAction(stringResource(R.string.dismiss), session::dismissForbidden) })
@@ -65,7 +67,7 @@ fun EventPassApp(session: AppSessionViewModel = hiltViewModel(), entryProbe: @Co
                 is AuthLinkResult.Failed -> AuthErrorText(result.error)
                 is AuthLinkResult.EmailConfirmed -> Text(stringResource(R.string.auth_confirmed))
                 AuthLinkResult.Invalid -> Text(stringResource(R.string.invalid_link))
-                else -> Text(stringResource(R.string.loading))
+                else -> LoadingSkeleton(LoadingLayout.Line)
             }
         }, confirmButton = {
             if (link.result is AuthLinkResult.Failed) TextAction(stringResource(R.string.auth_retry_link), session::retryLink)

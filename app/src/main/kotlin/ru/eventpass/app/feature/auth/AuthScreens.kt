@@ -20,6 +20,8 @@ import ru.eventpass.app.R
 import ru.eventpass.app.navigation.auth.AppSessionViewModel
 import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.auth.AuthError
+import ru.eventpass.core.domain.auth.AuthInputPolicy
+import ru.eventpass.core.domain.auth.AuthSecret
 import java.time.Duration
 
 fun authErrorResource(error: AuthError): Int = when (error) {
@@ -69,13 +71,20 @@ fun LoginRoute(session: AppSessionViewModel, onSignUp: () -> Unit, onReset: () -
 @Composable
 fun LoginScreen(state: LoginUiState, returning: Boolean, onEmail: (String) -> Unit, onPassword: (String) -> Unit,
     onSubmit: () -> Unit, onSignUp: () -> Unit, onReset: () -> Unit, onVerification: () -> Unit, onDemo: () -> Unit, showDemo: Boolean = true) {
+    val policy=AuthInputPolicy()
+    val emailError=if(state.error == AuthError.InvalidInput && !policy.validEmail(state.email.trim())) stringResource(R.string.ui_email_invalid) else null
+    val passwordError=when {
+        state.error == AuthError.InvalidInput && !policy.validLoginPassword(AuthSecret(state.password)) -> stringResource(R.string.ui_password_required)
+        state.error in setOf(AuthError.InvalidCredentials,AuthError.Unauthorized) -> stringResource(R.string.auth_invalid_credentials)
+        else -> null
+    }
     AuthColumn {
         Text(stringResource(R.string.auth_login), style = EventPassTypography.heading, modifier = Modifier.testTag("login-screen"))
         Text(stringResource(if (returning) R.string.auth_return_hint else R.string.auth_login_hint))
         FormField(state.email, onEmail, stringResource(R.string.auth_email), Modifier.testTag("auth-email"),
-            enabled = !state.busy, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
-        PasswordField(state.password, onPassword, stringResource(R.string.auth_password), Modifier.testTag("auth-password"), enabled = !state.busy)
-        AuthErrorText(state.error)
+            enabled = !state.busy, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),error=emailError)
+        PasswordField(state.password, onPassword, stringResource(R.string.auth_password), Modifier.testTag("auth-password"), enabled = !state.busy,error=passwordError)
+        if(emailError == null && passwordError == null) AuthErrorText(state.error)
         TextAction(stringResource(R.string.auth_forgot), onReset, enabled = !state.busy)
         EventPassButton(stringResource(R.string.auth_login), onSubmit, Modifier.fillMaxWidth().testTag("auth-submit"), loading = state.busy)
         if (state.error == AuthError.EmailUnverified) TextAction(stringResource(R.string.auth_request_verification), onVerification)
@@ -114,6 +123,16 @@ fun AccountFlowScreen(s: AccountUiState, reset: Boolean, cooldown: Long,
     onCode: (String) -> Unit, onConsent: (Boolean) -> Unit, onSubmit: () -> Unit,
     onResend: () -> Unit, onLogin: () -> Unit, onOutbox: () -> Unit, showTools: Boolean = true) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val policy=AuthInputPolicy()
+    val invalid=s.error == AuthError.InvalidInput && s.step == AccountStep.Input
+    val nameError=if(invalid && !reset && !policy.validName(s.name)) stringResource(R.string.ui_name_invalid) else null
+    val emailError=when {
+        invalid && !policy.validEmail(s.email.trim()) -> stringResource(R.string.ui_email_invalid)
+        s.error == AuthError.EmailTaken -> stringResource(R.string.auth_email_taken)
+        else -> null
+    }
+    val passwordError=if(invalid && !reset && !policy.validPassword(AuthSecret(s.password))) stringResource(R.string.auth_password_hint) else null
+    val consentError=if(invalid && !reset && !s.consent) stringResource(R.string.ui_consent_required) else null
     fun openDocument(url: String?) {
         val uri = url?.let(android.net.Uri::parse) ?: return
         if(uri.scheme == "https" && !uri.host.isNullOrBlank()) try { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri)) } catch(_: android.content.ActivityNotFoundException) { /* Browser may be unavailable. */ }
@@ -122,17 +141,20 @@ fun AccountFlowScreen(s: AccountUiState, reset: Boolean, cooldown: Long,
         Text(stringResource(if (reset) R.string.auth_reset else R.string.auth_signup), style = EventPassTypography.heading)
         when (s.step) {
             AccountStep.Input -> {
-                if (!reset) FormField(s.name, onName, stringResource(R.string.auth_name), Modifier.testTag("auth-name"), enabled = !s.busy)
+                if (!reset) FormField(s.name, onName, stringResource(R.string.auth_name), Modifier.testTag("auth-name"), enabled = !s.busy,error=nameError)
                 FormField(s.email, onEmail, stringResource(R.string.auth_email), Modifier.testTag("auth-email"), enabled = !s.busy,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),error=emailError)
                 if (!reset) {
                     PasswordField(s.password, onPassword, stringResource(R.string.auth_password), Modifier.testTag("auth-password"), enabled = !s.busy,
-                        supportingText = stringResource(R.string.auth_password_hint))
+                        supportingText = stringResource(R.string.auth_password_hint),error=passwordError)
                     s.documents?.terms?.url?.let { TextAction(stringResource(R.string.auth_terms_link), { openDocument(it) }) }
                     s.documents?.privacy?.url?.let { TextAction(stringResource(R.string.auth_privacy_link), { openDocument(it) }) }
                     if(s.documents != null && (s.documents.terms.url == null || s.documents.privacy.url == null)) Text(stringResource(R.string.auth_documents_unavailable))
                     AuthErrorText(s.documentsError)
-                    ConsentCheckbox(s.consent, onConsent, stringResource(R.string.auth_consent), Modifier.testTag("auth-consent"), enabled = !s.busy)
+                    Column(verticalArrangement=Arrangement.spacedBy(EventPassDimens.tiny)) {
+                        ConsentCheckbox(s.consent, onConsent, stringResource(R.string.auth_consent), Modifier.testTag("auth-consent"), enabled = !s.busy)
+                        FieldMessage(consentError)
+                    }
                 }
                 EventPassButton(stringResource(if (reset) R.string.auth_send_link else R.string.auth_signup), onSubmit,
                     Modifier.fillMaxWidth().testTag("auth-submit"), loading = s.busy)
@@ -147,7 +169,7 @@ fun AccountFlowScreen(s: AccountUiState, reset: Boolean, cooldown: Long,
                 EventPassButton(stringResource(R.string.auth_login), onLogin)
             }
         }
-        AuthErrorText(s.error)
+        if(listOf(nameError,emailError,passwordError,consentError).all {it == null}) AuthErrorText(s.error)
         if (cooldown > 0 && s.step in listOf(AccountStep.Verification)) Text(stringResource(R.string.auth_retry_seconds, cooldown))
         if(showTools) TextAction(stringResource(R.string.auth_outbox), onOutbox)
     }

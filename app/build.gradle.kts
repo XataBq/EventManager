@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val apiBase = providers.gradleProperty("eventpass.apiBaseUrl").getOrElse("https://staging.eventpass.dikanskii.ru/api/")
+val apiBase = providers.gradleProperty("eventpass.apiBaseUrl").getOrElse("https://eventpass.dikanskii.ru/api/")
 val apiUri = URI(apiBase)
 require(apiUri.scheme == "https" && !apiUri.host.isNullOrBlank() && apiUri.userInfo == null && apiUri.query == null && apiUri.fragment == null && apiUri.path.endsWith("/")) {
     "eventpass.apiBaseUrl must be an HTTPS base directory without credentials, query or fragment"
@@ -21,8 +21,8 @@ android {
         applicationId = "ru.eventpass.android"
         minSdk = 28
         targetSdk = 37
-        versionCode = 26
-        versionName = "0.10.9-m09-rc3"
+        versionCode = 38
+        versionName = "0.10.21-instant-navigation"
         buildConfigField("String", "API_BASE_URL", "\"$apiBase\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -80,6 +80,8 @@ tasks.register("verifyDemoIsolation") {
 }
 kotlin { compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 
+val remoteDebugImplementation by configurations.creating
+
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:designsystem"))
@@ -88,6 +90,9 @@ dependencies {
     "testDemoImplementation"(project(":data:fake"))
     "remoteImplementation"(project(":data:remote"))
     "remoteImplementation"(project(":data:local"))
+    remoteDebugImplementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    remoteDebugImplementation("com.rmtheis:tess-two:9.1.0")
+    remoteDebugImplementation(libs.zxing.core)
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)

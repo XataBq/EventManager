@@ -30,11 +30,13 @@ class TicketsViewModel @Inject constructor(private val repository: TicketReposit
     private val mutable = MutableStateFlow(TicketsUiState(selected = saved["ticketSelection"], history = saved["history"] ?: false))
     val state = mutable.asStateFlow()
     private var active = false; private var owner = 0L
+    private var poll: Job? = null
     private var ownObserver: Job? = null
     private var observer: Job? = null; private var read: Job? = null; private var command: Job? = null
     fun start() {
         if (active) return
         active = true; val generation = owner
+        poll = viewModelScope.launch { while(isActive) { delay(5000); val s=state.value; if(!s.loading && !s.cancelling && !s.confirming) refresh() } }
         mutable.value = state.value.copy(loading = state.value.data == null)
         // Register the independent card owner before a list can emit synchronously on Main.immediate.
         state.value.selected?.let { observeSelected(it) }
@@ -57,7 +59,7 @@ class TicketsViewModel @Inject constructor(private val repository: TicketReposit
         } } }
     }
     fun stop() {
-        active = false; owner++; ownObserver?.cancel(); observer?.cancel(); read?.cancel(); command?.cancel()
+        active = false; owner++; poll?.cancel(); ownObserver?.cancel(); observer?.cancel(); read?.cancel(); command?.cancel()
         mutable.value = state.value.copy(loading = false, refreshing = false, cancelling = false, confirming = false, fullscreen = false)
     }
     fun select(id: String?) { ownObserver?.cancel(); saved["ticketSelection"] = id; mutable.value = mutable.value.copy(selected = id, selectedCard = null, fullscreen = false, cancelError = null); if(id != null && active) observeSelected(id) }

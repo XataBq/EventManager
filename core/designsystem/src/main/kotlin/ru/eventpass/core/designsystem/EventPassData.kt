@@ -1,4 +1,5 @@
 package ru.eventpass.core.designsystem
+import androidx.compose.foundation.layout.fillMaxWidth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -87,8 +88,8 @@ fun KeyValueRow(label: String, value: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun EventPassSection(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier, EventPassShapes.section, EventPassColors.card) {
-        Column(Modifier.padding(EventPassDimens.large), verticalArrangement = Arrangement.spacedBy(EventPassDimens.medium), content = content)
+    Surface(modifier.fillMaxWidth(), EventPassShapes.section, EventPassColors.card) {
+        Column(Modifier.fillMaxWidth().padding(EventPassDimens.large), verticalArrangement = Arrangement.spacedBy(EventPassDimens.medium), content = content)
     }
 }
 

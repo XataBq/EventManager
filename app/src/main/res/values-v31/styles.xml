@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.EventPass.Launch" parent="Theme.EventPass">
+        <item name="android:windowSplashScreenBackground">#222443</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_icon</item>
+        <item name="android:statusBarColor">#222443</item>
+        <item name="android:navigationBarColor">#222443</item>
+    </style>
+</resources>

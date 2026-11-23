@@ -2,6 +2,7 @@ package ru.eventpass.app.feature.tickets
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,11 +22,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.platform.TicketQrEncoder
 
 @Composable
-fun TicketQr(payload: String, number: String) {
+fun TicketQr(payload: String, number: String, onOpen: (() -> Unit)? = null) {
     var failed by remember(payload) { mutableStateOf(false) }
     val bitmap by produceState<Bitmap?>(null, payload) {
         try { value = withContext(Dispatchers.Default) {
@@ -34,9 +37,16 @@ fun TicketQr(payload: String, number: String) {
         } } catch (_: IllegalArgumentException) { failed = true }
     }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Surface(Modifier.widthIn(max = 384.dp).fillMaxWidth().aspectRatio(1f), color = Color.White, shape = EventPassShapes.section) {
+        Surface(Modifier.widthIn(max = 384.dp).fillMaxWidth().aspectRatio(1f)
+            .then(if(onOpen != null && bitmap != null) Modifier.clickable(
+                role = androidx.compose.ui.semantics.Role.Button,
+                onClickLabel = stringResource(R.string.ticket_open_qr), onClick = onOpen) else Modifier),
+            color = Color.White, shape = EventPassShapes.section) {
             bitmap?.let { Image(it.asImageBitmap(), stringResource(R.string.ticket_qr_accessibility, number), Modifier.fillMaxSize().testTag("ticket-qr")) }
-                ?: Box(contentAlignment = Alignment.Center) { Text(stringResource(if (failed) R.string.ticket_qr_error else R.string.loading), color = Color.Black) }
+                ?: Box(contentAlignment = Alignment.Center) {
+                    if (failed) Text(stringResource(R.string.ticket_qr_error), color = Color.Black)
+                    else LoadingSkeleton(LoadingLayout.Code)
+                }
         }
     }
 }

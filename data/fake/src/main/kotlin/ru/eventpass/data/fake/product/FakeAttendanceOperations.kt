@@ -28,7 +28,7 @@ internal class FakeAttendanceOperations(private val state: MutableStateFlow<Fake
             registrations[t.registrationId]?.let { r ->
                 val first = records[t.snapshot.ticketId]
                 Attendee(r.id, t.snapshot.ticketId, r.attendeeName, r.attendeeEmail, t.snapshot.displayNumber, t.status,
-                    r.consentAcceptedAt, first?.checkedAt, first?.checkerId)
+                    r.consentAcceptedAt, first?.checkedAt, first?.checkerId,r.answers)
             }
         }.sortedWith(compareByDescending<Attendee> { it.registeredAt }.thenBy { it.registrationId }.thenBy { it.ticketId.value })
     }
@@ -51,10 +51,25 @@ internal class FakeAttendanceOperations(private val state: MutableStateFlow<Fake
         val now = clock.instant()
         return DashboardResult.Ready(AttendanceDashboard(AttendanceHeader(id, e.title, e.startsAt, e.zoneId, e.venue,
             e.statusAt(now), e.registrationOpen, e.statusAt(now) == EventLifecycle.FINISHED),
-            AttendanceSummary(active + used, used, active, e.capacity?.let { (it - active - used).coerceAtLeast(0) }), revision(s, id, rows), now))
+            AttendanceSummary(active + used, used, active, e.capacity?.let { (it - active - used).coerceAtLeast(0) }), revision(s, id, rows), now,questions=e.questions))
     }
     override fun observeDashboard(eventId: EventId): Flow<DashboardResult> = flow { auth.initialize(); emitAll(state) }
         .map { dashboard(it, eventId) }.distinctUntilChanged().flowOn(Dispatchers.Default)
+    override suspend fun questionAnalytics(eventId:EventId):QuestionAnalyticsResult {
+        auth.initialize()
+        return withContext(Dispatchers.Default) {
+            val snapshot=state.value
+            when(val result=dashboard(snapshot,eventId)) {
+                is DashboardResult.Failed -> QuestionAnalyticsResult.Failed(result.error)
+                is DashboardResult.Ready -> {
+                    val accumulator=QuestionAnalyticsAccumulator(result.dashboard)
+                    accumulator.add(rows(snapshot,eventId))
+                    if(state.value.auth.generation!=snapshot.auth.generation) QuestionAnalyticsResult.Failed(AttendanceError.SESSION_CHANGED)
+                    else QuestionAnalyticsResult.Ready(accumulator.finish())
+                }
+            }
+        }
+    }
     override suspend fun refreshDashboard(eventId: EventId): DashboardResult {
         auth.initialize()
         return withContext(Dispatchers.IO) { lock.withLock {

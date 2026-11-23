@@ -1,5 +1,6 @@
 package ru.eventpass.core.designsystem
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 
 enum class ActionStyle { Primary, Secondary, Danger, Text }
+val LocalProminentSecondaryActions = androidx.compose.runtime.staticCompositionLocalOf { true }
 
 @Composable
 fun EventPassButton(
@@ -34,20 +36,22 @@ fun EventPassButton(
     loading: Boolean = false,
     compact: Boolean = false,
     icon: EventPassGlyph? = null,
+    textAlign: androidx.compose.ui.text.style.TextAlign? = null,
 ) {
+    val prominent=LocalProminentSecondaryActions.current
     val color = when (style) {
         ActionStyle.Primary -> EventPassColors.onAccent
         ActionStyle.Danger -> EventPassColors.danger
-        ActionStyle.Secondary -> EventPassColors.textPrimary
-        ActionStyle.Text -> EventPassColors.accentLight
+        ActionStyle.Secondary -> if(prominent) EventPassColors.textPrimary else EventPassColors.textSecondary
+        ActionStyle.Text -> if(prominent) EventPassColors.accentLight else EventPassColors.textSecondary
     }
     val background = when (style) {
         ActionStyle.Primary -> EventPassColors.accent
         ActionStyle.Text -> Color.Transparent
-        else -> EventPassColors.raised
+        else -> if(prominent) EventPassColors.raised else Color.Transparent
     }
     val loadingLabel = stringResource(R.string.ep_loading)
-    val visualHeight = if (compact) EventPassDimens.compactHeight else EventPassDimens.buttonHeight
+    val visualHeight = if (compact || !prominent && style != ActionStyle.Primary) EventPassDimens.compactHeight else EventPassDimens.buttonHeight
     Box(
         modifier.defaultMinSize(minWidth = EventPassDimens.touch, minHeight = EventPassDimens.touch)
             .alpha(if (enabled) 1f else EventPassColors.DisabledAlpha)
@@ -59,6 +63,7 @@ fun EventPassButton(
         Surface(
             Modifier.padding(vertical = (EventPassDimens.touch - visualHeight) / 2),
             shape = EventPassShapes.control, color = background, contentColor = color,
+            border = if(style in setOf(ActionStyle.Secondary, ActionStyle.Text, ActionStyle.Danger)) BorderStroke(1.dp, color.copy(alpha = if(prominent) 0.55f else 0.22f)) else null,
         ) {
             Row(
                 Modifier.heightIn(min = visualHeight).padding(horizontal = EventPassDimens.large, vertical = EventPassDimens.small),
@@ -67,7 +72,7 @@ fun EventPassButton(
             ) {
                 if (loading) CircularProgressIndicator(Modifier.size(16.dp), color = color, strokeWidth = 2.dp)
                 else icon?.let { EventPassIcon(it, null, tint = color) }
-                Text(text, Modifier.weight(1f, fill = false), style = EventPassTypography.emphasis)
+                Text(text, Modifier.weight(1f, fill = false), style = EventPassTypography.emphasis,textAlign=textAlign)
             }
         }
     }
@@ -75,5 +80,5 @@ fun EventPassButton(
 
 @Composable
 fun TextAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, loading: Boolean = false) {
-    EventPassButton(text, onClick, modifier, ActionStyle.Text, enabled, loading)
+    EventPassButton(text, onClick, modifier, ActionStyle.Secondary, enabled, loading)
 }

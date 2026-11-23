@@ -11,7 +11,8 @@ enum class EventPassGlyph(val resource: Int) {
     Back(R.drawable.ic_back), Brand(R.drawable.ic_brand), Avatar(R.drawable.ic_avatar_user),
     Search(R.drawable.ic_search), Visible(R.drawable.ic_visibility), Hidden(R.drawable.ic_visibility_off),
     Close(R.drawable.ic_close), Check(R.drawable.ic_check), Error(R.drawable.ic_error_outline),
-    TicketAction(R.drawable.ic_ticket_action), Download(R.drawable.ic_download),
+    TicketAction(R.drawable.ic_ticket_action), Download(R.drawable.ic_download), Copy(R.drawable.ic_copy), Clock(R.drawable.ic_clock),
+    Delete(R.drawable.ic_delete),
 }
 
 /** Intrinsic vector dimensions preserve the Figma glyph geometry inside larger touch targets. */

@@ -1,6 +1,8 @@
 package ru.eventpass.app.feature.event
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
@@ -20,6 +22,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -27,6 +31,9 @@ import java.util.Locale
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
 import ru.eventpass.app.feature.tickets.*
+import ru.eventpass.app.navigation.ReportInitialContent
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.*
@@ -78,6 +85,7 @@ fun registrationErrorText(error: RegistrationError): String = when (error) {
 fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTicket: (String) -> Unit, onClose: () -> Unit,
     visible: Boolean = true, vm: EventViewModel = hiltViewModel(), publicSlug: String? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
+    ReportInitialContent(visible && (state.data != null || state.receipt != null || state.notFound || state.readError != null))
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val activity = LocalActivity.current
     LaunchedEffect(eventId, publicSlug, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -93,10 +101,15 @@ fun EventRoute(eventId: String, onAuth: (String, Boolean, Boolean) -> Unit, onTi
         null -> Unit
     } }
     val receipt = state.receipt
+    LaunchedEffect(receipt?.ticket?.ticketId, lifecycle, visible) {
+        if(visible && receipt != null) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while(isActive) { vm.refreshReceipt(); delay(5000) }
+        }
+    }
     if (receipt != null) {
         GuestReceiptScreen(receipt, { vm.fullscreen(true) }, { onAuth(receipt.email, false, false) },
-            { onAuth(receipt.email, true, false) }, { vm.close(); onClose() })
-        if (state.fullscreen) FullscreenTicketQr(receipt.ticket.qrPayload, receipt.ticket.displayNumber) { vm.fullscreen(false) }
+            { onAuth(receipt.email, true, false) }, { vm.close(); onClose() }, state.receiptStatus)
+        if (state.fullscreen && state.receiptStatus == TicketStatus.ACTIVE) FullscreenTicketQr(receipt.ticket.qrPayload, receipt.ticket.displayNumber) { vm.fullscreen(false) }
     } else EventScreen(eventId, state, vm::edit, vm::submit, vm::refresh, { vm.openOwnTicket() }, {
         val email = state.form.email; vm.leaveForm(); onAuth(email, false, true)
     }, cover = { cover -> ru.eventpass.app.feature.editor.ManagedCover(cover,state.data?.event?.remoteCoverAssetId) }, visible = visible)
@@ -108,7 +121,7 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
     EventPassRefresh(s.refreshing, onRefresh, Modifier.testTag("refresh-event"), enabled = visible && !s.loading && !s.submitting && s.receipt == null && !s.fullscreen) {
     AuthColumn(Modifier.testTag("event-screen-$eventId").semantics { testTagsAsResourceId = true }) {
         val data = s.data
-        if (s.loading) Text(stringResource(R.string.loading))
+        if (s.loading && data == null) LoadingSkeleton(LoadingLayout.Event)
         s.readError?.let { InlineError(readErrorText(it)); EventPassButton(stringResource(R.string.ticket_retry), onRefresh) }
         if (s.notFound) Text(stringResource(R.string.event_not_found), Modifier.testTag("event-not-found"))
         if (data != null) {
@@ -163,17 +176,31 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
                 if (data.policy.phone != FieldRequirement.HIDDEN) FormField(f.phone, { onEdit(f.copy(phone = it)) },
                     stringResource(if (data.policy.phone == FieldRequirement.REQUIRED) R.string.event_phone_required else R.string.event_phone_optional),
                     Modifier.testTag("registration-phone"), enabled = data.contact == null && !s.submitting, error = issue(RegistrationField.Phone), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-                e.questions.forEach { q ->
+                e.questions.forEachIndexed { index, q -> key(q.id) {
                     val answer = f.answers[q.id]
                     fun answer(value: Answer) { onEdit(f.copy(answers = f.answers + (q.id to value))) }
                     val title = if (q.required) stringResource(R.string.event_question_required, q.title) else q.title
+                    val questionError=issue(RegistrationField.Question(q.id))
+                    Column(Modifier.fillMaxWidth().background(EventPassColors.surface,EventPassShapes.section)
+                        .border(1.dp,if(questionError != null) EventPassColors.danger else EventPassColors.raised,EventPassShapes.section)
+                        .padding(EventPassDimens.large),
+                        verticalArrangement=Arrangement.spacedBy(EventPassDimens.small)) {
+                    Text(stringResource(R.string.ui_registration_question,index + 1),style=EventPassTypography.label,color=EventPassColors.muted)
                     when (q) {
-                        is RegistrationQuestion.Text -> FormField((answer as? Answer.Text)?.value.orEmpty(), { answer(Answer.Text(it)) }, title, enabled = !s.submitting, error = issue(RegistrationField.Question(q.id)), placeholder = q.placeholder.orEmpty(), supportingText = q.help, singleLine = q.format != TextFormat.TEXTAREA,
+                        is RegistrationQuestion.Text -> if(q.format == TextFormat.DATE) TemporalField(
+                            (answer as? Answer.Text)?.value.orEmpty(),{answer(Answer.Text(it))},title,
+                            input=TemporalInput.DATE,enabled=!s.submitting,error=questionError,supportingText=q.help,allowClear=!q.required)
+                        else FormField((answer as? Answer.Text)?.value.orEmpty(), { answer(Answer.Text(it)) }, title, enabled = !s.submitting, error = issue(RegistrationField.Question(q.id)), placeholder = q.placeholder.orEmpty(), supportingText = q.help, singleLine = q.format != TextFormat.TEXTAREA,
                             keyboardOptions = KeyboardOptions(keyboardType = when(q.format) { TextFormat.EMAIL -> KeyboardType.Email; TextFormat.TEL -> KeyboardType.Phone; TextFormat.NUMBER -> KeyboardType.Decimal; else -> KeyboardType.Text }))
                         is RegistrationQuestion.Checkbox -> ConsentCheckbox((answer as? Answer.Checkbox)?.checked == true, { answer(Answer.Checkbox(it)) }, title, enabled = !s.submitting)
-                        is RegistrationQuestion.SingleChoice -> { Text(title, style = EventPassTypography.label); q.options.forEach { option ->
-                            OptionCard(option.title, option.hint, (answer as? Answer.SingleChoice)?.optionId == option.id, { answer(Answer.SingleChoice(option.id)) }, enabled = !s.submitting)
-                        } }
+                        is RegistrationQuestion.SingleChoice -> if(q.format == ChoiceFormat.SELECT) {
+                            SelectField((answer as? Answer.SingleChoice)?.optionId,
+                                q.options.map { SelectOption(it.id,it.title,it.hint) },
+                                { answer(Answer.SingleChoice(it)) },title,Modifier.fillMaxWidth(),enabled=!s.submitting,
+                                error=questionError,placeholder=q.placeholder?.takeIf(String::isNotBlank) ?: stringResource(R.string.ui_select_placeholder),supportingText=q.help)
+                        } else { Text(title, style = EventPassTypography.label); Column(Modifier.selectableGroup()) { q.options.forEach { option ->
+                            RadioOption(option.title, option.hint, (answer as? Answer.SingleChoice)?.optionId == option.id, { answer(Answer.SingleChoice(option.id)) }, enabled = !s.submitting)
+                        } } }
                         is RegistrationQuestion.MultipleChoice -> {
                             Text(title, style = EventPassTypography.label)
                             q.options.forEach { option ->
@@ -184,19 +211,21 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
                         }
                         is RegistrationQuestion.Unsupported -> InlineError(stringResource(R.string.event_unsupported_question))
                     }
-                    if (q !is RegistrationQuestion.Text) {
-                        q.placeholder?.takeIf { it.isNotBlank() && answer == null }?.let { Text(it, style = EventPassTypography.hint) }
-                        q.help?.let { Text(it, style = EventPassTypography.hint) }
+                    if (q !is RegistrationQuestion.Text && !(q is RegistrationQuestion.SingleChoice && q.format == ChoiceFormat.SELECT)) {
+                        FieldMessage(questionError,q.help?.takeIf(String::isNotBlank) ?: q.placeholder?.takeIf { it.isNotBlank() && answer == null })
                     }
-                    if (q !is RegistrationQuestion.Text) issue(RegistrationField.Question(q.id))?.let { InlineError(it) }
+                    }
                 }
+                }
+                Column(verticalArrangement=Arrangement.spacedBy(EventPassDimens.tiny)) {
                 ConsentCheckbox(f.consent, { onEdit(f.copy(consent = it)) }, stringResource(R.string.auth_consent), Modifier.testTag("registration-consent"), enabled = !s.submitting)
-                issue(RegistrationField.Consent)?.let { InlineError(it) }
-                s.error?.let { InlineError(registrationErrorText(it)) }
+                FieldMessage(issue(RegistrationField.Consent))
+                }
+                s.error?.takeUnless { it is RegistrationError.Validation }?.let { InlineError(registrationErrorText(it)) }
                 if (s.existingGuest) InlineError(stringResource(R.string.event_existing))
                 EventPassButton(stringResource(R.string.event_get_ticket), onSubmit, Modifier.fillMaxWidth().testTag("registration-submit"),
                     enabled = s.readError == null && !s.existingGuest, loading = s.submitting, icon = EventPassGlyph.TicketAction)
-                Text(stringResource(R.string.event_ticket_hint), style = EventPassTypography.hint)
+                Text(stringResource(if(ru.eventpass.app.BuildConfig.FLAVOR == "demo") R.string.event_ticket_hint_demo else R.string.event_ticket_hint), style = EventPassTypography.hint)
             }
         }
     }
@@ -204,18 +233,22 @@ fun EventScreen(eventId: String, s: EventUiState, onEdit: (RegistrationForm) -> 
 }
 
 @Composable
-fun GuestReceiptScreen(receipt: GuestReceipt, onQr: () -> Unit, onLogin: () -> Unit, onSignUp: () -> Unit, onClose: () -> Unit) {
+fun GuestReceiptScreen(receipt: GuestReceipt, onQr: () -> Unit, onLogin: () -> Unit, onSignUp: () -> Unit, onClose: () -> Unit,
+    status: TicketStatus = TicketStatus.ACTIVE) {
     AuthColumn(Modifier.semantics { testTagsAsResourceId = true }) {
         Text(stringResource(R.string.ticket_sent), style = EventPassTypography.heading, modifier = Modifier.testTag("guest-receipt"))
-        Text(stringResource(if(receipt.ticket.guestAccess == null) R.string.ticket_demo_mail else R.string.m03_mail_sent, receipt.email))
-        EventPassSection {
+        Text(stringResource(R.string.m03_mail_sent, receipt.email))
+        EventPassSection(Modifier.fillMaxWidth()) {
             Text(receipt.ticket.eventTitle, style = EventPassTypography.cardTitle)
             KeyValueRow(stringResource(R.string.event_date), formatEventTime(receipt.ticket.startsAt, receipt.ticket.zoneId))
             KeyValueRow(stringResource(R.string.event_venue), receipt.ticket.venue)
             Text(stringResource(R.string.ticket_number, receipt.ticket.displayNumber))
-            TicketQr(receipt.ticket.qrPayload, receipt.ticket.displayNumber)
+            if(status == TicketStatus.USED) ResultMark(stringResource(R.string.ui_entry_allowed),StatusTone.Success,Modifier.fillMaxWidth())
+            else if(status == TicketStatus.CANCELLED) InlineError(stringResource(R.string.ticket_cancelled))
+            else {
+            TicketQr(receipt.ticket.qrPayload, receipt.ticket.displayNumber, onQr)
             Text(stringResource(R.string.ticket_manual_code, receipt.ticket.manualCode.value), Modifier.testTag("ticket-manual-code"))
-            EventPassButton(stringResource(R.string.ticket_open_qr), onQr, Modifier.testTag("open-fullscreen"))
+            }
         }
         if (receipt.ticket.guestAccess != null) ru.eventpass.app.feature.documents.DocumentActions(
             ru.eventpass.core.domain.documents.DocumentRequest.TicketPdf(receipt.ticket.ticketId, receipt.ticket.guestAccess))

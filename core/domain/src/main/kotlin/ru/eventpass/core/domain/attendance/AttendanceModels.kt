@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.TicketStatus
 import ru.eventpass.core.domain.registration.Answer
+import ru.eventpass.core.domain.registration.RegistrationQuestion
 import ru.eventpass.core.domain.checkin.VolunteerError
 
 enum class AttendanceError { FEATURE_UNAVAILABLE, AUTHENTICATION_REQUIRED, FORBIDDEN, NOT_FOUND, SESSION_CHANGED, NETWORK, TIMEOUT, STORAGE_UNAVAILABLE, STALE_PAGE, INVALID_INPUT, USED, PROTOCOL, SERVER_UNAVAILABLE, RATE_LIMITED }
@@ -15,7 +16,8 @@ data class AttendanceSummary(val registered: Int, val checkedIn: Int, val notChe
     val percent: Int get() = if (registered == 0) 0 else (checkedIn.toLong() * 100 / registered).toInt()
 }
 data class AttendanceDashboard(val header: AttendanceHeader, val summary: AttendanceSummary, val revision: String, val updatedAt: Instant,
-    val volunteerCount:Int?=null,val volunteerError:VolunteerError?=null) {
+    val volunteerCount:Int?=null,val volunteerError:VolunteerError?=null,
+    val questions:List<RegistrationQuestion> = emptyList()) {
     /** Local receipt time, never an invented server updatedAt. */
     val fetchedAt:Instant get()=updatedAt
 }
@@ -42,6 +44,7 @@ sealed interface OwnerCancelResult {
     data class Failed(val error: AttendanceError) : OwnerCancelResult
 }
 interface AttendanceRepository {
+    suspend fun questionAnalytics(eventId: EventId): QuestionAnalyticsResult = QuestionAnalyticsResult.Failed(AttendanceError.FEATURE_UNAVAILABLE)
     fun observeDashboard(eventId: EventId): Flow<DashboardResult>
     fun observeDashboard(eventId:EventId,query:String):Flow<DashboardResult> = observeDashboard(eventId)
     suspend fun refreshDashboard(eventId: EventId): DashboardResult

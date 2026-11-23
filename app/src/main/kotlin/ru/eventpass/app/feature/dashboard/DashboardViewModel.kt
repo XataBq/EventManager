@@ -14,7 +14,9 @@ data class DashboardUiState(val dashboard: AttendanceDashboard? = null, val rows
     val query: String = "", val matches: Int = 0, val next: AttendanceCursor? = null, val loading: Boolean = true,
     val paging: Boolean = false, val refreshing: Boolean = false, val readError: AttendanceError? = null,
     val pageError: AttendanceError? = null, val denied: Boolean = false, val selected: Attendee? = null,
-    val cancelling: Boolean = false, val cancelError: AttendanceError? = null,val matchesKnown:Boolean=false)
+    val cancelling: Boolean = false, val cancelError: AttendanceError? = null,val matchesKnown:Boolean=false,
+    val detail:Attendee?=null,val panel:Int=0,val analytics:QuestionAnalytics?=null,
+    val analyticsLoading:Boolean=false,val analyticsError:AttendanceError?=null)
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(private val repository: AttendanceRepository, saved: SavedStateHandle) : ViewModel() {
@@ -25,16 +27,19 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
     private var observer:Job?=null;private var page:Job?=null;private var command:Job?=null;private var readJob:Job?=null
     private var loadedRevision:String?=null;private var active=false;private var observation=0L
     private var reading=false;private var refreshPending=false;private var recoveries=1
+    private var analyticsJob:Job?=null;private var analyticsRequest=0L
     fun start(eventId:String) {
         val same=id?.value==eventId
         stop(clearQuery=!same);id=EventId(eventId);active=true;observe()
+        if(state.value.panel==1) loadAnalytics()
     }
     fun stop(clearQuery:Boolean=false) {
         val query=if(clearQuery) "" else state.value.query
+        val panel=if(clearQuery) 0 else state.value.panel
         active=false;owner++;request++;selection++;readOwner++
-        observer?.cancel();page?.cancel();command?.cancel();readJob?.cancel()
+        observer?.cancel();page?.cancel();command?.cancel();readJob?.cancel();analyticsJob?.cancel();analyticsRequest++
         loadedRevision=null;observation=0;reading=false;refreshPending=false;recoveries=1
-        mutable.value=DashboardUiState(query=query)
+        mutable.value=DashboardUiState(query=query,panel=panel)
     }
     private fun observe() {
         val event=id ?: return;val generation=owner;val selected=++selection;val query=state.value.query
@@ -75,7 +80,7 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
         val text=if(value.codePointCount(0,value.length)>300) value.substring(0,value.offsetByCodePoints(0,300)) else value
         if(text==state.value.query) return
         request++;readOwner++;page?.cancel();readJob?.cancel();reading=false;refreshPending=false;loadedRevision=null;recoveries=1
-        mutable.value=state.value.copy(query=text,rows=emptyList(),matches=0,matchesKnown=false,next=null,selected=null,pageError=null,paging=false,refreshing=false)
+        mutable.value=state.value.copy(query=text,detail=null,rows=emptyList(),matches=0,matchesKnown=false,next=null,selected=null,pageError=null,paging=false,refreshing=false)
         if(active) {observe();requestRefresh(false)}
     }
     fun more() {if(!state.value.paging && state.value.next!=null) load(true)}
@@ -111,6 +116,29 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
         }
     }
     fun refresh() {recoveries=1;requestRefresh(false)}
+    fun refreshVisible() {if(state.value.panel==1 && state.value.dashboard!=null) loadAnalytics() else refresh()}
+    fun panel(value:Int) {
+        if(value !in 0..1 || state.value.cancelling || value==state.value.panel) return
+        analyticsJob?.cancel();analyticsRequest++
+        mutable.value=state.value.copy(panel=value,detail=null,selected=null,analyticsLoading=false)
+        if(value==1) loadAnalytics()
+    }
+    private fun loadAnalytics() {
+        val event=id ?: return
+        if(!active || analyticsJob?.isActive==true) return
+        val generation=owner;val token=++analyticsRequest
+        mutable.value=state.value.copy(analyticsLoading=true,analyticsError=null)
+        analyticsJob=viewModelScope.launch {
+            try {
+                val result=repository.questionAnalytics(event);currentCoroutineContext().ensureActive()
+                if(generation!=owner || token!=analyticsRequest || state.value.panel!=1) return@launch
+                when(result) {
+                    is QuestionAnalyticsResult.Ready -> mutable.value=state.value.copy(analytics=result.analytics,analyticsError=null)
+                    is QuestionAnalyticsResult.Failed -> if(!denied(result.error)) mutable.value=state.value.copy(analyticsError=result.error)
+                }
+            } finally {if(generation==owner && token==analyticsRequest) mutable.value=state.value.copy(analyticsLoading=false)}
+        }
+    }
     private fun requestRefresh(followUp:Boolean) {
         val event=id ?: return;if(!active) return
         if(reading) {if(followUp) refreshPending=true;return}
@@ -130,16 +158,18 @@ class DashboardViewModel @Inject constructor(private val repository: AttendanceR
         readJob=job;job.start()
     }
     fun confirm(row:Attendee?) {if(!state.value.cancelling) mutable.value=state.value.copy(selected=row,cancelError=null)}
+    fun details(row:Attendee?) {if(!state.value.cancelling && state.value.selected==null) mutable.value=state.value.copy(detail=row)}
     fun cancel() {
         val target=state.value.selected ?: return;val event=id ?: return
         if(!active || state.value.cancelling) return;val generation=owner
-        mutable.value=state.value.copy(cancelling=true,cancelError=null)
+        analyticsJob?.cancel();analyticsRequest++
+        mutable.value=state.value.copy(cancelling=true,cancelError=null,analytics=null,analyticsLoading=false)
         command=viewModelScope.launch {
             try {
                 val result=repository.cancelTicket(event,target.ticketId);currentCoroutineContext().ensureActive()
                 if(generation!=owner) return@launch
                 when(result) {
-                    OwnerCancelResult.Cancelled->{mutable.value=state.value.copy(selected=null);recoveries=1;requestRefresh(true)}
+                    OwnerCancelResult.Cancelled->{mutable.value=state.value.copy(selected=null,detail=null);recoveries=1;requestRefresh(true)}
                     is OwnerCancelResult.Failed->if(!denied(result.error)) mutable.value=state.value.copy(cancelError=result.error)
                 }
             } finally {if(generation==owner) mutable.value=state.value.copy(cancelling=false)}

@@ -1,5 +1,8 @@
 package ru.eventpass.app.navigation
 
+import ru.eventpass.app.feature.pdfvault.PDF_VAULT_ENABLED
+import ru.eventpass.app.feature.pdfvault.PdfVaultDestination
+
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
@@ -10,6 +13,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -27,6 +32,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import ru.eventpass.core.platform.PublicEventLinkParser
 import ru.eventpass.app.feature.event.EventRoute
 import ru.eventpass.app.feature.tickets.TicketsRoute
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 
 /** Remote auth gate and account-owned navigation; feature screens remain shared with demo. */
 @Composable fun EventPassApp(session: AppSessionViewModel = hiltViewModel()) {
@@ -34,8 +41,8 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
  val gate by session.gate.collectAsStateWithLifecycle()
  val lifecycle=LocalLifecycleOwner.current.lifecycle
  LaunchedEffect(session,lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { session.coordinator.refreshSession() } }
- Box(Modifier.fillMaxSize()) { when(val g=gate) {
-  SessionGate.Loading -> Box(Modifier.safeDrawingPadding()) {AuthColumn { Text(stringResource(R.string.loading)) }}
+ AppLaunch(sessionOnly = gate == SessionGate.Login || gate is SessionGate.Recovery) { when(val g=gate) {
+  SessionGate.Loading -> LoadingSkeleton(LoadingLayout.Form, Modifier.safeDrawingPadding().padding(EventPassDimens.page))
   is SessionGate.Recovery -> Box(Modifier.safeDrawingPadding().imePadding()) {AuthColumn { AuthErrorText(g.error); EventPassButton(stringResource(R.string.remote_retry_session),{ scope.launch { session.coordinator.refreshSession() } }); TextAction(stringResource(R.string.auth_login),{ session.signOut() }) }}
   is SessionGate.Shell -> key(g.scope) { RemotePrivateNavigation(session,g) }
   SessionGate.Login -> Box(Modifier.safeDrawingPadding()) { RemotePublicNavigation(session) }
@@ -105,7 +112,13 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
  var scannerBack by remember { mutableStateOf<(() -> Unit)?>(null) }
  var profileLeave by remember { mutableStateOf<((() -> Unit) -> Unit)?>(null) }
  var accessLost by remember { mutableStateOf(false) }
+ var addMenu by remember { mutableStateOf(false) }
  fun open(slug:String) {navigation.currentStack.add(EventKey("",publicSlug=slug))}
+ fun openPdfVault(pick:Boolean) {
+  if(!PDF_VAULT_ENABLED) return
+  navigation.select(RootTab.Tickets)
+  if(navigation.currentStack.lastOrNull() !is PdfVaultKey) navigation.currentStack.add(PdfVaultKey(pick))
+ }
  fun select(tab:RootTab) {
   if(tab==navigation.currentTab) when(navigation.currentStack.lastOrNull()) {
    is EditorKey -> {editorBack?.invoke() ?: navigation.back();return}
@@ -134,21 +147,20 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
    entryDecorators=listOf(rememberSaveableStateHolderNavEntryDecorator(),rememberViewModelStoreNavEntryDecorator(viewModelStoreOwner=session.owner(tab))),
    entryProvider=entryProvider {
     entry<RootTab> {root->when(root) {
-     RootTab.Tickets -> Column(Modifier.fillMaxSize()) {
-      TextAction(stringResource(R.string.event_link_open),{stack.add(PublicEventImportKey)},Modifier.padding(horizontal=16.dp))
-      Box(Modifier.weight(1f)) {TicketsRoute(null,{},::open,{},{},{},visible(root))}
-     }
+     RootTab.Tickets -> TicketsRoute(null,{},::open,{},{},{},visible(root),
+      onPdfVault=if(PDF_VAULT_ENABLED) ({openPdfVault(false)}) else null)
      RootTab.Events -> ru.eventpass.app.feature.myevents.MyEventsRoute(
       {stack.add(EditorKey(draftId=java.util.UUID.randomUUID().toString(),create=true))},
       {stack.add(EditorKey(draftId=it))},{stack.add(EditorKey(eventId=it))},::open,
       {stack.add(ScannerKey(it))},{stack.add(VolunteersKey(it))},{stack.add(DashboardKey(it))},
-      visible=visible(root),onRemoteDraft={stack.add(EditorKey(remoteDraftId=it))})
+      visible=visible(root),onRemoteDraft={stack.add(EditorKey(remoteDraftId=it))},showCreate=false)
      RootTab.Profile -> Column(Modifier.fillMaxSize()) {
-      TextAction(stringResource(R.string.auth_request_verification),{session.prefill(session.account?.email.orEmpty());stack.add(VerificationKey)},Modifier.padding(horizontal=16.dp))
-      Box(Modifier.weight(1f)) {ru.eventpass.app.feature.profile.ProfileRoute(visible(root),navigation::back,{profileLeave=it},{session.signOut()},{},showTools=false,enableDeletion=true)}
+      Box(Modifier.weight(1f)) {ru.eventpass.app.feature.profile.ProfileRoute(visible(root),navigation::back,{profileLeave=it},{session.signOut()},{},showTools=false,enableDeletion=true,
+       onVerifyEmail={session.prefill(session.account?.email.orEmpty());stack.add(VerificationKey)})}
      }
     }}
     entry<PublicEventImportKey> {PublicEventImport(::open)}
+    entry<PdfVaultKey> {route->PdfVaultDestination(gate.scope.userId,route.pickOnOpen,::back)}
     entry<EditorKey> {route->ru.eventpass.app.feature.editor.EditorRoute(route.draftId,route.eventId,route.create,navigation::back,::open,{editorBack=it},visible(route),route.remoteDraftId)}
     entry<EventKey> {route->EventRoute(route.eventId,{_,_,_->session.guard(AccessOutcome.Unauthenticated,ReturnDestination.Event(route.eventId,route.publicSlug))},
      {stack.add(TicketKey(it))},navigation::back,publicSlug=route.publicSlug,visible=visible(route))}
@@ -164,11 +176,30 @@ import ru.eventpass.app.feature.tickets.TicketsRoute
  BackHandler(navigation.currentStack.size==1 && navigation.currentTab!=RootTab.Tickets) {back()}
  if(accessLost) androidx.compose.material3.AlertDialog(onDismissRequest={accessLost=false},text={Text(stringResource(R.string.scan_access_lost))},
   confirmButton={TextAction(stringResource(R.string.dismiss),{accessLost=false})})
+ val addDescription=stringResource(R.string.ui_add)
+ if(addMenu) androidx.compose.material3.AlertDialog(onDismissRequest={addMenu=false},
+  title={Text(stringResource(R.string.ui_add_choice))},
+  text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   EventPassButton(stringResource(R.string.ui_create_event),{addMenu=false;navigation.currentStack.add(EditorKey(draftId=java.util.UUID.randomUUID().toString(),create=true))},Modifier.fillMaxWidth(),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+   EventPassButton(stringResource(R.string.ui_open_event),{addMenu=false;navigation.currentStack.add(PublicEventImportKey)},Modifier.fillMaxWidth(),style=ActionStyle.Secondary,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+   if(PDF_VAULT_ENABLED) EventPassButton(stringResource(R.string.aip_pdf_import),{addMenu=false;openPdfVault(true)},
+    Modifier.fillMaxWidth(),style=ActionStyle.Secondary,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+  }},confirmButton={})
+ val tab = navigation.currentTab
+ val showAppBar = navigation.currentStack.lastOrNull() !is PdfVaultKey
  Scaffold(modifier=Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).imePadding(),contentWindowInsets=WindowInsets(0),
-  topBar={EventPassTopBar(stringResource(R.string.brand),variant=if(navigation.currentStack.size>1) TopBarVariant.Nested else TopBarVariant.Authenticated,
+  floatingActionButton={if(navigation.currentStack.size==1 && navigation.currentTab in setOf(RootTab.Tickets,RootTab.Events)) {
+   androidx.compose.material3.FloatingActionButton(onClick={addMenu=true},containerColor=EventPassColors.accent,contentColor=EventPassColors.onAccent,
+    modifier=Modifier.testTag("add-event")) {
+    Text("+",style=EventPassTypography.heading,modifier=Modifier.semantics {contentDescription=addDescription})
+   }
+  }},
+  topBar={if(showAppBar)
+   EventPassTopBar(stringResource(R.string.brand),variant=if(navigation.currentStack.size>1) TopBarVariant.Nested else TopBarVariant.Authenticated,
    onBack=::back,onProfile={select(RootTab.Profile)})},
   bottomBar={EventPassBottomBar(BottomDestination.valueOf(navigation.currentTab.name),{select(RootTab.valueOf(it.name))})}) {padding->
-   NavDisplay(entries=entries.getValue(navigation.currentTab),onBack=::back,modifier=Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding))
+   RootTabNavDisplay(tab, entries.getValue(tab), ::back,
+    Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), showAppBar = showAppBar)
   }
 }
 

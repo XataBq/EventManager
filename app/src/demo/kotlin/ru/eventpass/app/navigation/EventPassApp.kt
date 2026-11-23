@@ -33,7 +33,6 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.ui.NavDisplay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.demo.DemoRoute
@@ -169,8 +168,10 @@ fun PrivateShell(session: ru.eventpass.app.navigation.auth.AppSessionViewModel,
                     else select(tab) })
         },
     ) { padding ->
-        NavDisplay(
-            entries = tabEntries.getValue(navigation.currentTab),
+        val tab = navigation.currentTab
+        RootTabNavDisplay(
+            tab = tab,
+            entries = tabEntries.getValue(tab),
             onBack = ::back,
             modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
         )

@@ -20,7 +20,8 @@
     <string name="event_phone_optional">Телефон (необязательно)</string>
     <string name="event_phone_required">Российский телефон</string>
     <string name="event_get_ticket">Получить QR-билет</string>
-    <string name="event_ticket_hint">QR появится сразу. В demo отправка билета на почту имитируется.</string>
+    <string name="event_ticket_hint">QR появится сразу после регистрации. Билет также придёт на почту.</string>
+    <string name="event_ticket_hint_demo">QR появится сразу. В demo отправка билета на почту имитируется.</string>
     <string name="event_stale">Анкета изменилась. Совместимые ответы сохранены. Проверьте обновлённые вопросы.</string>
     <string name="event_paid">Платное</string>
     <string name="question_placeholder">Подсказка до ввода</string>
@@ -32,7 +33,7 @@
     <string name="event_field_invalid">Проверьте значение</string>
     <string name="ticket_sent">Билет отправлен на почту</string>
     <string name="ticket_demo_mail">Имитация отправки на %1$s. Аккаунт автоматически не создаётся.</string>
-    <string name="ticket_guest_hint">QR доступен, пока сохранён этот сценарий. После закрытия — письмо или отдельная регистрация аккаунта и вход.</string>
+    <string name="ticket_guest_hint">QR доступен на этом экране. После закрытия билет останется в письме и в личном кабинете после входа.</string>
     <string name="ticket_close_flow">Закрыть билет</string>
     <string name="ticket_number">Билет %1$s</string>
     <string name="ticket_open_qr">Открыть QR на весь экран</string>

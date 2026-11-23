@@ -42,3 +42,7 @@ Auth/editor/publication/Scanner/guest receipt не обёрнуты в комп�
 - [RefreshReadContractsTest](../../data/fake/src/test/kotlin/ru/eventpass/data/fake/product/RefreshReadContractsTest.kt): owner/account guards, typed transient read errors, прежний store/session/disk без read-мутаций.
 - [PullRefreshComponentTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/PullRefreshComponentTest.kt), [RefreshRoutesTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/RefreshRoutesTest.kt): настоящий swipeDown, long/middle/short/error, текущая/hidden entry и конкретный initiating port, overlay/guest/Scanner, dirty profile/target.
 - [DashboardIntegrationTest](../../app/src/androidTestDemo/kotlin/ru/eventpass/app/DashboardIntegrationTest.kt) использует жест вместо удалённого dashboard-refresh. Back/SAF и прежние tests остаются адресными регрессиями; точные завершённые запуски и пределы — в 30.
+
+## Индикатор жеста — 18 ноября 2026
+
+EventPassRefresh хранит transient requested только для жеста/accessibility refresh. В pullToRefresh/Indicator передаётся refreshing && requested: фоновое/lifecycle чтение не запускает анимацию pull. После завершения read requested сбрасывается; состояние не восстанавливается как команда. Отображение busy не меняет владельца read и не вызывает refresh соседних entry. [Поставка/ограничения](../validation/2026-11-18-production-ui-fixes.md).

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +16,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.eventpass.app.R
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 import ru.eventpass.core.designsystem.*
 
 @Composable
@@ -37,10 +38,7 @@ fun DemoScreen(state: DemoUiState, onIncrement: () -> Unit, onClose: () -> Unit,
         Text(stringResource(R.string.demo_title), style = MaterialTheme.typography.headlineSmall)
         Text(stringResource(R.string.demo_description))
         when (state) {
-            DemoUiState.Loading -> {
-                CircularProgressIndicator(Modifier.testTag("demo-loading"))
-                Text(stringResource(R.string.loading))
-            }
+            DemoUiState.Loading -> LoadingSkeleton(LoadingLayout.Event, Modifier.testTag("demo-loading"))
             DemoUiState.NotFound -> Text(stringResource(R.string.demo_not_found))
             is DemoUiState.Content -> {
                 Text(stringResource(R.string.demo_seed, state.seed))

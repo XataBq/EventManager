@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -41,6 +43,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.event.*
 import ru.eventpass.core.domain.registration.RegistrationQuestion
@@ -95,9 +99,10 @@ fun EditorRoute(draftId: String?, eventId: String?, create: Boolean, onBack: () 
     val context = LocalContext.current
     var shared by remember { mutableStateOf(false) }
     val shareTitle = stringResource(R.string.editor_share)
-    val link = s.publishedId?.let { if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") s.publicSlug?.let { slug -> "https://staging.eventpass.dikanskii.ru/e/$slug" } else "eventpass-demo://demo/e/$it" }
+    val link = s.publishedId?.let { if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") s.publicSlug?.let { slug -> "https://eventpass.dikanskii.ru/e/$slug" } else "eventpass-demo://demo/e/$it" }
     if (link != null) PublishedScreen(link, shared, { onOpen(if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") s.publicSlug!! else s.publishedId!!) }, {
         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("EventPass", link)); shared = true
+        android.widget.Toast.makeText(context.applicationContext,R.string.editor_copied,android.widget.Toast.LENGTH_SHORT).show()
     }, {
         val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, link) }
         context.startActivity(Intent.createChooser(send, shareTitle))
@@ -141,13 +146,14 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
     onCover: () -> Unit, onRefresh: () -> Unit, onManage: (Boolean) -> Unit, cover: @Composable () -> Unit, refreshEnabled: Boolean = true,
     onSync: () -> Unit = {}, onResolve: (DraftResolution) -> Unit = {}, onMerge: () -> Unit = {},
     onMergeCollection: (Boolean) -> Unit = {}, onDiscardPersisted: () -> Unit = {}) {
+    CompositionLocalProvider(LocalProminentSecondaryActions provides false) {
     EventPassRefresh(s.refreshing,onRefresh,Modifier.testTag("refresh-editor"),enabled=refreshEnabled && s.allowed && !s.busy && !s.pendingCreate && !s.confirmExit) {
     AuthColumn(Modifier.semantics { testTagsAsResourceId = true }.testTag("editor-screen")) {
         Text(stringResource(if (published) R.string.editor_edit else R.string.editor_new), style = EventPassTypography.heading)
-        if (s.loading) Text(stringResource(R.string.loading))
+        if (s.loading) LoadingSkeleton(LoadingLayout.Form)
         s.error?.let { InlineError(stringResource(editErrorResource(it))) }
         if(s.recoveryRequired) Text(stringResource(R.string.editor_recovery_required))
-        if (s.error != null) TextAction(stringResource(R.string.ticket_retry), onRefresh)
+        if (s.error != null && s.error !is EventEditError.Validation) TextAction(stringResource(R.string.ticket_retry), onRefresh)
         if (!s.allowed) return@AuthColumn
         s.local?.let { local -> EventPassSection {
             Text(stringResource(draftStateResource(local.state)),style=EventPassTypography.emphasis)
@@ -180,9 +186,9 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
         if(s.pendingCreate) Text(stringResource(R.string.editor_pending_create))
         val input = s.input; val fields = input.fields; val enabled = !s.busy && !s.terminal
         fun change(f: EventFields) = onEdit(input.copy(fields = f))
-        cover()
-        EventPassButton(stringResource(R.string.editor_cover), onCover, enabled = enabled, style = ActionStyle.Secondary)
-        if (fields.cover != null || fields.remoteCoverAssetId != null) TextAction(stringResource(R.string.editor_remove_cover), { change(fields.copy(cover = null,remoteCoverAssetId = null,remoteCoverUrl = null)) }, enabled = enabled)
+        Box(Modifier.fillMaxWidth().clickable(enabled=enabled,role=androidx.compose.ui.semantics.Role.Button,
+            onClickLabel=stringResource(R.string.editor_cover),onClick=onCover)) {cover()}
+        if (fields.cover != null || fields.remoteCoverAssetId != null) EventPassButton(stringResource(R.string.editor_remove_cover), { change(fields.copy(cover = null,remoteCoverAssetId = null,remoteCoverUrl = null)) }, enabled = enabled,style=ActionStyle.Text,compact=true)
         SegmentedTabs(listOf(SegmentOption(stringResource(R.string.editor_free)),SegmentOption(stringResource(R.string.editor_paid))),if(fields.priceType == PriceType.FREE) 0 else 1,
             { if(enabled) change(fields.copy(priceType=if(it == 0) PriceType.FREE else PriceType.PAID)) })
         s.coverError?.let { InlineError(stringResource(when (it) {
@@ -195,13 +201,14 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
         fun error(key: String): String? = if (key in invalid) invalidMessage else null
         EventPassSection {
             Text(stringResource(R.string.editor_basics), style = EventPassTypography.emphasis)
-            FormField(fields.title, { change(fields.copy(title = it)) }, stringResource(R.string.editor_title), Modifier.testTag("editor-title"), enabled = enabled, error = error("title"))
-            FormField(input.start, { onEdit(input.copy(start = it)) }, stringResource(R.string.editor_start), Modifier.testTag("editor-start"), placeholder = "2026-10-28 12:00", enabled = enabled, error = error("startsAt"))
-            FormField(input.end, { onEdit(input.copy(end = it)) }, stringResource(R.string.editor_end), Modifier.testTag("editor-end"), enabled = enabled, error = error("endsAt"))
+            FormField(fields.title, { change(fields.copy(title = it)) }, stringResource(R.string.editor_title) + " *", Modifier.testTag("editor-title"), enabled = enabled, error = error("title"))
+            TemporalField(input.start, { onEdit(input.copy(start = it)) }, stringResource(R.string.editor_start) + " *", Modifier.testTag("editor-start"), enabled = enabled, error = error("startsAt"),zoneId=fields.zoneId)
+            TemporalField(input.end, { onEdit(input.copy(end = it)) }, stringResource(R.string.editor_end), Modifier.testTag("editor-end"), enabled = enabled, error = error("endsAt"),zoneId=fields.zoneId,allowClear=true,
+                initialValue=runCatching {java.time.LocalDateTime.parse(input.start,EditorInput.formatter).plusHours(4).format(EditorInput.formatter)}.getOrDefault(""))
             FormField(fields.zoneId, { change(fields.copy(zoneId = it)) }, stringResource(R.string.editor_zone), enabled = enabled, error = error("zoneId"))
-            FormField(fields.venue, { change(fields.copy(venue = it)) }, stringResource(R.string.editor_venue), Modifier.testTag("editor-venue"), enabled = enabled, error = error("venue"))
-            FormField(fields.description,{change(fields.copy(description=it))},stringResource(R.string.draft_description),enabled=enabled)
-            FormField(input.capacity, { onEdit(input.copy(capacity = it)) }, stringResource(R.string.editor_capacity), enabled = enabled, error = error("capacity"))
+            FormField(fields.venue, { change(fields.copy(venue = it)) }, stringResource(R.string.editor_venue) + " *", Modifier.testTag("editor-venue"), enabled = enabled, error = error("venue"))
+            FormField(fields.description,{change(fields.copy(description=it))},stringResource(R.string.draft_description) + " *",enabled=enabled,error=error("description"))
+            FormField(input.capacity, { onEdit(input.copy(capacity = it)) }, stringResource(R.string.editor_capacity) + " *", enabled = enabled, error = error("capacity"))
             if ("datesLocked" in invalid) InlineError(stringResource(R.string.editor_dates_locked))
         }
         EventPassSection {
@@ -213,7 +220,7 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
                 QuestionEditor(q, index, fields.questions.size, enabled && !s.questionsLocked, { changed -> change(fields.copy(questions = fields.questions.map { if (it.id == q.id) changed else it })) },
                     { change(fields.copy(questions = fields.questions.filterNot { it.id == q.id })) },
                     { direction -> val list = fields.questions.toMutableList(); val at = index + direction
-                        if (at in list.indices) { java.util.Collections.swap(list, index, at); change(fields.copy(questions = list)) } })
+                        if (at in list.indices) { java.util.Collections.swap(list, index, at); change(fields.copy(questions = list)) } }, invalid = "questions" in invalid)
             } }
             if (!s.questionsLocked) {
                 if(fields.questions.isEmpty()) Text(stringResource(R.string.editor_questions_empty),
@@ -226,8 +233,9 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
         if(s.local!=null) EventPassSection {
             Text(stringResource(R.string.draft_sections),style=EventPassTypography.emphasis)
             fields.sections.forEach { section -> key(section.id) {
-                FormField(section.title,{text->change(fields.copy(sections=fields.sections.map {if(it.id==section.id) it.copy(title=text) else it}))},stringResource(R.string.draft_section_title),enabled=enabled)
-                FormField(section.time,{text->change(fields.copy(sections=fields.sections.map {if(it.id==section.id) it.copy(time=text) else it}))},stringResource(R.string.draft_section_time),enabled=enabled)
+                FormField(section.title,{text->change(fields.copy(sections=fields.sections.map {if(it.id==section.id) it.copy(title=text) else it}))},stringResource(R.string.draft_section_title),enabled=enabled,
+                    error=if("sections" in invalid && section.title.isBlank()) stringResource(R.string.event_field_required) else null)
+                TemporalField(section.time,{text->change(fields.copy(sections=fields.sections.map {if(it.id==section.id) it.copy(time=text) else it}))},stringResource(R.string.draft_section_time),enabled=enabled,input=TemporalInput.TIME,allowClear=true)
                 TextAction(stringResource(R.string.editor_remove),{change(fields.copy(sections=fields.sections.filterNot {it.id==section.id}))},enabled=enabled)
             } }
             TextAction(stringResource(R.string.draft_section_add),{change(fields.copy(sections=fields.sections+EventSection("","")))},enabled=enabled)
@@ -242,6 +250,7 @@ fun EditorScreen(s: EditorState, published: Boolean, onEdit: (EditorInput) -> Un
             EventPassButton(stringResource(R.string.editor_finish), { onManage(true) }, Modifier.testTag("finish-event"), enabled = enabled && !s.dirty, style = ActionStyle.Danger)
         }
     }
+}
 }
 }
 
@@ -295,42 +304,55 @@ private fun QuestionKindMenu(selected: QuestionKind?, enabled: Boolean, choose: 
 
 @Composable
 private fun QuestionEditor(q: DraftQuestion, index: Int, total: Int, enabled: Boolean,
-    edit: (DraftQuestion) -> Unit, remove: () -> Unit, move: (Int) -> Unit) {
+    edit: (DraftQuestion) -> Unit, remove: () -> Unit, move: (Int) -> Unit, invalid: Boolean = false) {
     Column(Modifier.fillMaxWidth().background(EventPassColors.background, EventPassShapes.section)
         .border(1.dp, EventPassColors.raised, EventPassShapes.section).padding(EventPassDimens.large),
-        verticalArrangement = Arrangement.spacedBy(EventPassDimens.large)) {
+        verticalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
         Text(stringResource(R.string.editor_field_number, index + 1), style = EventPassTypography.emphasis)
         QuestionKindMenu(q.kind, enabled) { edit(q.copy(kind = it, options = emptyList())) }
-        FormField(q.title, { edit(q.copy(title = it)) }, stringResource(R.string.editor_field_title), enabled = enabled)
+        FormField(q.title, { edit(q.copy(title = it)) }, stringResource(R.string.editor_field_title) + " *", enabled = enabled,
+            error = if(invalid && q.title.isBlank()) stringResource(R.string.event_field_required) else null)
         FormField(q.placeholder.orEmpty(), { edit(q.copy(placeholder = it.takeIf(String::isNotEmpty))) }, stringResource(R.string.question_placeholder), enabled = enabled)
-        FormField(q.help.orEmpty(), { edit(q.copy(help = it.takeIf(String::isNotEmpty))) }, stringResource(R.string.question_help), enabled = enabled)
+        FormField(q.help.orEmpty(), { edit(q.copy(help = it.takeIf(String::isNotEmpty))) }, stringResource(R.string.question_help), enabled = enabled,
+            supportingText = stringResource(R.string.ui_question_help_explanation))
         SettingsSwitch(q.required, { edit(q.copy(required = it)) }, stringResource(R.string.editor_required), enabled = enabled)
         if (q.kind in setOf(QuestionKind.SINGLE_CHOICE, QuestionKind.SELECT, QuestionKind.MULTIPLE)) {
             HorizontalDivider(color = EventPassColors.raised)
             Text(stringResource(R.string.editor_answer_options), style = EventPassTypography.emphasis)
+            if(invalid && q.options.size < 2) FieldMessage(stringResource(R.string.ui_question_options_required))
             q.options.forEachIndexed { optionIndex, option -> key(option.id) {
                 Column(Modifier.fillMaxWidth().background(EventPassColors.surface, EventPassShapes.control)
-                    .padding(EventPassDimens.medium), verticalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
+                    .padding(EventPassDimens.small), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 FormField(option.title, { text -> edit(q.copy(options = q.options.map { if (it.id == option.id) it.copy(title = text) else it })) },
-                    stringResource(R.string.editor_option_number, optionIndex + 1), enabled = enabled)
+                    stringResource(R.string.editor_option_number, optionIndex + 1), enabled = enabled,
+                    error = if(invalid && option.title.isBlank()) stringResource(R.string.event_field_required) else null)
                 FormField(option.hint.orEmpty(), { text -> edit(q.copy(options = q.options.map { if (it.id == option.id) it.copy(hint = text.takeIf(String::isNotEmpty)) else it })) },
                     stringResource(R.string.question_option_hint), enabled = enabled)
-                Row(horizontalArrangement = Arrangement.spacedBy(EventPassDimens.tiny)) {
+                Row(Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.spacedBy(EventPassDimens.tiny),verticalAlignment=Alignment.CenterVertically) {
                     fun moveOption(direction: Int) { val items = q.options.toMutableList(); val target = optionIndex + direction
                         if (target in items.indices) { java.util.Collections.swap(items, optionIndex, target); edit(q.copy(options = items)) } }
-                    TextAction(stringResource(R.string.editor_up), { moveOption(-1) }, Modifier.weight(1f), enabled = enabled && optionIndex > 0)
-                    TextAction(stringResource(R.string.editor_down), { moveOption(1) }, Modifier.weight(1f), enabled = enabled && optionIndex < q.options.lastIndex)
+                    MoveArrow(true,{moveOption(-1)},enabled && optionIndex > 0)
+                    MoveArrow(false,{moveOption(1)},enabled && optionIndex < q.options.lastIndex)
+                    Spacer(Modifier.weight(1f))
+                    TextAction(stringResource(R.string.editor_remove), { edit(q.copy(options = q.options.filterNot { it.id == option.id })) }, enabled = enabled)
                 }
-                TextAction(stringResource(R.string.editor_remove_option), { edit(q.copy(options = q.options.filterNot { it.id == option.id })) }, enabled = enabled)
                 }
             } }
             TextAction(stringResource(R.string.editor_add_option), { edit(q.copy(options = q.options + RegistrationQuestion.Option(UUID.randomUUID().toString(), ""))) }, enabled = enabled)
         }
         HorizontalDivider(color = EventPassColors.raised)
-        Row(horizontalArrangement = Arrangement.spacedBy(EventPassDimens.small)) {
-            TextAction(stringResource(R.string.editor_up), { move(-1) }, Modifier.weight(1f), enabled = enabled && index > 0)
-            TextAction(stringResource(R.string.editor_down), { move(1) }, Modifier.weight(1f), enabled = enabled && index < total - 1)
+        Row(Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.spacedBy(EventPassDimens.tiny),verticalAlignment=Alignment.CenterVertically) {
+            MoveArrow(true,{move(-1)},enabled && index > 0)
+            MoveArrow(false,{move(1)},enabled && index < total - 1)
+            Spacer(Modifier.weight(1f))
+            EventPassButton(stringResource(R.string.editor_remove_field), remove, style = ActionStyle.Danger, enabled = enabled,compact=true)
         }
-        EventPassButton(stringResource(R.string.editor_remove_field), remove, Modifier.fillMaxWidth(), style = ActionStyle.Danger, enabled = enabled)
+    }
+}
+
+@Composable private fun MoveArrow(up:Boolean,move:()->Unit,enabled:Boolean) {
+    androidx.compose.material3.IconButton(onClick=move,enabled=enabled) {
+        EventPassIcon(EventPassGlyph.Back,stringResource(if(up) R.string.editor_up else R.string.editor_down),
+            Modifier.rotate(if(up) 90f else -90f),tint=if(enabled) EventPassColors.textSecondary else EventPassColors.muted.copy(alpha=0.4f))
     }
 }

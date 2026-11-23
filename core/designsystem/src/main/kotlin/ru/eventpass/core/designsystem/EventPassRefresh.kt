@@ -15,6 +15,9 @@ import androidx.compose.ui.semantics.*
 fun EventPassRefresh(refreshing: Boolean, onRefresh: () -> Unit, modifier: Modifier = Modifier,
     enabled: Boolean = true, content: @Composable BoxScope.() -> Unit) {
     // Gesture distance is transient UI state, never a restored business command.
+    var requested by remember(enabled) { mutableStateOf(false) }
+    LaunchedEffect(refreshing) { if(!refreshing) requested = false }
+    val visualRefresh = refreshing && requested
     val pull = remember(enabled) { PullToRefreshState() }
     val action = stringResource(R.string.refresh_action)
     val description = stringResource(if (refreshing) R.string.refresh_active else R.string.refresh_idle)
@@ -22,14 +25,14 @@ fun EventPassRefresh(refreshing: Boolean, onRefresh: () -> Unit, modifier: Modif
         stateDescription = description
         liveRegion = LiveRegionMode.Polite
         if (enabled) customActions = listOf(CustomAccessibilityAction(action) {
-            if (!refreshing) onRefresh()
+            if (!refreshing) { requested = true; onRefresh() }
             true
         })
-    }.pullToRefresh(isRefreshing = refreshing, state = pull, enabled = enabled,
-        onRefresh = { if (enabled && !refreshing) onRefresh() })) {
+    }.pullToRefresh(isRefreshing = visualRefresh, state = pull, enabled = enabled,
+        onRefresh = { if (enabled && !refreshing) { requested = true; onRefresh() } })) {
         content()
-        if (enabled && (refreshing || pull.distanceFraction > 0f)) PullToRefreshDefaults.Indicator(
-            state = pull, isRefreshing = refreshing,
+        if (enabled && (visualRefresh || pull.distanceFraction > 0f)) PullToRefreshDefaults.Indicator(
+            state = pull, isRefreshing = visualRefresh,
             modifier = Modifier.align(Alignment.TopCenter).padding(top = EventPassDimens.small),
             containerColor = EventPassColors.raised, color = EventPassColors.accentLight)
     }

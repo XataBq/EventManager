@@ -12,5 +12,9 @@
 gradlew text eol=lf
 *.bat text eol=crlf
 
+# PDF cross-reference offsets and OCR models require the exact source bytes.
+app/src/androidTestRemote/assets/aip004/*.pdf binary
+app/src/remoteDebug/assets/aip004/tessdata/*.traineddata binary
+
 # Keep the upstream license text intact, including its original trailing space.
 core/designsystem/src/main/assets/sources/Inter-OFL.txt whitespace=-blank-at-eol

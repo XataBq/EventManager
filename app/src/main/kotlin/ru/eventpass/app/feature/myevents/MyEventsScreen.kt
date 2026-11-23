@@ -1,8 +1,12 @@
 package ru.eventpass.app.feature.myevents
 
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
@@ -22,6 +26,9 @@ import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
 import ru.eventpass.app.feature.editor.editErrorResource
 import ru.eventpass.app.feature.event.formatEventTime
+import ru.eventpass.app.navigation.ReportInitialContent
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.EventRepository
 import ru.eventpass.core.domain.event.*
@@ -74,8 +81,9 @@ class MyEventsViewModel @Inject constructor(private val events: EventRepository,
 @Composable
 fun MyEventsRoute(onCreate: () -> Unit, onDraft: (String) -> Unit, onEdit: (String) -> Unit, onOpen: (String) -> Unit,
     onScan: (String) -> Unit, onVolunteers: (String) -> Unit, onDashboard: (String) -> Unit, visible: Boolean = true,
-    vm: MyEventsViewModel = hiltViewModel(), onRemoteDraft: (String) -> Unit = onDraft) {
+    vm: MyEventsViewModel = hiltViewModel(), onRemoteDraft: (String) -> Unit = onDraft, showCreate: Boolean = true) {
     val data by vm.data.collectAsStateWithLifecycle(); val tab by vm.tab.collectAsStateWithLifecycle()
+    ReportInitialContent(visible && (data.content != null || data.error != null))
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val context = LocalContext.current
     var copied by remember { mutableStateOf(false) }
@@ -84,19 +92,21 @@ fun MyEventsRoute(onCreate: () -> Unit, onDraft: (String) -> Unit, onEdit: (Stri
     } }
     MyEventsScreen(data.content, tab, vm::select, vm::refresh, onCreate, onDraft, onEdit, onOpen, { id ->
         (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
-            .setPrimaryClip(android.content.ClipData.newPlainText("EventPass", if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") "https://staging.eventpass.dikanskii.ru/e/$id" else "eventpass-demo://demo/e/$id")); copied = true
-    }, copied, data.error, onScan, onVolunteers, onDashboard, data.refreshing, visible && !data.loading, onRemoteDraft)
+            .setPrimaryClip(android.content.ClipData.newPlainText("EventPass", if(ru.eventpass.app.BuildConfig.FLAVOR == "remote") "https://eventpass.dikanskii.ru/e/$id" else "eventpass-demo://demo/e/$id")); copied = true
+        android.widget.Toast.makeText(context.applicationContext,R.string.editor_copied,android.widget.Toast.LENGTH_SHORT).show()
+    }, copied, data.error, onScan, onVolunteers, onDashboard, data.refreshing, visible && !data.loading, onRemoteDraft, showCreate)
 }
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refresh: () -> Unit,
     create: () -> Unit, draft: (String) -> Unit, edit: (String) -> Unit, open: (String) -> Unit, copyLink: (String) -> Unit, copied: Boolean, readError: EventEditError?,
     scan: (String) -> Unit, volunteers: (String) -> Unit, dashboard: (String) -> Unit,
-    refreshing: Boolean = false, refreshEnabled: Boolean = true, remoteDraft: (String) -> Unit = draft) {
+    refreshing: Boolean = false, refreshEnabled: Boolean = true, remoteDraft: (String) -> Unit = draft, showCreate: Boolean = true) {
     val denied = (data as? MyEventsResult.Failed)?.error in setOf(EventEditError.AuthenticationRequired, EventEditError.SessionChanged, EventEditError.Forbidden)
     EventPassRefresh(refreshing, refresh, Modifier.testTag("refresh-events"), enabled = refreshEnabled && !denied) {
     AuthColumn(Modifier.testTag("root-Events")) {
         Text(stringResource(R.string.events_title), style = EventPassTypography.heading)
-        EventPassButton(stringResource(R.string.editor_new), create, Modifier.testTag("create-event"))
+        if(showCreate) EventPassButton(stringResource(R.string.editor_new), create, Modifier.testTag("create-event"))
         val options=listOf(R.string.my_organizing,R.string.my_volunteering,R.string.my_drafts).mapIndexed { index,title ->
             val label=stringResource(title)
             val count=(data as? MyEventsResult.Ready)?.counters?.get(MyEventsTab.entries[index])
@@ -115,7 +125,7 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
             } }
         }
         when (data) {
-            null -> Text(stringResource(R.string.loading))
+            null -> LoadingSkeleton(LoadingLayout.Events)
             is MyEventsResult.Failed -> {
                 InlineError(stringResource(editErrorResource(data.error)))
                 TextAction(stringResource(R.string.ticket_retry), refresh)
@@ -130,17 +140,19 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
                         if(item.status == EventLifecycle.DRAFT) {
                             TextAction(stringResource(R.string.editor_continue),{remoteDraft(item.id.value)})
                         } else {
-                            TextAction(stringResource(R.string.editor_open),{open(item.slug.value)})
-                            if((data.tab==MyEventsTab.ORGANIZING && "organizer" in data.roles) ||
-                                (data.tab==MyEventsTab.VOLUNTEERING && "volunteer" in data.roles)) {
-                                TextAction(stringResource(R.string.scan_title),{scan(item.id.value)},Modifier.testTag("scan-${item.id.value}"))
-                            }
-                            if(data.tab == MyEventsTab.ORGANIZING && "organizer" in data.roles) {
-                                TextAction(stringResource(R.string.dashboard_title),{dashboard(item.id.value)},Modifier.testTag("dashboard-${item.id.value}"))
-                                TextAction(stringResource(R.string.volunteers_title),{volunteers(item.id.value)},Modifier.testTag("volunteers-${item.id.value}"))
-                                TextAction(stringResource(R.string.editor_edit),{edit(item.id.value)})
-                                TextAction(stringResource(R.string.editor_copy),{copyLink(item.slug.value)})
-                            }
+                            MyEventActions(buildList {
+                                add(MyEventAction(stringResource(R.string.editor_open),{open(item.slug.value)}))
+                                if((data.tab==MyEventsTab.ORGANIZING && "organizer" in data.roles) ||
+                                    (data.tab==MyEventsTab.VOLUNTEERING && "volunteer" in data.roles)) {
+                                    add(MyEventAction(stringResource(R.string.scan_title),{scan(item.id.value)},"scan-${item.id.value}"))
+                                }
+                                if(data.tab==MyEventsTab.ORGANIZING && "organizer" in data.roles) {
+                                    add(MyEventAction(stringResource(R.string.dashboard_title),{dashboard(item.id.value)},"dashboard-${item.id.value}"))
+                                    add(MyEventAction(stringResource(R.string.volunteers_title),{volunteers(item.id.value)},"volunteers-${item.id.value}"))
+                                    add(MyEventAction(stringResource(R.string.editor_edit),{edit(item.id.value)}))
+                                    add(MyEventAction(stringResource(R.string.editor_copy),{copyLink(item.slug.value)}))
+                                }
+                            })
                         }
                     } }
                 } else if (tab == 2) {
@@ -163,16 +175,53 @@ fun MyEventsScreen(data: MyEventsResult?, tab: Int, select: (Int) -> Unit, refre
                             !e.registrationOpen -> R.string.event_closed
                             else -> R.string.event_open
                         }), StatusTone.Neutral)
-                        TextAction(stringResource(R.string.editor_open), { open(e.id.value) })
-                        if (tab == 0) TextAction(stringResource(R.string.dashboard_title), { dashboard(e.id.value) }, Modifier.testTag("dashboard-${e.id.value}"))
-                        TextAction(stringResource(R.string.scan_title), { scan(e.id.value) }, Modifier.testTag("scan-${e.id.value}"))
-                        if (tab == 0) TextAction(stringResource(R.string.volunteers_title), { volunteers(e.id.value) }, Modifier.testTag("volunteers-${e.id.value}"))
-                        if (tab == 0) TextAction(stringResource(R.string.editor_edit), { edit(e.id.value) }, Modifier.testTag("edit-${e.id.value}"))
-                        if (tab == 0) TextAction(stringResource(R.string.editor_copy), { copyLink(e.id.value) })
+                        MyEventActions(buildList {
+                            add(MyEventAction(stringResource(R.string.editor_open),{open(e.id.value)}))
+                            if(tab==0) add(MyEventAction(stringResource(R.string.dashboard_title),{dashboard(e.id.value)},"dashboard-${e.id.value}"))
+                            add(MyEventAction(stringResource(R.string.scan_title),{scan(e.id.value)},"scan-${e.id.value}"))
+                            if(tab==0) {
+                                add(MyEventAction(stringResource(R.string.volunteers_title),{volunteers(e.id.value)},"volunteers-${e.id.value}"))
+                                add(MyEventAction(stringResource(R.string.editor_edit),{edit(e.id.value)},"edit-${e.id.value}"))
+                                add(MyEventAction(stringResource(R.string.editor_copy),{copyLink(e.id.value)}))
+                            }
+                        })
                     } }
                 }
             }
         }
     }
+    }
+}
+
+private data class MyEventAction(val text:String,val click:()->Unit,val tag:String?=null)
+
+/** Pack adjacent labels only when both fit on one line; never reorder to fill gaps. */
+@Composable private fun MyEventActions(actions:List<MyEventAction>) {
+    val measurer=rememberTextMeasurer()
+    val density=LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val padding=with(density) {(EventPassDimens.large*2+2.dp).toPx()}
+        val gap=with(density) {EventPassDimens.small.toPx()}
+        val widths=actions.map {measurer.measure(it.text,style=EventPassTypography.emphasis,maxLines=1,softWrap=false).size.width+padding}
+        val lineHeight=with(density) {(measurer.measure("Ag",style=EventPassTypography.emphasis,maxLines=1).size.height+EventPassDimens.small.toPx()*2+(EventPassDimens.touch-EventPassDimens.buttonHeight).toPx()).toDp()}
+        val height=maxOf(EventPassDimens.touch,lineHeight)
+        val rows=buildList {
+            var next=0
+            while(next<actions.size) {
+                if(next+1<actions.size && widths[next]+widths[next+1]+gap<=constraints.maxWidth) {
+                    add(listOf(next,next+1));next+=2
+                } else {add(listOf(next));next++}
+            }
+        }
+        Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(EventPassDimens.small)) {
+            rows.forEach {indices -> Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(EventPassDimens.small)) {
+                indices.forEach {index ->
+                    val action=actions[index]
+                    val size=if(indices.size==2) Modifier.height(height) else Modifier.heightIn(min=height)
+                    TextAction(action.text,action.click,Modifier.weight(widths[index]).then(size)
+                        .then(action.tag?.let {Modifier.testTag(it)} ?: Modifier))
+                }
+            }}
+        }
     }
 }

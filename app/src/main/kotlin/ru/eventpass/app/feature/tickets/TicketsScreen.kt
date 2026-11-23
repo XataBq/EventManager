@@ -16,13 +16,18 @@ import kotlinx.coroutines.awaitCancellation
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
 import ru.eventpass.app.feature.event.*
+import ru.eventpass.app.navigation.ReportInitialContent
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.registration.*
 
 @Composable
 fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) -> Unit,
-    onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit, visible: Boolean = true, vm: TicketsViewModel = hiltViewModel(), onCardClosed:(()->Unit)?=null) {
+    onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit, visible: Boolean = true, vm: TicketsViewModel = hiltViewModel(), onCardClosed:(()->Unit)?=null,
+    onPdfVault:(()->Unit)?=null) {
     val s by vm.state.collectAsStateWithLifecycle()
+    ReportInitialContent(visible && (s.data != null || s.selectedTicket != null || s.error != null || s.authenticationRequired))
     LaunchedEffect(selected) { selected?.let { vm.selectIssued(it); onConsumed() } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(vm, lifecycle, visible) { if (visible) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -32,7 +37,7 @@ fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) ->
     // Dialog windows handle Back themselves before the card returns to the list.
     BackHandler(enabled = visible && s.selected != null && !s.fullscreen && !s.confirming) { onCardClosed?.invoke() ?: vm.select(null) }
     TicketsScreen(s, {id->if(id==null && onCardClosed!=null) onCardClosed() else vm.select(id)}, vm::history, { vm.refresh() }, { vm.fullscreen(true) }, { vm.confirm(true) }, onEvent, onDemo, onGallery, onTools,
-        documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.TicketPdf(it.snapshot.ticketId),visible) }, visible = visible)
+        documents = { ru.eventpass.app.feature.documents.DocumentActions(ru.eventpass.core.domain.documents.DocumentRequest.TicketPdf(it.snapshot.ticketId),visible) }, visible = visible,onPdfVault=onPdfVault)
     if (s.confirming) ConfirmDialog(stringResource(R.string.ticket_cancel_title), stringResource(R.string.ticket_cancel_description),
         stringResource(R.string.ticket_cancel), vm::cancel, { vm.confirm(false) }, destructive = true, loading = s.cancelling, dismissLabel = stringResource(R.string.ticket_keep))
     val selectedTicket = s.selectedTicket
@@ -44,13 +49,14 @@ fun TicketsRoute(selected: String?, onConsumed: () -> Unit, onEvent: (String) ->
 @Composable
 fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Boolean) -> Unit, onRefresh: () -> Unit,
     onQr: () -> Unit, onCancel: () -> Unit, onEvent: (String) -> Unit, onDemo: () -> Unit, onGallery: () -> Unit, onTools: () -> Unit,
-    documents: @Composable (Ticket) -> Unit = {}, visible: Boolean = true) {
+    documents: @Composable (Ticket) -> Unit = {}, visible: Boolean = true,onPdfVault:(()->Unit)?=null) {
     EventPassRefresh(s.refreshing, onRefresh, Modifier.testTag("refresh-tickets"),
         enabled = visible && !s.loading && !s.authenticationRequired && !s.fullscreen && !s.confirming && !s.cancelling) {
     AuthColumn(Modifier.testTag("root-Tickets")) {
         Text(stringResource(R.string.tickets_title), style = EventPassTypography.heading)
+        if(s.selected==null && onPdfVault!=null) TextAction(stringResource(R.string.aip_pdf_vault),onPdfVault)
         SegmentedTabs(listOf(SegmentOption(stringResource(R.string.ticket_current)), SegmentOption(stringResource(R.string.ticket_history))), if (s.history) 1 else 0, { onHistory(it == 1) })
-        if (s.loading) Text(stringResource(R.string.loading))
+        if (s.loading && s.data == null && s.selectedTicket == null) LoadingSkeleton(LoadingLayout.Tickets)
         s.error?.let { InlineError(readErrorText(it)); EventPassButton(stringResource(R.string.ticket_retry), onRefresh) }
         if (s.authenticationRequired) Text(stringResource(R.string.auth_login))
         val data = s.data
@@ -58,15 +64,15 @@ fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Bo
         if (selected != null) {
             val t = selected.snapshot
             val event = s.selectedEvent
-            EventPassSection {
+            EventPassSection(Modifier.fillMaxWidth()) {
                 Text(t.eventTitle, style = EventPassTypography.cardTitle, modifier = Modifier.testTag("selected-ticket"))
                 Text(stringResource(R.string.ticket_number, t.displayNumber))
                 Text(t.attendeeName)
-                selected.category?.let { KeyValueRow(stringResource(R.string.m03_category), it) }
                 selected.zone?.let { KeyValueRow(stringResource(R.string.m03_zone), it) }
                 selected.checkedInAt?.let { KeyValueRow(stringResource(R.string.m03_checked_at), formatEventTime(it, t.zoneId)) }
                 KeyValueRow(stringResource(R.string.event_date), formatEventTime(t.startsAt, t.zoneId))
                 KeyValueRow(stringResource(R.string.event_venue), t.venue)
+                if(selected.status == TicketStatus.USED) ResultMark(stringResource(R.string.ui_entry_allowed), StatusTone.Success, Modifier.fillMaxWidth().padding(vertical = EventPassDimens.large))
                 val current = selected.isCurrent(event, s.selectedNow)
                 StatusBadge(stringResource(when (selected.status) {
                     TicketStatus.CANCELLED -> R.string.ticket_cancelled
@@ -74,9 +80,8 @@ fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Bo
                     TicketStatus.ACTIVE -> if (current) R.string.ticket_active else R.string.ticket_past
                 }), if (current) StatusTone.Success else StatusTone.Neutral)
                 if (!s.history && selected.canDisplayQr(event, s.selectedNow)) {
-                    TicketQr(t.qrPayload, t.displayNumber)
+                    TicketQr(t.qrPayload, t.displayNumber, onQr)
                     Text(stringResource(R.string.ticket_manual_code, t.manualCode.value), Modifier.testTag("ticket-manual-code"))
-                    EventPassButton(stringResource(R.string.ticket_open_qr), onQr, Modifier.testTag("open-fullscreen"))
                     documents(selected)
                 }
                 EventPassButton(stringResource(R.string.ticket_to_event), { onEvent(selected.summary?.slug?.value ?: t.eventId.value) }, style = ActionStyle.Secondary)
@@ -98,7 +103,7 @@ fun TicketsScreen(s: TicketsUiState, onSelect: (String?) -> Unit, onHistory: (Bo
         } else if (data != null) {
             val visible = data.tickets.filter { ticket -> data.scope != null || ticket.isCurrent(data.events[ticket.snapshot.eventId], data.now) != s.history }
             if (visible.isEmpty()) EmptyState(stringResource(if (s.history) R.string.ticket_empty_history else R.string.ticket_empty), stringResource(R.string.ticket_empty_hint))
-            visible.forEach { ticket -> EventPassSection {
+            visible.forEach { ticket -> EventPassSection(Modifier.fillMaxWidth()) {
                 Text(ticket.snapshot.eventTitle, style = EventPassTypography.cardTitle)
                 Text(formatEventTime(ticket.snapshot.startsAt, ticket.snapshot.zoneId))
                 StatusBadge(stringResource(when (ticket.status) { TicketStatus.ACTIVE -> if (s.history) R.string.ticket_past else R.string.ticket_active; TicketStatus.USED -> R.string.ticket_used; TicketStatus.CANCELLED -> R.string.ticket_cancelled }), StatusTone.Neutral)

@@ -236,6 +236,25 @@ class RemoteTickets(private val api: AuthHttp, private val auth: RemoteAuthRepos
           catch(_: java.time.DateTimeException) { OwnTicketResult.Failed(ProductReadError.PROTOCOL) }
         if(auth.isCurrentPublicRead(ctx)) emit(result) else emit(OwnTicketResult.AuthenticationRequired)
     }.buffer(0)
+    override fun observeGuestTicket(ticketId: TicketId, guestAccess: String): Flow<OwnTicketResult> = flow {
+        if(guestAccess.isBlank() || guestAccess.length > 128) { emit(OwnTicketResult.AuthenticationRequired); return@flow }
+        val ctx=auth.capturePublicRead()
+        val query="https://path.invalid/".toHttpUrl().newBuilder().addQueryParameter("token",guestAccess).build().encodedQuery!!
+        val result=try {
+            // A capability request carries no account bearer and cannot invalidate an account session.
+            val text=api.request(apiPath("tickets",ticketId.value)+"?"+query)
+            val ticket=api.json.decodeFromString<TicketDto>(text).domain()
+            require(ticket.snapshot.ticketId == ticketId)
+            OwnTicketResult.Found(ticket,null,clock.instant())
+        } catch(e: RemoteFailure) { when(e.httpStatus) {
+            404 -> OwnTicketResult.NotFound
+            401,403 -> OwnTicketResult.AuthenticationRequired
+            else -> OwnTicketResult.Failed(e.readError())
+        } } catch(_: SerializationException) { OwnTicketResult.Failed(ProductReadError.PROTOCOL) }
+          catch(_: IllegalArgumentException) { OwnTicketResult.Failed(ProductReadError.PROTOCOL) }
+          catch(_: java.time.DateTimeException) { OwnTicketResult.Failed(ProductReadError.PROTOCOL) }
+        if(auth.isCurrentPublicRead(ctx)) emit(result) else emit(OwnTicketResult.AuthenticationRequired)
+    }
     override suspend fun cancelOwnTicket(ticketId: TicketId): CancelTicketOutcome {
         val ctx = auth.capturePublicRead()
         if(ctx.token == null) return CancelTicketOutcome.Failed(TicketError.AUTHENTICATION_REQUIRED)

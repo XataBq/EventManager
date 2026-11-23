@@ -27,6 +27,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.awaitCancellation
 import ru.eventpass.app.R
 import ru.eventpass.app.feature.auth.AuthColumn
+import ru.eventpass.app.ui.LoadingLayout
+import ru.eventpass.app.ui.LoadingSkeleton
 import ru.eventpass.core.designsystem.*
 import ru.eventpass.core.domain.checkin.*
 import ru.eventpass.core.platform.QrCameraPreview
@@ -102,7 +104,7 @@ fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit
             Text(stringResource(if(info.role==ScannerRole.ORGANIZER) R.string.my_organizing else R.string.my_volunteering))
         }
         when (s.phase) {
-            ScannerPhase.ACCESS_LOADING -> Text(stringResource(R.string.loading))
+            ScannerPhase.ACCESS_LOADING -> LoadingSkeleton(LoadingLayout.Form)
             ScannerPhase.ACCESS_DENIED -> {
                 InlineError(stringResource(s.error?.let(::scanErrorResource) ?: R.string.scan_access_lost))
                 TextAction(stringResource(R.string.ticket_retry), retry)
@@ -158,7 +160,7 @@ fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit
             else -> {
                 preview()
                 if (cameraFailed) InlineError(stringResource(R.string.scan_camera_failed))
-                s.error?.let { InlineError(stringResource(scanErrorResource(it))) }
+                s.error?.takeUnless {it == CheckInError.INVALID_INPUT}?.let { InlineError(stringResource(scanErrorResource(it))) }
                 s.access?.info?.let {info->
                     TextAction(stringResource(R.string.m06_refresh_history),retry)
                     if(info.recent.isNotEmpty()) EventPassSection {
@@ -183,7 +185,8 @@ fun ScannerScreen(s: ScannerState, input: String, edit: (String) -> Unit, submit
                     TextAction(stringResource(R.string.scan_settings), settings)
                 else if (!s.cameraActive) EventPassButton(stringResource(R.string.scan_camera), camera, Modifier.testTag("scan-camera"))
                 Text(stringResource(if(s.access?.info!=null) R.string.m06_scan_hint else R.string.scan_hint))
-                FormField(input, edit, stringResource(if(s.access?.info!=null) R.string.m06_manual else R.string.scan_manual), Modifier.testTag("scan-input"))
+                FormField(input, edit, stringResource(if(s.access?.info!=null) R.string.m06_manual else R.string.scan_manual), Modifier.testTag("scan-input"),
+                    error=if(s.error == CheckInError.INVALID_INPUT) stringResource(R.string.scan_bad_format) else null)
                 EventPassButton(stringResource(R.string.scan_check), submit, Modifier.testTag("scan-submit"), enabled = input.isNotBlank())
             }
         }

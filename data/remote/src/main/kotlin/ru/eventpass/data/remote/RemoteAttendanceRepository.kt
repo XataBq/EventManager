@@ -100,7 +100,7 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
             result
         }
     }
-    private suspend fun snapshot(key:Key,c:PublicReadContext):DashboardResult.Ready {
+    private suspend fun snapshot(key:Key,c:PublicReadContext,includeVolunteers:Boolean=true,firstPageSize:Int=20):DashboardResult.Ready {
         repeat(2) {attempt->
             try {
                 val (header,stats)=coroutineScope {
@@ -114,8 +114,8 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
                 }
                 validRevision(stats.revision)
                 require(stats.registered>=0 && stats.capacity>=0 && stats.checkedIn in 0..stats.registered && stats.notCheckedIn==stats.registered-stats.checkedIn)
-                val page=readPage(key,c,stats.revision,1,20)
-                val volunteerResult=volunteers.refreshVolunteers(key.event)
+                val page=readPage(key,c,stats.revision,1,firstPageSize)
+                val volunteerResult=if(includeVolunteers) volunteers.refreshVolunteers(key.event) else null
                 val volunteerError=(volunteerResult as? VolunteersResult.Failed)?.error
                 if(volunteerError in setOf(VolunteerError.FORBIDDEN,VolunteerError.NOT_FOUND,VolunteerError.AUTHENTICATION_REQUIRED,VolunteerError.SESSION_CHANGED))
                     throw Failure(when(volunteerError){VolunteerError.FORBIDDEN->AttendanceError.FORBIDDEN;VolunteerError.NOT_FOUND->AttendanceError.NOT_FOUND;VolunteerError.AUTHENTICATION_REQUIRED->AttendanceError.AUTHENTICATION_REQUIRED;else->AttendanceError.SESSION_CHANGED})
@@ -124,7 +124,7 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
                 val dashboard=AttendanceDashboard(AttendanceHeader(event.id,event.title,event.startsAt,event.zoneId,event.venue,
                     event.lifecycle,event.registrationOpen,header.terminal,true),
                     AttendanceSummary(stats.registered,stats.checkedIn,stats.notCheckedIn,(stats.capacity-stats.registered).coerceAtLeast(0),stats.capacity),
-                    stats.revision,clock.instant(),(volunteerResult as? VolunteersResult.Ready)?.volunteers?.size,volunteerError)
+                    stats.revision,clock.instant(),(volunteerResult as? VolunteersResult.Ready)?.volunteers?.size,volunteerError,event.questions)
                 return DashboardResult.Ready(dashboard,page)
             } catch(ex:Failure) {if(ex.error!=AttendanceError.STALE_PAGE || attempt==1) throw ex}
         }
@@ -168,6 +168,45 @@ class RemoteAttendanceRepository(private val api:AuthHttp,private val auth:Remot
             page
             }
         } catch(ex:CancellationException){throw ex} catch(ex:Exception){AttendeesResult.Failed(error(ex))}
+    }
+    override suspend fun questionAnalytics(eventId:EventId):QuestionAnalyticsResult {
+        val c=auth.capturePublicRead()
+        if(c.token==null || c.profile==null) return QuestionAnalyticsResult.Failed(AttendanceError.AUTHENTICATION_REQUIRED)
+        return try {
+            var answer:QuestionAnalytics?=null
+            repeat(2) {attempt -> if(answer == null) {
+                try {
+                    val key=Key(eventId,"")
+                    val baseline=snapshot(key,c,includeVolunteers=false,firstPageSize=100)
+                    val accumulator=QuestionAnalyticsAccumulator(baseline.dashboard)
+                    var page=requireNotNull(baseline.firstPage)
+                    val total=page.totalMatches
+                    val seen=hashSetOf<TicketId>()
+                    while(true) {
+                        currentCoroutineContext().ensureActive();current(c)
+                        require(page.totalMatches==total)
+                        require(page.rows.all {seen.add(it.ticketId)})
+                        accumulator.add(page.rows)
+                        val next=page.next ?: break
+                        page=readPage(key,c,baseline.dashboard.revision,requireNotNull(next.serverPage),100)
+                    }
+                    // A questionnaire may be edited independently of the attendance revision.
+                    val latest=coroutineScope {
+                        val details=async {api.json.decodeFromString<EventDto>(request(apiPath("events","by-id",eventId.value),c))}
+                        val stats=async {api.json.decodeFromString<StatsDto>(request(apiPath("events",eventId.value,"stats"),c))}
+                        details.await() to stats.await()
+                    }
+                    require(latest.first.id==eventId.value)
+                    val editor=organizer.mapEditor(latest.first,c) as? EventEditorResult.Published ?: throw Failure(AttendanceError.FORBIDDEN)
+                    if(latest.second.revision!=baseline.dashboard.revision || editor.event.questions!=baseline.dashboard.questions) throw Failure(AttendanceError.STALE_PAGE)
+                    current(c)
+                    val result=accumulator.finish()
+                    if(result.participants!=baseline.dashboard.summary.registered) throw Failure(AttendanceError.STALE_PAGE)
+                    answer=result
+                } catch(ex:Failure) {if(ex.error!=AttendanceError.STALE_PAGE || attempt==1) throw ex}
+            }}
+            QuestionAnalyticsResult.Ready(requireNotNull(answer))
+        } catch(ex:CancellationException){throw ex} catch(ex:Exception){QuestionAnalyticsResult.Failed(error(ex))}
     }
     override suspend fun cancelRegistration(eventId:EventId,registrationId:String)=OwnerCancelResult.Failed(AttendanceError.FEATURE_UNAVAILABLE)
     override suspend fun cancelTicket(eventId:EventId,ticketId:TicketId):OwnerCancelResult {

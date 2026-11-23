@@ -23,13 +23,15 @@ data class EventUiState(val loading: Boolean = true, val data: PublicEventResult
     val refreshing: Boolean = false,
     val notFound: Boolean = false, val readError: ProductReadError? = null, val form: RegistrationForm = RegistrationForm(),
     val submitting: Boolean = false, val error: RegistrationError? = null, val existingGuest: Boolean = false,
-    val action: EventAction? = null, val receipt: GuestReceipt? = null, val fullscreen: Boolean = false)
+    val action: EventAction? = null, val receipt: GuestReceipt? = null, val fullscreen: Boolean = false,
+    val receiptStatus: TicketStatus = TicketStatus.ACTIVE)
 
 @HiltViewModel
 class EventViewModel @Inject constructor(private val events: EventRepository, private val registrations: RegistrationRepository,
     private val tickets: TicketRepository, private val saved: SavedStateHandle) : ViewModel() {
     private val receipt = GuestReceiptState(saved)
-    private val mutable = MutableStateFlow(EventUiState(receipt = receipt.read(), fullscreen = saved["guestFullscreen"] ?: false))
+    private val mutable = MutableStateFlow(EventUiState(receipt = receipt.read(), fullscreen = saved["guestFullscreen"] ?: false,
+        receiptStatus = saved.get<String>("guestReceiptStatus")?.let { value -> TicketStatus.entries.find { it.name == value } } ?: TicketStatus.ACTIVE))
     val state = mutable.asStateFlow()
     private var reference: PublicEventReference? = null
     private var submitJob: Job? = null
@@ -97,7 +99,21 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
         mutable.value = mutable.value.copy(form = RegistrationForm(contact?.name.orEmpty(), contact?.email.orEmpty(), contact?.phone.orEmpty()), submitting = false, error = null)
     }
     fun fullscreen(value: Boolean) { saved["guestFullscreen"] = value; mutable.value = mutable.value.copy(fullscreen = value) }
-    fun close() { leaveForm(); saved.remove<Boolean>("registrationPending"); receipt.clear(); mutable.value = mutable.value.copy(receipt = null, fullscreen = false) }
+    suspend fun refreshReceipt() {
+        val current=state.value.receipt ?: return
+        val capability=current.ticket.guestAccess ?: return
+        if(state.value.receiptStatus != TicketStatus.ACTIVE) return
+        val generation=owner
+        val result=tickets.observeGuestTicket(current.ticket.ticketId,capability).first()
+        currentCoroutineContext().ensureActive()
+        if(!active || generation != owner || state.value.receipt != current) return
+        if(result is OwnTicketResult.Found) {
+            saved["guestReceiptStatus"]=result.ticket.status.name
+            mutable.value=state.value.copy(receiptStatus=result.ticket.status,
+                fullscreen=state.value.fullscreen && result.ticket.status == TicketStatus.ACTIVE)
+        }
+    }
+    fun close() { leaveForm(); saved.remove<Boolean>("registrationPending"); saved.remove<String>("guestReceiptStatus"); receipt.clear(); mutable.value = mutable.value.copy(receipt = null, fullscreen = false, receiptStatus = TicketStatus.ACTIVE) }
     fun consume(id: String) { if (mutable.value.action?.id == id) mutable.value = mutable.value.copy(action = null) }
     fun openOwnTicket() = viewModelScope.launch {
         val generation = owner; if (!active) return@launch
@@ -147,7 +163,8 @@ class EventViewModel @Inject constructor(private val events: EventRepository, pr
                         is GuestRegistrationOutcome.Issued -> {
                             pendingCommand = null; saved.remove<Boolean>("registrationPending")
                             receipt.write(result.ticket, result.email, result.accountCreated) // Commit saved state before publishing the receipt.
-                            mutable.value = mutable.value.copy(receipt = receipt.read(), form = RegistrationForm())
+                            saved.remove<String>("guestReceiptStatus")
+                            mutable.value = mutable.value.copy(receipt = receipt.read(), form = RegistrationForm(), receiptStatus = TicketStatus.ACTIVE)
                         }
                         is GuestRegistrationOutcome.RequiresLogin -> { saved.remove<Boolean>("registrationPending"); leaveForm(); mutable.value = mutable.value.copy(action = EventAction.Login(result.email)) }
                         is GuestRegistrationOutcome.ExistingRegistration -> { pendingCommand = null; saved.remove<Boolean>("registrationPending"); mutable.value = mutable.value.copy(existingGuest = true) }

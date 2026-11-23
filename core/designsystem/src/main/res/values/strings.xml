@@ -17,4 +17,13 @@
     <string name="ep_preview_placeholder">Введите значение</string>
     <string name="ep_preview_error">Проверьте введённое значение</string>
     <string name="ep_preview_consent">Длинный текст согласия и описания для проверки увеличенного шрифта</string>
+    <string name="ep_choose_date">Выбрать дату</string>
+    <string name="ep_choose_time">Выбрать время</string>
+    <string name="ep_picker_done">Готово</string>
+    <string name="ep_picker_next">Далее</string>
+    <string name="ep_picker_cancel">Отмена</string>
+    <string name="ep_picker_back">Назад</string>
+    <string name="ep_picker_hours">Часы</string>
+    <string name="ep_picker_minutes">Минуты</string>
+    <string name="ep_picker_clear">Очистить</string>
 </resources>

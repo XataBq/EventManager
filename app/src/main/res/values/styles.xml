@@ -6,4 +6,9 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowBackground">#0F131C</item>
     </style>
+    <style name="Theme.EventPass.Launch" parent="Theme.EventPass">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:statusBarColor">#303060</item>
+        <item name="android:navigationBarColor">#0F131C</item>
+    </style>
 </resources>

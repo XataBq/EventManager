@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,6 +19,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +77,21 @@ fun OptionCard(
         Column(Modifier.heightIn(min = EventPassDimens.touch).padding(EventPassDimens.medium), verticalArrangement = Arrangement.spacedBy(EventPassDimens.tiny)) {
             Text(title, style = EventPassTypography.emphasis, color = if (selected) EventPassColors.accentLight else EventPassColors.textPrimary)
             description?.let { Text(it, style = EventPassTypography.hint, color = EventPassColors.muted) }
+        }
+    }
+}
+
+@Composable
+fun RadioOption(title:String,description:String?,selected:Boolean,onClick:()->Unit,
+    modifier:Modifier=Modifier,enabled:Boolean=true) {
+    Row(modifier.fillMaxWidth().heightIn(min=EventPassDimens.touch)
+        .selectable(selected,enabled=enabled,role=Role.RadioButton,onClick=onClick),
+        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(EventPassDimens.small)) {
+        RadioButton(selected=selected,onClick=null,enabled=enabled,
+            colors=RadioButtonDefaults.colors(selectedColor=EventPassColors.accentLight,unselectedColor=EventPassColors.muted))
+        Column(Modifier.weight(1f).padding(vertical=EventPassDimens.tiny),verticalArrangement=Arrangement.spacedBy(EventPassDimens.tiny)) {
+            Text(title,style=EventPassTypography.body,color=if(enabled) EventPassColors.textPrimary else EventPassColors.muted)
+            description?.takeIf(String::isNotBlank)?.let {Text(it,style=EventPassTypography.hint,color=EventPassColors.muted)}
         }
     }
 }

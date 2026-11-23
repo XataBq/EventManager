@@ -54,11 +54,25 @@ object RemoteModule {
    } finally { lock.unlock() }
   }
  }
- @Provides fun preview(store: ru.eventpass.core.platform.AndroidEventCoverStore,transfer: RemoteCoverTransfer): ru.eventpass.core.platform.EventCoverPreview = object : ru.eventpass.core.platform.EventCoverPreview {
+ @Provides @Singleton fun preview(auth: RemoteAuthRepository, store: ru.eventpass.core.platform.AndroidEventCoverStore,transfer: RemoteCoverTransfer): ru.eventpass.core.platform.EventCoverPreview = object : ru.eventpass.core.platform.EventCoverPreview {
   override suspend fun preview(cover: ru.eventpass.core.domain.event.EventCover) = cover.remoteAssetId?.let { previewRemote(it) } ?: store.preview(cover)
+  private val lock = kotlinx.coroutines.sync.Mutex()
+  private val cache = object : android.util.LruCache<String, android.graphics.Bitmap>(12 * 1024) {
+   override fun sizeOf(key: String, value: android.graphics.Bitmap) = value.allocationByteCount / 1024 + 1
+  }
+  private var actor: ru.eventpass.core.domain.auth.SessionSnapshot? = null
   override suspend fun previewRemote(assetId: String): android.graphics.Bitmap? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+   lock.lock()
+   try {
+   val snapshot = auth.currentSession()
+   if(actor != snapshot) { cache.evictAll(); actor=snapshot }
+   cache.get(assetId)?.let { return@withContext it }
    val bytes = transfer.read(assetId) ?: return@withContext null
-   store.previewBytes(bytes)
+   val bitmap=store.previewBytes(bytes)
+   if(auth.currentSession() != snapshot) return@withContext null
+   if(bitmap != null) cache.put(assetId, bitmap)
+   bitmap
+   } finally { lock.unlock() }
   }
  }
 }
