@@ -1,51 +1,138 @@
-# EventPass — Android
+# EventPass для Android
 
-Android MVP: Kotlin/Compose, Hilt/MVVM, minSdk28. Основная поставка — remote с production API; demo остаётся изолированным вариантом.
+Мобильное приложение для организации мероприятий, регистрации участников и контроля входа по QR-кодам.
 
-**M09: PARTIAL_EXTERNAL / HUMAN_PENDING, code26.** Точный APK, commit, результаты и единый checklist — [отчёт M09](docs/validation/t10-m09-final-validation.md). Итоговую ручную приёмку подтверждает пользователь. Внешние mail/legal/staging ограничения не отмечаются PASS.
+## Цель проекта
 
-## Текущая реализация
+EventPass объединяет путь от публикации мероприятия до проверки билета на входе. Участник открывает событие по ссылке, заполняет анкету и получает билет. Организатор управляет событием, командой волонтёров и явкой. Один аккаунт может быть организатором одного мероприятия и участником другого — права назначаются для конкретного события.
 
-Три независимых корневых стека: билеты, мои мероприятия и профиль. Общие Event/Editor/Scanner/Volunteers/Dashboard/Profile обслуживаются repository ports через DI. Remote использует серверные id/slug, сессию, билеты, права и check-ins; локальные черновики хранятся в настоящем Room с явной синхронизацией. Сервер определяет права, места и успешность операций.
+Этот репозиторий содержит Android-клиент и его документацию. Backend развивается в [отдельном репозитории](https://github.com/EgorDikanskiy/eventpass). Макеты и компоненты интерфейса подготовлены в [Figma](https://www.figma.com/design/i2NNhWGwunnvhZZX3GPuSR/Untitled?node-id=0-1).
 
-Модули: app, core:domain, core:designsystem, core:platform, data:fake, data:remote, data:local. data:local:verification — отдельный JVM harness тех же production Room sources, не runtime модуль. Fake/tools/gallery и локальные PDF/XLSX writers подключены только demo. Remote загружает серверные файлы.
+## Возможности
 
-Сборка **code38 / 0.10.21-instant-navigation-remote** переключает корневые вкладки без затухания и меняет экран вместе с шапкой при входе в «Билеты из PDF» и выходе обратно. APK установлен на Redmi. [Навигация](docs/03-navigation.md).
+| Сценарий | Что доступно |
+| --- | --- |
+| Участник | Открытие события по ссылке, анкета с разными типами вопросов, регистрация, QR-билет, текущие билеты и история, отмена участия |
+| Организатор | Создание и редактирование событий, обложки, программа, конструктор анкеты, черновики, публикация и завершение события |
+| Команда мероприятия | Выдача и отзыв прав волонтёров, CameraX-сканер, ручной ввод номера билета, история проверок |
+| Аналитика | Счётчики явки, поиск и постраничный список участников, ответы в карточке участника, распределение ответов по вопросам |
+| Аккаунт | Вход, регистрация, восстановление пароля, подтверждение email, редактирование профиля и удаление аккаунта |
+| Документы | Получение PDF-билета и выгрузки XLSX через системный выбор места сохранения |
+| Интерфейс | Три независимые вкладки, обновление жестом, заставка запуска, скелетоны загрузки и сохранение состояния экранов |
 
-Заставка запуска и скелетоны загрузки проверены тремя адресными UI-тестами на Android 9 в code36. [Запуск и загрузка экранов](docs/02-architecture.md#первый-запуск-и-загрузка-экранов).
+### Билеты из PDF
 
-Горизонтальная анимация PDF-билетов в карточке и развёрнутом коде проверена двумя UI-тестами на Android 9 в code35. [Архитектура, обработка и результаты AIP-004](docs/architecture/aip004-ticketvault.md).
+В `remoteDebug` доступен экспериментальный локальный импорт сторонних PDF-билетов. PDFBox извлекает текст и позиции элементов, Tesseract выполняет OCR, ZXing ищет QR и линейные штрихкоды. Пользователь проверяет найденные поля перед сохранением. Карточки и оригиналы сохраняются на устройстве, билеты можно листать свайпами и открывать код на весь экран.
 
-## Сборка и проверки
+Импорт работает с разными документами и может требовать ручного уточнения полей. Эта функция поставляется только в debug-варианте. Подробности обработки, ограничения распознавания и результаты проверок описаны в [AIP-004](docs/architecture/aip004-ticketvault.md).
 
-Android Studio Quail 2026.1.2, JBR21; wrapper Gradle9.5.0 / AGP9.3.3, Kotlin2.4.21, Hilt2.60.1, KSP2.3.12. Версии закреплены в [каталоге](gradle/libs.versions.toml); стек при M09 не обновлялся. SDK compile/target37, min28, bytecode17. Состав и фактическая совместимость проверяются сборками и тестами, не номерами версий отдельно.
+## Скриншоты
 
-PowerShell из корня проекта:
+Снимки демонстрационной сборки с синтетическими данными, снятые на эмуляторе Android 9. Вариант `demo` позволяет исследовать интерфейс без сервера и использует собственные продуктовые сценарии.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/tickets.png" width="260" alt="Текущие билеты участника"><br>Билеты</td>
+    <td align="center"><img src="docs/images/events.png" width="260" alt="Список мероприятий организатора"><br>Мероприятия</td>
+    <td align="center"><img src="docs/images/profile.png" width="260" alt="Профиль демонстрационного аккаунта"><br>Профиль</td>
+  </tr>
+</table>
+
+## Архитектура
+
+Приложение использует MVVM и однонаправленное обновление интерфейса. Compose-экран получает состояние из ViewModel и передаёт ей действия пользователя. ViewModel обращается к интерфейсам репозиториев, а Hilt подключает нужную реализацию для выбранного варианта сборки.
+
+```mermaid
+flowchart TD
+    UI[Compose и навигация] --> VM[ViewModel и UiState]
+    VM --> Ports[Интерфейсы репозиториев в core domain]
+    Remote[data remote] -. реализует .-> Ports
+    Fake[data fake] -. реализует .-> Ports
+    Remote --> API[HTTPS API EventPass]
+    Remote --> Local[data local и Room]
+    UI --> DS[core designsystem]
+    UI --> Platform[core platform]
+    Platform --> Device[Камера, QR, системные файлы]
+```
+
+| Модуль | Ответственность |
+| --- | --- |
+| `app` | Activity, навигация, экраны, ViewModel и сборка зависимостей |
+| `core:domain` | Предметные модели, контракты репозиториев и правила приложения |
+| `core:designsystem` | Тема, цвета, типографика и общие Compose-компоненты |
+| `core:platform` | CameraX, кодирование QR, системные ссылки, файлы и платформенные адаптеры |
+| `data:remote` | HTTP, серверные модели, сессия и реализации репозиториев для API |
+| `data:local` | Room-хранилище черновиков и локальных команд синхронизации |
+| `data:fake` | Данные и реализации репозиториев демонстрационной сборки |
+
+Три корневых стека сохраняют состояние вкладок «Билеты», «Мероприятия» и «Профиль». Права и окончательный результат регистрации или проверки билета определяет сервер. Смена аккаунта очищает приватное состояние, а ответы завершившихся запросов проверяются на принадлежность текущей сессии. Гостевой доступ к QR хранится в saved state текущего сценария.
+
+[Подробная архитектура](docs/02-architecture.md) · [Навигация](docs/03-navigation.md) · [Ответственность компонентов](docs/architecture/responsibilities.md) · [Инженерные соглашения](docs/14-engineering-rules.md)
+
+## Технологии
+
+- Kotlin 2.4.21, Jetpack Compose и Material 3.
+- MVVM, Hilt 2.60.1, Navigation 3.
+- Coroutines, Flow, Kotlin Serialization и OkHttp.
+- Room 2.8.5 для локальных черновиков.
+- CameraX и ZXing для работы с кодами.
+- PDFBox Android и tess-two для экспериментального импорта PDF.
+- Gradle Wrapper 9.5.0, Android Gradle Plugin 9.3.3, JDK 21.
+
+Минимальная версия — **Android 9 / API 28**, compile и target SDK — **37**. Точные версии зависимостей закреплены в [каталоге Gradle](gradle/libs.versions.toml).
+
+## Запуск
+
+Установите Android Studio, JDK 21 и Android SDK 37. Откройте корень репозитория как Gradle-проект и настройте путь к SDK через Android Studio или `local.properties`.
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio1\jbr'
-.\gradlew.bat :app:assembleRemoteDebug :app:assembleRemoteRelease :app:assembleDemoDebug
-.\gradlew.bat :core:domain:test :data:fake:test :data:remote:testDebugUnitTest :data:local:verification:test :core:platform:testDebugUnitTest :app:testDemoDebugUnitTest :app:testRemoteDebugUnitTest
-.\gradlew.bat :app:lintRemoteDebug :app:lintRemoteRelease :app:lintDemoDebug :app:verifyDemoIsolation
+.\gradlew.bat :app:assembleRemoteDebug
+.\gradlew.bat :app:installRemoteDebug
+```
+
+APK появляется в `app/build/outputs/apk/remote/debug/`. Для запуска без backend выберите вариант `demoDebug` в Android Studio или соберите его отдельно.
+
+```powershell
+.\gradlew.bat :app:assembleDemoDebug
+.\gradlew.bat :app:installDemoDebug
+```
+
+| Вариант | Назначение |
+| --- | --- |
+| `remoteDebug` | Работа с API и экспериментальный импорт PDF |
+| `demoDebug` | Локальные сценарии и демонстрационные данные |
+| `remoteRelease` | Оптимизация R8 и уменьшение ресурсов, сборка без подписи |
+
+Для production-поставки потребуется настроить собственную release-подпись. `demoRelease` отключён.
+
+По умолчанию remote обращается к `https://eventpass.dikanskii.ru/api/`. Другой HTTPS-адрес можно передать свойством сборки.
+
+```powershell
+.\gradlew.bat :app:assembleRemoteDebug -Peventpass.apiBaseUrl=https://example.org/api/
+```
+
+## Проверки
+
+```powershell
+.\gradlew.bat :core:domain:test :data:fake:test
+.\gradlew.bat :app:testRemoteDebugUnitTest :data:remote:testDebugUnitTest
+.\gradlew.bat :app:lintRemoteDebug :app:verifyDemoIsolation
 python scripts/verify-architecture-docs.py
 ```
 
-При ограничениях локального Maven cache точные использованные init scripts/offline команды приведены в отчёте M09. Не отключать проверку TLS. Staging JVM smoke включаются отдельно `EVENTPASS_STAGING_SMOKE=1` и создают только свои synthetic fixtures. Live device smoke требует `m09Staging=1` и изолированного AVD; обычные connected tests не должны запускать его без opt-in.
+Проверки staging и живого API включаются отдельно и используют синтетические данные. Подробные команды, результаты и ограничения приведены в [матрице M09](docs/validation/t10-m09-final-validation.md).
 
-`remoteRelease` оптимизируется R8/resource shrink и собирается **без подписи**. Production signing key не предоставлен; API URL настроен. Проверочная копия release подписывается только существующим debug test key для локального runtime smoke; это не production поставка. `demoRelease` отключён. Обычный acceptance APK — remoteDebug.
+## Текущий срез
 
-API base по умолчанию `https://eventpass.dikanskii.ru/api/`; build property `eventpass.apiBaseUrl` принимает только HTTPS directory без credentials/query/fragment. Ссылки мероприятий используют production origin; App Links отложены. Backend не предоставляет If-Match: ограничение двух устройств принято пользователем и не скрывается за localRevision.
+Последняя описанная сборка — **0.10.21-instant-navigation-remote, code38**. Она включает заставку запуска, скелетоны загрузки, мгновенную смену корневых вкладок и согласованную смену шапки при входе в PDF. Для code38 на Android 9 прошли три адресные UI-проверки навигации, установка и запуск подтверждены на Redmi. Общая приёмка релизной поставки и результаты прежних сборок учитываются отдельно в [плане](docs/06-delivery-plan.md).
 
-## Приёмка и доступ
+Android App Links отложены. Текущие правовые материалы находятся в состоянии проектов для согласования оператором. Ограничения API и интеграции перечислены в [требованиях backend](docs/32-backend-final-requirements.md) и [плане миграции](docs/34-api-migration-plan.md).
 
-[Единый checklist и идентификация APK](docs/validation/t10-m09-final-validation.md). Автоматические проверки не закрывают visual/TalkBack/camera/human acceptance.
+## Документация
 
-Тестовый аккаунт на почте пользователя сохраняется; автоматически не удалялся. Его секреты находятся только в игнорируемом `.gradle/m09-evidence/mail-account.private.json` и не входят в Git/APK. Для проверки удаления создавайте отдельный временный аккаунт.
-
-Terms/privacy backend пока возвращает без URL/version; [проект политики](docs/legal/privacy-draft.md) и [условий](docs/legal/terms-draft.md) подготовлены для оператора. Реальную доставку/открытие browser-писем пользователь разрешил отложить до исправления backend. Это не подтверждённый email smoke и не юридическое утверждение документов.
-
-## Документы
-
-[Карта чтения](docs/00-documentation-map.md), [архитектура](docs/02-architecture.md), [навигация/mobile-frame](docs/03-navigation.md), [инженерные правила](docs/14-engineering-rules.md), [продуктовые решения](docs/08-decisions.md), [актуальные требования backend](docs/32-backend-final-requirements.md), [миграция API](docs/34-api-migration-plan.md), [журнал исполнения](docs/35-t10-execution.md).
-
-Исторические demo APK/приёмки и отчёты T01–T09a сохранены в `artifacts/apk` и `docs`; они не являются результатом проверки нынешнего remote APK. Посторонние исходные изменения AGENTS/CODE_REVIEW/prompts/settings сохраняются. Push и публикация не выполняются.
+- [Карта документации](docs/00-documentation-map.md).
+- [Архитектура и связи модулей](docs/02-architecture.md).
+- [Продуктовые решения](docs/08-decisions.md).
+- [План разработки и проверенные сборки](docs/06-delivery-plan.md).
+- [API и принятые изменения backend](docs/34-api-migration-plan.md).
+- [Импорт сторонних PDF-билетов](docs/architecture/aip004-ticketvault.md).
